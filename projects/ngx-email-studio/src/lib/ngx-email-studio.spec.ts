@@ -107,4 +107,40 @@ describe('NgxEmailStudio', () => {
     const mjml = (component as any).compileMjml(document) as string;
     expect(mjml).toContain('<mj-section background-color="#ffffff"><mj-column><mj-text><p>Inside section</p></mj-text></mj-column></mj-section>');
   });
+
+  it('should keep default config behavior when a host passes only shell labels', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('config', { title: 'Custom Builder' });
+    localFixture.detectChanges();
+    const localComponent = localFixture.componentInstance;
+
+    expect(localComponent.effectiveConfig.showHtmlPreview).toBe(true);
+    expect(localComponent.resolvedUseTinyMce).toBe(true);
+    expect(localFixture.nativeElement.textContent).toContain('Custom Builder');
+  });
+
+  it('should tolerate null config bindings', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('config', null);
+    expect(() => localFixture.detectChanges()).not.toThrow();
+    expect(localFixture.componentInstance.effectiveConfig.showHtmlPreview).toBe(true);
+  });
+
+  it('should create distinct click-to-add nodes for hero and footer palette presets', () => {
+    const hero = component.palette.find((item) => item.preset === 'hero');
+    const footer = component.palette.find((item) => item.preset === 'footer');
+
+    expect(hero).toBeTruthy();
+    expect(footer).toBeTruthy();
+
+    component.clearDocument();
+    component.addBlock(hero!);
+    component.addBlock(footer!);
+
+    expect(component.emailDocument.body.length).toBe(2);
+    expect(component.emailDocument.body[0].type).toBe('text');
+    expect(component.emailDocument.body[0].attrs['content']).toContain('今週精選內容');
+    expect(component.emailDocument.body[1].type).toBe('text');
+    expect(component.emailDocument.body[1].attrs['content']).toContain('取消訂閱');
+  });
 });

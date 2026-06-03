@@ -44,7 +44,13 @@ interface PaletteItem {
   label: string;
   icon: string;
   description: string;
+  preset?: 'hero' | 'footer';
 }
+
+const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
+  useTinyMce: true,
+  showHtmlPreview: true,
+};
 
 function resolveTinyMceScriptSrc(): string {
   const base = globalThis.document?.baseURI || '/';
@@ -62,12 +68,12 @@ function resolveTinyMceScriptSrc(): string {
         <div class="nes-brand">
           <div class="nes-logo">EB</div>
           <div>
-            <p class="nes-breadcrumb">{{ config.breadcrumb || 'CMS / Email Campaign / Draft' }}</p>
-            <h2>{{ config.title || 'Membership Email · Email Builder' }}</h2>
+            <p class="nes-breadcrumb">{{ effectiveConfig.breadcrumb || 'CMS / Email Campaign / Draft' }}</p>
+            <h2>{{ effectiveConfig.title || 'Membership Email · Email Builder' }}</h2>
           </div>
         </div>
         <div class="nes-actions">
-          <span class="nes-save-state"><i class="fa fa-circle" aria-hidden="true"></i>{{ config.statusLabel || 'Draft saved' }}</span>
+          <span class="nes-save-state"><i class="fa fa-circle" aria-hidden="true"></i>{{ effectiveConfig.statusLabel || 'Draft saved' }}</span>
           <label class="nes-import">
             <i class="fa fa-upload" aria-hidden="true"></i>
             Import
@@ -142,7 +148,7 @@ function resolveTinyMceScriptSrc(): string {
                 (click)="setPreviewSize(option)"
               >{{ option }}</button>
             </div>
-            <div class="nes-mail-meta"><span>From: {{ config.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
+            <div class="nes-mail-meta"><span>From: {{ effectiveConfig.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
             <div
               cdkDropList
               #canvasList="cdkDropList"
@@ -481,7 +487,7 @@ export class NgxEmailStudio implements OnChanges {
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
   @Input() readonly = false;
-  @Input() config: EmailStudioConfig = { useTinyMce: true, showHtmlPreview: true };
+  @Input() config?: EmailStudioConfig | null = DEFAULT_EMAIL_STUDIO_CONFIG;
 
   @Output() mjmlChange = new EventEmitter<string>();
   @Output() documentChange = new EventEmitter<EmailDocument>();
@@ -489,14 +495,14 @@ export class NgxEmailStudio implements OnChanges {
   @Output() error = new EventEmitter<EmailStudioError>();
 
   palette: PaletteItem[] = [
-    { type: 'section', label: 'Hero title', icon: 'fa-header', description: 'Campaign headline, kicker, summary' },
+    { type: 'section', label: 'Hero title', icon: 'fa-header', description: 'Campaign headline, kicker, summary', preset: 'hero' },
     { type: 'text', label: 'Text paragraph', icon: 'fa-align-left', description: 'Rich text body or CMS summary' },
     { type: 'button', label: 'CTA button', icon: 'fa-mouse-pointer', description: 'Link, registration, or purchase action' },
     { type: 'image', label: 'Image placeholder', icon: 'fa-picture-o', description: 'Hero image or product visual' },
     { type: 'row', label: 'MJML columns', icon: 'fa-columns', description: '1-4 columns exported as mj-column' },
     { type: 'divider', label: 'Divider', icon: 'fa-minus', description: 'Separate content rhythm' },
     { type: 'spacer', label: 'Spacer', icon: 'fa-arrows-v', description: 'Vertical breathing room' },
-    { type: 'section', label: 'Footer info', icon: 'fa-envelope-o', description: 'Unsubscribe and compliance copy' },
+    { type: 'section', label: 'Footer info', icon: 'fa-envelope-o', description: 'Unsubscribe and compliance copy', preset: 'footer' },
   ];
 
   emailDocument: EmailDocument = this.createStarterDocument();
@@ -525,8 +531,12 @@ export class NgxEmailStudio implements OnChanges {
     return this.findNode(this.selectedNodeId);
   }
 
+  get effectiveConfig(): EmailStudioConfig {
+    return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
+  }
+
   get resolvedUseTinyMce(): boolean {
-    return this.config?.useTinyMce !== false;
+    return this.effectiveConfig.useTinyMce !== false;
   }
 
   get previewWidth(): number {
@@ -566,7 +576,7 @@ export class NgxEmailStudio implements OnChanges {
     }
 
     if (this.isPaletteItem(event.item.data)) {
-      const node = this.createNode(event.item.data.type);
+      const node = this.createNodeFromPalette(event.item.data);
       event.container.data.splice(event.currentIndex, 0, node);
       this.selectedNodeId = node.id;
     } else {
@@ -594,7 +604,11 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   addBlock(item: PaletteItem): void {
-    this.addBlockByType(item.type);
+    if (this.readonly) return;
+    const node = this.createNodeFromPalette(item);
+    this.emailDocument.body = [...this.emailDocument.body, node];
+    this.selectedNodeId = node.id;
+    this.emitDocument();
   }
 
   addBlockByType(type: PaletteBlockType): void {
@@ -603,6 +617,24 @@ export class NgxEmailStudio implements OnChanges {
     this.emailDocument.body = [...this.emailDocument.body, node];
     this.selectedNodeId = node.id;
     this.emitDocument();
+  }
+
+  private createNodeFromPalette(item: PaletteItem): EmailNode {
+    if (item.preset === 'hero') {
+      return this.createNode('text', {
+        content: '<p class="kicker">會員專屬更新</p><h1>今週精選內容已為你整理好</h1><p>用一封清晰、可編輯的 EDM，將 CMS 最新文章、商品與優惠同步發送給會員。</p>',
+        backgroundColor: '#ffffff',
+      });
+    }
+
+    if (item.preset === 'footer') {
+      return this.createNode('text', {
+        content: '<p>你收到此電郵是因為你訂閱了 CMS 會員更新。可於會員中心調整通知偏好或取消訂閱。</p>',
+        backgroundColor: '#f1f5f9',
+      });
+    }
+
+    return this.createNode(item.type);
   }
 
   clearDocument(): void {
@@ -727,7 +759,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private refreshOutputs(emit: boolean): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
-    if (this.config?.showHtmlPreview) this.lastHtml = this.renderHtml(this.emailDocument);
+    if (this.effectiveConfig.showHtmlPreview !== false) this.lastHtml = this.renderHtml(this.emailDocument);
     if (emit) {
       this.documentChange.emit(this.emailDocument);
       this.mjmlChange.emit(this.lastMjml);
@@ -749,7 +781,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private createTinyMceInit(): Record<string, unknown> {
     return {
-      base_url: this.config?.tinyMceBaseUrl || this.resolveTinyMceBaseUrl(),
+      base_url: this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl(),
       suffix: '.min',
       license_key: 'gpl',
       menubar: false,
