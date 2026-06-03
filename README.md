@@ -13,6 +13,7 @@ This release focuses on a frontend-only builder experience:
 - drag-and-drop block palette with Angular CDK;
 - builder-style UI: toolbar, left palette, center canvas, right properties panel;
 - MJML import/export for a supported subset;
+- row layouts with 1-4 MJML columns via `<mj-section><mj-column>`;
 - frontend HTML export for the supported subset;
 - responsive preview widths: desktop, tablet, mobile;
 - Font Awesome 4.7-compatible icon classes;
@@ -36,7 +37,7 @@ Optional Font Awesome 4.7 CSS for icons:
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
 ```
 
-TinyMCE is self-hosted by default. Copy TinyMCE assets to `/tinymce` in your Angular app:
+TinyMCE is self-hosted by default. Copy TinyMCE assets to `/tinymce` in your Angular app. The component resolves the script and base URL relative to the current Angular `<base href>`, so GitHub Pages/project subpaths such as `/ngx-email-studio/` work as long as the assets are copied under that app base path:
 
 ```json
 {
@@ -44,6 +45,12 @@ TinyMCE is self-hosted by default. Copy TinyMCE assets to `/tinymce` in your Ang
   "input": "node_modules/tinymce",
   "output": "tinymce"
 }
+```
+
+If your app serves TinyMCE somewhere else, pass:
+
+```html
+<ngx-email-studio [config]="{ tinyMceBaseUrl: '/custom/tinymce' }" />
 ```
 
 ## Basic Usage
@@ -104,6 +111,7 @@ export class EmailBuilderPage {
 
 ## Supported Blocks in 0.0.1
 
+- Row / column layout block for 1-4 `<mj-column>` layouts
 - Section
 - Text
 - Image

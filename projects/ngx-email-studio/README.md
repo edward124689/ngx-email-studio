@@ -7,7 +7,7 @@ Angular 21 frontend email builder library.
 - Standalone `<ngx-email-studio />` component
 - Angular CDK drag-and-drop block palette
 - Builder-style layout with toolbar, canvas, and property panel
-- MJML import/export for supported blocks
+- MJML import/export for supported blocks, including 1-4 column row layouts
 - Frontend HTML export for supported blocks
 - Responsive preview presets
 - Font Awesome 4.7-compatible icon classes
@@ -19,7 +19,7 @@ Angular 21 frontend email builder library.
 npm install ngx-email-studio @angular/cdk @tinymce/tinymce-angular tinymce
 ```
 
-Copy TinyMCE assets to `/tinymce` in your Angular app assets config.
+Copy TinyMCE assets to `/tinymce` in your Angular app assets config. For Angular apps deployed under a subpath, the component resolves TinyMCE relative to the current `<base href>`. You can override the asset location with `config.tinyMceBaseUrl`.
 
 ## Usage
 
