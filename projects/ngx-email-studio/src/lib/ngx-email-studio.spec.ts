@@ -149,4 +149,40 @@ describe('NgxEmailStudio', () => {
     expect(component.tinyMceInit['content_css']).toBe('default');
     expect(component.tinyMceInit['base_url']).toBeTruthy();
   });
+
+  it('should open export dropdown and show MJML output in a modal instead of bottom output panels', () => {
+    fixture.detectChanges();
+
+    const exportButton = fixture.nativeElement.querySelector('.nes-export > button') as HTMLButtonElement;
+    exportButton.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.nes-export-menu')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-output')).toBeFalsy();
+
+    const menuItem = fixture.nativeElement.querySelector('.nes-export-menu button') as HTMLButtonElement;
+    menuItem.click();
+    fixture.detectChanges();
+
+    expect(component.outputModalType).toBe('mjml');
+    expect(fixture.nativeElement.querySelector('.nes-output-modal')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('MJML Output');
+    expect(fixture.nativeElement.querySelector('.nes-output-modal pre').textContent).toContain('<mjml>');
+  });
+
+  it('should show HTML output when selected from the export menu', () => {
+    fixture.detectChanges();
+
+    const exportButton = fixture.nativeElement.querySelector('.nes-export > button') as HTMLButtonElement;
+    exportButton.click();
+    fixture.detectChanges();
+
+    const menuItems = fixture.nativeElement.querySelectorAll('.nes-export-menu button') as NodeListOf<HTMLButtonElement>;
+    menuItems[1].click();
+    fixture.detectChanges();
+
+    expect(component.outputModalType).toBe('html');
+    expect(component.outputModalTitle).toBe('HTML Output');
+    expect(fixture.nativeElement.querySelector('.nes-output-modal pre').textContent).toContain('<!doctype html>');
+  });
 });

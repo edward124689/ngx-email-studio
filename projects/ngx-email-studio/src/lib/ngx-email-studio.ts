@@ -80,7 +80,15 @@ function resolveTinyMceScriptSrc(): string {
             <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" placeholder="Paste MJML here"></textarea>
             <button type="button" (click)="importMjml()">Apply</button>
           </label>
-          <button type="button" (click)="copyMjml()"><i class="fa fa-download" aria-hidden="true"></i> Export</button>
+          <div class="nes-export" [class.is-open]="exportMenuOpen">
+            <button type="button" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
+              <i class="fa fa-download" aria-hidden="true"></i> Export <i class="fa fa-angle-down" aria-hidden="true"></i>
+            </button>
+            <div class="nes-export-menu" role="menu" *ngIf="exportMenuOpen">
+              <button type="button" role="menuitem" (click)="openOutputModal('mjml')">MJML output</button>
+              <button type="button" role="menuitem" (click)="openOutputModal('html')">HTML output</button>
+            </div>
+          </div>
           <button type="button" class="nes-primary" (click)="exportHtml()"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save</button>
         </div>
       </header>
@@ -287,19 +295,21 @@ function resolveTinyMceScriptSrc(): string {
         </aside>
       </main>
 
-      <footer class="nes-output" *ngIf="lastMjml || lastHtml || emailDocument.unsupported?.length">
-        <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
-          Unsupported MJML preserved as warning: {{ emailDocument.unsupported?.join(', ') }}
-        </div>
-        <details *ngIf="lastMjml" open>
-          <summary>MJML Output</summary>
-          <pre>{{ lastMjml }}</pre>
-        </details>
-        <details *ngIf="lastHtml">
-          <summary>HTML Output</summary>
-          <pre>{{ lastHtml }}</pre>
-        </details>
-      </footer>
+      <div class="nes-modal-backdrop" *ngIf="outputModalType" (click)="closeOutputModal()">
+        <section class="nes-output-modal" role="dialog" aria-modal="true" [attr.aria-label]="outputModalTitle" (click)="$event.stopPropagation()">
+          <header>
+            <div>
+              <p>Export output</p>
+              <h3>{{ outputModalTitle }}</h3>
+            </div>
+            <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
+            Unsupported MJML preserved as warning: {{ emailDocument.unsupported?.join(', ') }}
+          </div>
+          <pre>{{ outputModalContent }}</pre>
+        </section>
+      </div>
     </section>
 
     <ng-template #nodePreview let-node="node" let-nested="nested">
@@ -406,6 +416,11 @@ function resolveTinyMceScriptSrc(): string {
     .nes-import textarea { position: absolute; top: 42px; right: 0; width: 320px; height: 140px; z-index: 20; opacity: 0; pointer-events: none; }
     .nes-import:focus-within textarea, .nes-import:hover textarea { opacity: 1; pointer-events: auto; }
     .nes-import button { padding: 4px 8px; }
+    .nes-export { position: relative; }
+    .nes-export > button { display: inline-flex; align-items: center; gap: 6px; }
+    .nes-export-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 180px; padding: 6px; border: 1px solid var(--nes-border); border-radius: 12px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .16); }
+    .nes-export-menu button { width: 100%; justify-content: flex-start; border: 0; background: transparent; text-align: left; }
+    .nes-export-menu button:hover { background: #eff6ff; }
     .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; min-height: 660px; }
     .nes-panel { background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
     .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); }
@@ -474,9 +489,12 @@ function resolveTinyMceScriptSrc(): string {
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .nes-output { border-top: 1px solid var(--nes-border); background: #101828; color: #e5e7eb; padding: 18px; }
-    .nes-output pre { white-space: pre-wrap; overflow: auto; max-height: 260px; background: #0b1220; padding: 12px; border-radius: 10px; }
-    .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
+    .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .48); }
+    .nes-output-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border-radius: 18px; background: #fff; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
+    .nes-output-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); }
+    .nes-output-modal header p { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
+    .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; background: #0b1220; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border-radius: 10px; margin: 12px 20px; }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
@@ -511,6 +529,8 @@ export class NgxEmailStudio implements OnChanges {
   mjmlDraft = '';
   paletteSearch = '';
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
+  exportMenuOpen = false;
+  outputModalType: 'mjml' | 'html' | null = null;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   lastMjml = '';
   lastHtml = '';
@@ -547,6 +567,14 @@ export class NgxEmailStudio implements OnChanges {
 
   get previewLabel(): string {
     return typeof this.previewSize === 'number' ? 'Custom' : this.previewSize[0].toUpperCase() + this.previewSize.slice(1);
+  }
+
+  get outputModalTitle(): string {
+    return this.outputModalType === 'html' ? 'HTML Output' : 'MJML Output';
+  }
+
+  get outputModalContent(): string {
+    return this.outputModalType === 'html' ? this.lastHtml : this.lastMjml;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -727,9 +755,28 @@ export class NgxEmailStudio implements OnChanges {
     }
   }
 
-  copyMjml(): void {
+  toggleExportMenu(): void {
+    this.exportMenuOpen = !this.exportMenuOpen;
+  }
+
+  openOutputModal(type: 'mjml' | 'html'): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
-    this.mjmlChange.emit(this.lastMjml);
+    this.lastHtml = this.renderHtml(this.emailDocument);
+    this.outputModalType = type;
+    this.exportMenuOpen = false;
+    if (type === 'mjml') {
+      this.mjmlChange.emit(this.lastMjml);
+    } else {
+      this.htmlExport.emit(this.lastHtml);
+    }
+  }
+
+  closeOutputModal(): void {
+    this.outputModalType = null;
+  }
+
+  copyMjml(): void {
+    this.openOutputModal('mjml');
   }
 
   exportHtml(): void {
