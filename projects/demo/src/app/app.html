@@ -1,16 +1,9 @@
 <main class="demo-page">
-  <section class="demo-hero">
-    <p class="eyebrow">Angular 21 email builder library</p>
-    <h1>ngx-email-studio</h1>
-    <p>
-      Frontend-first visual email builder with drag-and-drop blocks, MJML import/export,
-      HTML export, responsive preview presets, Font Awesome 4.7 icon styling, and TinyMCE rich text editing.
-    </p>
-  </section>
-
+  <h1 class="sr-only">ngx-email-studio</h1>
   <ngx-email-studio
     [document]="initialDocument"
-    [previewSize]="'desktop'"
+    [previewSize]="600"
+    [config]="studioConfig"
     (mjmlChange)="onMjmlChange($event)"
     (htmlExport)="onHtmlExport($event)"
   />

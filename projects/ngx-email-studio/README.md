@@ -6,8 +6,8 @@ Angular 21 frontend email builder library.
 
 - Standalone `<ngx-email-studio />` component
 - Angular CDK drag-and-drop block palette
-- Builder-style layout with toolbar, canvas, and property panel
-- MJML import/export for supported blocks, including 1-4 column row layouts
+- OpenDesign-inspired builder shell with searchable modules, outline, grid canvas, size chips, floating selected-block controls, and tabbed inspector;
+- MJML import/export for a supported subset, including 1-4 column row layouts;
 - Frontend HTML export for supported blocks
 - Responsive preview presets
 - Font Awesome 4.7-compatible icon classes

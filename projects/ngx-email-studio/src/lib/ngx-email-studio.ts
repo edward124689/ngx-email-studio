@@ -13,6 +13,11 @@ export interface EmailStudioConfig {
   showHtmlPreview?: boolean;
   /** Optional path where TinyMCE assets are hosted. Defaults to `${document.baseURI}/tinymce`. */
   tinyMceBaseUrl?: string;
+  title?: string;
+  breadcrumb?: string;
+  brandLabel?: string;
+  statusLabel?: string;
+  fromLabel?: string;
 }
 
 export interface EmailStudioError {
@@ -54,30 +59,36 @@ function resolveTinyMceScriptSrc(): string {
   template: `
     <section class="nes-shell">
       <header class="nes-toolbar">
-        <div>
-          <p class="nes-kicker">ngx-email-studio</p>
-          <h2>Email Builder</h2>
+        <div class="nes-brand">
+          <div class="nes-logo">EB</div>
+          <div>
+            <p class="nes-breadcrumb">{{ config.breadcrumb || 'CMS / Email Campaign / Draft' }}</p>
+            <h2>{{ config.title || 'Membership Email · Email Builder' }}</h2>
+          </div>
         </div>
         <div class="nes-actions">
+          <span class="nes-save-state"><i class="fa fa-circle" aria-hidden="true"></i>{{ config.statusLabel || 'Draft saved' }}</span>
           <label class="nes-import">
             <i class="fa fa-upload" aria-hidden="true"></i>
-            Import MJML
+            Import
             <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" placeholder="Paste MJML here"></textarea>
             <button type="button" (click)="importMjml()">Apply</button>
           </label>
-          <button type="button" (click)="copyMjml()"><i class="fa fa-code" aria-hidden="true"></i> Export MJML</button>
-          <button type="button" (click)="exportHtml()"><i class="fa fa-file-code-o" aria-hidden="true"></i> Export HTML</button>
-          <select [ngModel]="previewSize" (ngModelChange)="setPreviewSize($event)" aria-label="Preview size">
-            <option value="desktop">Desktop</option>
-            <option value="tablet">Tablet</option>
-            <option value="mobile">Mobile</option>
-          </select>
+          <button type="button" (click)="copyMjml()"><i class="fa fa-download" aria-hidden="true"></i> Export</button>
+          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save</button>
         </div>
       </header>
 
       <main class="nes-builder">
         <aside class="nes-panel nes-palette">
-          <h3>Blocks</h3>
+          <div class="nes-panel-head">
+            <h3>Content modules</h3>
+            <p>Drag into the canvas or click to add</p>
+          </div>
+          <label class="nes-search">
+            <i class="fa fa-search" aria-hidden="true"></i>
+            <input [ngModel]="paletteSearch" (ngModelChange)="paletteSearch = $event" placeholder="Search modules" />
+          </label>
           <div
             cdkDropList
             #paletteList="cdkDropList"
@@ -85,22 +96,53 @@ function resolveTinyMceScriptSrc(): string {
             [cdkDropListConnectedTo]="connectedDropListIds"
             class="nes-block-list"
           >
-            <article class="nes-block" *ngFor="let item of palette" cdkDrag [cdkDragData]="item">
-              <i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i>
+            <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" (click)="addBlock(item)">
+              <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
               <span>
                 <strong>{{ item.label }}</strong>
                 <small>{{ item.description }}</small>
               </span>
             </article>
           </div>
+
+          <div class="nes-outline">
+            <div class="nes-outline-title"><strong>Outline</strong><span>{{ emailDocument.body.length }}</span></div>
+            <button
+              type="button"
+              class="nes-outline-item"
+              *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode"
+              [class.is-active]="node.id === selectedNodeId"
+              (click)="selectNode(node.id)"
+            >
+              <span>{{ (i + 1).toString().padStart(2, '0') }}</span>
+              {{ outlineLabel(node) }}
+            </button>
+          </div>
         </aside>
 
         <section class="nes-stage">
-          <div class="nes-preview-meta">
-            <span>{{ previewLabel }}</span>
-            <span>{{ previewWidth }}px</span>
+          <div class="nes-stage-head">
+            <div>
+              <h3>Email canvas</h3>
+              <p>{{ previewWidth }}px preview · {{ emailDocument.body.length }} blocks</p>
+            </div>
+            <div class="nes-stage-actions">
+              <button type="button" (click)="addBlockByType('text')"><i class="fa fa-font" aria-hidden="true"></i> Add text</button>
+              <button type="button" class="danger" (click)="clearDocument()"><i class="fa fa-trash" aria-hidden="true"></i> Clear</button>
+            </div>
           </div>
+
           <div class="nes-device" [style.width.px]="previewWidth">
+            <div class="nes-size-bar">
+              <span>Size</span>
+              <button
+                type="button"
+                *ngFor="let option of previewSizeOptions"
+                [class.is-active]="previewWidth === option"
+                (click)="setPreviewSize(option)"
+              >{{ option }}</button>
+            </div>
+            <div class="nes-mail-meta"><span>From: {{ config.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
             <div
               cdkDropList
               #canvasList="cdkDropList"
@@ -121,95 +163,117 @@ function resolveTinyMceScriptSrc(): string {
                 (click)="selectNode(node.id); $event.stopPropagation()"
                 (keydown.enter)="selectNode(node.id)"
               >
+                <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId">
+                  <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
+                  <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+                </div>
                 <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: node, nested: false }"></ng-container>
               </article>
               <div class="nes-empty" *ngIf="emailDocument.body.length === 0">
                 <i class="fa fa-magic" aria-hidden="true"></i>
                 Drag blocks here to start building your email.
               </div>
+              <div class="nes-bottom-drop">Drop here to append to the end</div>
             </div>
           </div>
         </section>
 
         <aside class="nes-panel nes-properties">
-          <h3>Properties</h3>
+          <div class="nes-panel-head">
+            <h3>Properties Inspector</h3>
+            <p>{{ selectedNode ? outlineLabel(selectedNode) : 'No block selected' }}</p>
+          </div>
           <ng-container *ngIf="selectedNode as node; else noSelection">
-            <div class="nes-property-head">
-              <strong>{{ node.type | titlecase }}</strong>
-              <div>
-                <button type="button" (click)="duplicateSelected()"><i class="fa fa-clone"></i></button>
-                <button type="button" class="danger" (click)="deleteSelected()"><i class="fa fa-trash"></i></button>
-              </div>
+            <div class="nes-tabs">
+              <button type="button" [class.is-active]="activeInspectorTab === 'content'" (click)="activeInspectorTab = 'content'">Content</button>
+              <button type="button" [class.is-active]="activeInspectorTab === 'style'" (click)="activeInspectorTab = 'style'">Style</button>
+              <button type="button" [class.is-active]="activeInspectorTab === 'check'" (click)="activeInspectorTab = 'check'">Check</button>
             </div>
 
-            <div *ngIf="node.type === 'row'" class="nes-inline-tools">
-              <button type="button" (click)="setRowColumns(node, 1)">1 col</button>
-              <button type="button" (click)="setRowColumns(node, 2)">2 cols</button>
-              <button type="button" (click)="setRowColumns(node, 3)">3 cols</button>
-              <button type="button" (click)="setRowColumns(node, 4)">4 cols</button>
+            <div class="nes-tab-panel" *ngIf="activeInspectorTab === 'content'">
+              <div *ngIf="node.type === 'row'" class="nes-inline-tools">
+                <button type="button" (click)="setRowColumns(node, 1)">1 col</button>
+                <button type="button" (click)="setRowColumns(node, 2)">2 cols</button>
+                <button type="button" (click)="setRowColumns(node, 3)">3 cols</button>
+                <button type="button" (click)="setRowColumns(node, 4)">4 cols</button>
+              </div>
+
+              <label *ngIf="node.type === 'row'">
+                Columns
+                <input type="number" min="1" max="4" [ngModel]="node.children?.length || 1" (ngModelChange)="setRowColumns(node, +$event)" />
+              </label>
+
+              <ng-container *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'">
+                <p class="nes-muted">Add content inside this {{ node.type }}:</p>
+                <div class="nes-add-grid">
+                  <button type="button" (click)="addChildBlock(node, 'text')"><i class="fa fa-font"></i> Text</button>
+                  <button type="button" (click)="addChildBlock(node, 'image')"><i class="fa fa-picture-o"></i> Image</button>
+                  <button type="button" (click)="addChildBlock(node, 'button')"><i class="fa fa-hand-pointer-o"></i> Button</button>
+                  <button type="button" (click)="addChildBlock(node, 'divider')"><i class="fa fa-minus"></i> Divider</button>
+                </div>
+              </ng-container>
+
+              <label *ngIf="node.type === 'text'">
+                Rich text
+                <editor
+                  *ngIf="resolvedUseTinyMce; else plainTextEditor"
+                  [ngModel]="node.attrs['content']"
+                  (ngModelChange)="updateAttr(node, 'content', $event)"
+                  [init]="tinyMceInit"
+                  [licenseKey]="'gpl'"
+                ></editor>
+                <ng-template #plainTextEditor>
+                  <textarea [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
+                </ng-template>
+              </label>
+
+              <label *ngIf="node.type === 'image'">
+                Image URL
+                <input [ngModel]="node.attrs['src']" (ngModelChange)="updateAttr(node, 'src', $event)" />
+              </label>
+              <label *ngIf="node.type === 'image'">
+                Alt text
+                <input [ngModel]="node.attrs['alt']" (ngModelChange)="updateAttr(node, 'alt', $event)" />
+              </label>
+
+              <label *ngIf="node.type === 'button'">
+                Label
+                <input [ngModel]="node.attrs['label']" (ngModelChange)="updateAttr(node, 'label', $event)" />
+              </label>
+              <label *ngIf="node.type === 'button'">
+                URL
+                <input [ngModel]="node.attrs['href']" (ngModelChange)="updateAttr(node, 'href', $event)" />
+              </label>
+
+              <label *ngIf="node.type === 'spacer'">
+                Height
+                <input type="number" [ngModel]="node.attrs['height']" (ngModelChange)="updateAttr(node, 'height', +$event)" />
+              </label>
             </div>
 
-            <label *ngIf="node.type === 'row'">
-              Columns
-              <input type="number" min="1" max="4" [ngModel]="node.children?.length || 1" (ngModelChange)="setRowColumns(node, +$event)" />
-            </label>
+            <div class="nes-tab-panel" *ngIf="activeInspectorTab === 'style'">
+              <label *ngIf="node.type === 'column'">
+                Column width
+                <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
+              </label>
+              <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
+                Background color
+                <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
+              </label>
+              <label *ngIf="node.type === 'divider'">
+                Border color
+                <input [ngModel]="node.attrs['borderColor']" (ngModelChange)="updateAttr(node, 'borderColor', $event)" placeholder="#d0d5dd" />
+              </label>
+            </div>
 
-            <label *ngIf="node.type === 'column'">
-              Column width
-              <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
-            </label>
-
-            <ng-container *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'">
-              <p class="nes-muted">Add content inside this {{ node.type }}:</p>
-              <div class="nes-add-grid">
-                <button type="button" (click)="addChildBlock(node, 'text')"><i class="fa fa-font"></i> Text</button>
-                <button type="button" (click)="addChildBlock(node, 'image')"><i class="fa fa-picture-o"></i> Image</button>
-                <button type="button" (click)="addChildBlock(node, 'button')"><i class="fa fa-hand-pointer-o"></i> Button</button>
-                <button type="button" (click)="addChildBlock(node, 'divider')"><i class="fa fa-minus"></i> Divider</button>
+            <div class="nes-tab-panel" *ngIf="activeInspectorTab === 'check'">
+              <div class="nes-check-card" *ngIf="emailDocument.unsupported?.length; else checksOk">
+                Unsupported MJML: {{ emailDocument.unsupported?.join(', ') }}
               </div>
-            </ng-container>
-
-            <label *ngIf="node.type === 'text'">
-              Rich text
-              <editor
-                *ngIf="resolvedUseTinyMce; else plainTextEditor"
-                [ngModel]="node.attrs['content']"
-                (ngModelChange)="updateAttr(node, 'content', $event)"
-                [init]="tinyMceInit"
-                [licenseKey]="'gpl'"
-              ></editor>
-              <ng-template #plainTextEditor>
-                <textarea [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
+              <ng-template #checksOk>
+                <div class="nes-check-card is-ok"><i class="fa fa-check-circle"></i> No blocking issues for this supported subset.</div>
               </ng-template>
-            </label>
-
-            <label *ngIf="node.type === 'image'">
-              Image URL
-              <input [ngModel]="node.attrs['src']" (ngModelChange)="updateAttr(node, 'src', $event)" />
-            </label>
-            <label *ngIf="node.type === 'image'">
-              Alt text
-              <input [ngModel]="node.attrs['alt']" (ngModelChange)="updateAttr(node, 'alt', $event)" />
-            </label>
-
-            <label *ngIf="node.type === 'button'">
-              Label
-              <input [ngModel]="node.attrs['label']" (ngModelChange)="updateAttr(node, 'label', $event)" />
-            </label>
-            <label *ngIf="node.type === 'button'">
-              URL
-              <input [ngModel]="node.attrs['href']" (ngModelChange)="updateAttr(node, 'href', $event)" />
-            </label>
-
-            <label *ngIf="node.type === 'spacer'">
-              Height
-              <input type="number" [ngModel]="node.attrs['height']" (ngModelChange)="updateAttr(node, 'height', +$event)" />
-            </label>
-
-            <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
-              Background color
-              <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
-            </label>
+            </div>
           </ng-container>
           <ng-template #noSelection>
             <p class="nes-muted">Select a block to edit its properties.</p>
@@ -304,67 +368,112 @@ function resolveTinyMceScriptSrc(): string {
     </ng-template>
   `,
   styles: `
-    :host { display: block; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #172033; }
-    .nes-shell { border: 1px solid #dce3ef; border-radius: 20px; background: #f6f8fb; overflow: hidden; min-height: 720px; }
-    .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; background: #fff; border-bottom: 1px solid #dce3ef; }
-    .nes-kicker { margin: 0 0 2px; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: #667085; }
+    :host {
+      --nes-accent: #2563eb;
+      --nes-success: #16a34a;
+      --nes-ink: #0f172a;
+      --nes-muted: #64748b;
+      --nes-border: #d9e2ec;
+      --nes-panel: #ffffff;
+      --nes-soft: #f8fafc;
+      --nes-grid: rgba(148, 163, 184, .18);
+      display: block;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--nes-ink);
+    }
+    .nes-shell { border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; min-height: 780px; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
+    .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
+    .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .nes-logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; font-weight: 900; letter-spacing: -.04em; background: linear-gradient(135deg, #14b8a6, #22c55e); box-shadow: 0 10px 24px rgba(20, 184, 166, .28); }
+    .nes-breadcrumb { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
     h2, h3 { margin: 0; }
-    h2 { font-size: 22px; }
-    h3 { font-size: 14px; color: #344054; }
-    .nes-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    button, select { border: 1px solid #cfd8e6; background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; }
-    button:hover, select:hover { border-color: #7c3aed; }
-    .nes-actions button:nth-of-type(2) { background: #7c3aed; color: #fff; border-color: #7c3aed; }
-    .nes-import { position: relative; display: flex; align-items: center; gap: 6px; border: 1px dashed #cfd8e6; border-radius: 10px; padding: 8px 10px; background: #fbfcff; cursor: pointer; }
-    .nes-import textarea { position: absolute; top: 42px; right: 0; width: 300px; height: 120px; z-index: 5; opacity: 0; pointer-events: none; }
+    h2 { font-size: 20px; letter-spacing: -.02em; }
+    h3 { font-size: 14px; color: #172033; }
+    .nes-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    button { border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; }
+    button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
+    .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); }
+    .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
+    .nes-save-state { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: #ecfdf3; color: #15803d; font-size: 13px; font-weight: 700; }
+    .nes-save-state i { font-size: 8px; }
+    .nes-import { position: relative; display: flex; align-items: center; gap: 6px; border: 1px solid var(--nes-border); border-radius: 10px; padding: 8px 10px; background: #fff; cursor: pointer; }
+    .nes-import textarea { position: absolute; top: 42px; right: 0; width: 320px; height: 140px; z-index: 20; opacity: 0; pointer-events: none; }
     .nes-import:focus-within textarea, .nes-import:hover textarea { opacity: 1; pointer-events: auto; }
     .nes-import button { padding: 4px 8px; }
-    .nes-builder { display: grid; grid-template-columns: 260px minmax(360px, 1fr) 340px; min-height: 600px; }
-    .nes-panel { background: #fff; padding: 18px; border-right: 1px solid #dce3ef; }
-    .nes-properties { border-right: 0; border-left: 1px solid #dce3ef; }
-    .nes-block-list { display: grid; gap: 10px; margin-top: 16px; }
-    .nes-block { display: flex; align-items: center; gap: 12px; border: 1px solid #e1e7f0; border-radius: 14px; padding: 12px; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); cursor: grab; }
-    .nes-block i { width: 24px; color: #7c3aed; text-align: center; }
+    .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; min-height: 660px; }
+    .nes-panel { background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
+    .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); }
+    .nes-panel-head p { margin: 5px 0 0; color: var(--nes-muted); font-size: 12px; line-height: 1.45; }
+    .nes-search { position: relative; display: block; margin: 16px 0; }
+    .nes-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+    .nes-search input { padding-left: 34px; background: #f8fafc; }
+    .nes-block-list { display: grid; gap: 10px; max-height: 430px; overflow: auto; padding-right: 2px; }
+    .nes-block { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; }
+    .nes-block:hover { border-color: #bfdbfe; box-shadow: 0 8px 20px rgba(37, 99, 235, .09); }
+    .nes-block-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
     .nes-block strong, .nes-block small { display: block; }
-    .nes-block small { color: #667085; margin-top: 2px; }
-    .nes-stage { overflow: auto; padding: 24px; background: linear-gradient(135deg, #eef2ff, #f8fafc); }
-    .nes-preview-meta { display: flex; justify-content: center; gap: 12px; color: #667085; font-size: 12px; margin-bottom: 12px; }
-    .nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; }
-    .nes-canvas { min-height: 520px; background: #fff; border-radius: 18px; padding: 22px; box-shadow: 0 24px 70px rgba(28, 37, 65, .16); outline: 1px solid #e5e7eb; }
-    .nes-node, .nes-child-node { display: block; width: 100%; text-align: initial; border: 1px dashed transparent; border-radius: 12px; padding: 8px; margin-bottom: 10px; background: transparent; box-sizing: border-box; }
-    .nes-child-node { background: rgba(255,255,255,.72); }
-    .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, .12); }
-    .nes-render-row { display: flex; align-items: stretch; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid #e5e7eb; }
-    .nes-render-column { min-width: 0; flex: 1 1 0; border: 1px dashed #cfd8e6; border-radius: 12px; padding: 10px; background: #fbfcff; box-sizing: border-box; }
+    .nes-block small { color: var(--nes-muted); margin-top: 2px; font-size: 11px; line-height: 1.3; }
+    .nes-outline { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .nes-outline-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; }
+    .nes-outline-title span { background: #e0f2fe; color: #0369a1; border-radius: 999px; padding: 2px 8px; font-weight: 800; }
+    .nes-outline-item { width: 100%; display: flex; gap: 8px; align-items: center; border: 0; background: transparent; color: #475569; padding: 8px 10px; text-align: left; }
+    .nes-outline-item span { color: #94a3b8; font-variant-numeric: tabular-nums; }
+    .nes-outline-item.is-active { background: #eff6ff; color: #1d4ed8; font-weight: 800; }
+    .nes-stage { overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; }
+    .nes-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+    .nes-stage-head p { margin: 4px 0 0; color: var(--nes-muted); font-size: 12px; }
+    .nes-stage-actions { display: flex; gap: 8px; }
+    .danger { color: #b42318; }
+    .nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: hidden; border: 1px solid #e2e8f0; }
+    .nes-size-bar { display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+    .nes-size-bar span { margin-right: auto; color: var(--nes-muted); font-size: 12px; font-weight: 800; }
+    .nes-size-bar button { padding: 5px 9px; border-radius: 8px; font-size: 12px; }
+    .nes-size-bar button.is-active { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .nes-canvas { min-height: 520px; background: #fff; padding: 0; }
+    .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
+    .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
+    .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
+    .nes-floating-tools { position: absolute; right: 10px; top: 10px; z-index: 5; display: flex; gap: 4px; padding: 4px; background: #0f172a; border-radius: 10px; }
+    .nes-floating-tools button { padding: 5px 7px; border: 0; background: transparent; color: #fff; }
+    .nes-render-row { display: flex; align-items: stretch; gap: 14px; padding: 24px; }
+    .nes-render-column { min-width: 0; flex: 1 1 0; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; background: #fff; box-sizing: border-box; }
     .nes-render-column.is-empty, .nes-render-section.is-empty { min-height: 110px; }
-    .nes-column-label { font-size: 11px; color: #667085; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
-    .nes-render-column-alone, .nes-render-section { padding: 16px; border: 1px dashed #cfd8e6; border-radius: 12px; color: #667085; }
-    .nes-render-section { background: #fbfcff; }
-    .nes-drop-hint { display: grid; place-items: center; min-height: 64px; margin: 8px 0; border: 1px dashed #cfd8e6; border-radius: 10px; color: #98a2b3; font-size: 12px; }
-    .nes-add-column-block { width: 100%; padding: 7px 9px; color: #667085; border-style: dashed; }
-    .nes-render-text { line-height: 1.55; color: #1f2937; }
+    .nes-column-label { font-size: 11px; color: var(--nes-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
+    .nes-render-column-alone, .nes-render-section { padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
+    .nes-render-section { background: #fff; }
+    .nes-drop-hint { display: grid; place-items: center; min-height: 64px; margin: 8px 0; border: 1px dashed #cbd5e1; border-radius: 10px; color: #94a3b8; font-size: 12px; }
+    .nes-add-column-block { width: 100%; padding: 7px 9px; color: var(--nes-muted); border-style: dashed; }
+    .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
     .nes-render-text :first-child { margin-top: 0; }
     .nes-render-text :last-child { margin-bottom: 0; }
-    .nes-render-image { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px; background: #eef2ff; }
-    .nes-render-button { display: inline-block; background: #7c3aed; color: white; padding: 12px 18px; border-radius: 999px; text-decoration: none; font-weight: 700; }
-    .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; }
-    .nes-empty { min-height: 440px; display: grid; place-items: center; color: #667085; border: 2px dashed #d0d5dd; border-radius: 16px; text-align: center; }
-    .nes-property-head { display: flex; justify-content: space-between; align-items: center; margin: 14px 0; }
-    .nes-property-head button { padding: 7px 9px; }
+    .nes-render-text h1 { font-size: 32px; line-height: 1.12; margin: 8px 0 14px; letter-spacing: -.03em; }
+    .nes-render-text h2 { font-size: 22px; margin: 0 0 10px; }
+    .nes-render-text .kicker { color: var(--nes-accent); font-size: 13px; font-weight: 900; letter-spacing: .04em; }
+    .nes-render-image { display: block; width: 100%; max-height: 260px; object-fit: cover; background: #ecfeff; }
+    .nes-render-button { display: inline-block; margin: 22px 32px 30px; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
+    .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
+    .nes-empty { min-height: 380px; display: grid; place-items: center; color: var(--nes-muted); border: 2px dashed #d0d5dd; text-align: center; }
+    .nes-bottom-drop { margin: 16px 24px 24px; padding: 15px; text-align: center; border: 1px dashed #86efac; border-radius: 12px; background: #f0fdf4; color: #15803d; font-weight: 800; font-size: 13px; }
+    .nes-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 16px 0; border-radius: 12px; background: #f1f5f9; }
+    .nes-tabs button { border: 0; background: transparent; padding: 8px; font-size: 13px; color: var(--nes-muted); }
+    .nes-tabs button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+    .nes-tab-panel { margin-top: 14px; }
     .nes-inline-tools, .nes-add-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
     .nes-add-grid button { padding: 8px; }
-    .danger { color: #b42318; }
     label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
-    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cfd8e6; border-radius: 10px; padding: 10px 12px; font: inherit; }
+    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
     textarea { min-height: 120px; }
-    .nes-muted { color: #667085; font-size: 13px; }
-    .nes-output { border-top: 1px solid #dce3ef; background: #101828; color: #e5e7eb; padding: 18px; }
+    .nes-muted { color: var(--nes-muted); font-size: 13px; }
+    .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
+    .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .nes-output { border-top: 1px solid var(--nes-border); background: #101828; color: #e5e7eb; padding: 18px; }
     .nes-output pre { white-space: pre-wrap; overflow: auto; max-height: 260px; background: #0b1220; padding: 12px; border-radius: 10px; }
     .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
-    @media (max-width: 1100px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid #dce3ef; } .nes-panel { border-right: 0; border-bottom: 1px solid #dce3ef; } }
-    @media (max-width: 640px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; } }
+    @media (max-width: 1180px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
+    @media (max-width: 640px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; } .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } }
   `,
 })
 export class NgxEmailStudio implements OnChanges {
@@ -380,18 +489,22 @@ export class NgxEmailStudio implements OnChanges {
   @Output() error = new EventEmitter<EmailStudioError>();
 
   palette: PaletteItem[] = [
-    { type: 'row', label: 'Row', icon: 'fa-columns', description: '1-4 MJML columns' },
-    { type: 'section', label: 'Section', icon: 'fa-square-o', description: 'Full-width MJML section' },
-    { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' },
-    { type: 'image', label: 'Image', icon: 'fa-picture-o', description: 'Responsive image' },
-    { type: 'button', label: 'Button', icon: 'fa-hand-pointer-o', description: 'CTA button' },
-    { type: 'divider', label: 'Divider', icon: 'fa-minus', description: 'Horizontal rule' },
-    { type: 'spacer', label: 'Spacer', icon: 'fa-arrows-v', description: 'Vertical space' },
+    { type: 'section', label: 'Hero title', icon: 'fa-header', description: 'Campaign headline, kicker, summary' },
+    { type: 'text', label: 'Text paragraph', icon: 'fa-align-left', description: 'Rich text body or CMS summary' },
+    { type: 'button', label: 'CTA button', icon: 'fa-mouse-pointer', description: 'Link, registration, or purchase action' },
+    { type: 'image', label: 'Image placeholder', icon: 'fa-picture-o', description: 'Hero image or product visual' },
+    { type: 'row', label: 'MJML columns', icon: 'fa-columns', description: '1-4 columns exported as mj-column' },
+    { type: 'divider', label: 'Divider', icon: 'fa-minus', description: 'Separate content rhythm' },
+    { type: 'spacer', label: 'Spacer', icon: 'fa-arrows-v', description: 'Vertical breathing room' },
+    { type: 'section', label: 'Footer info', icon: 'fa-envelope-o', description: 'Unsubscribe and compliance copy' },
   ];
 
   emailDocument: EmailDocument = this.createStarterDocument();
   selectedNodeId?: string;
   mjmlDraft = '';
+  paletteSearch = '';
+  activeInspectorTab: 'content' | 'style' | 'check' = 'content';
+  readonly previewSizeOptions = [1200, 800, 600, 400];
   lastMjml = '';
   lastHtml = '';
 
@@ -400,6 +513,12 @@ export class NgxEmailStudio implements OnChanges {
 
   get connectedDropListIds(): string[] {
     return [this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
+  }
+
+  get filteredPalette(): PaletteItem[] {
+    const query = this.paletteSearch.trim().toLowerCase();
+    if (!query) return this.palette;
+    return this.palette.filter((item) => `${item.label} ${item.description} ${item.type}`.toLowerCase().includes(query));
   }
 
   get selectedNode(): EmailNode | undefined {
@@ -472,6 +591,36 @@ export class NgxEmailStudio implements OnChanges {
 
   selectNode(id: string): void {
     this.selectedNodeId = id;
+  }
+
+  addBlock(item: PaletteItem): void {
+    this.addBlockByType(item.type);
+  }
+
+  addBlockByType(type: PaletteBlockType): void {
+    if (this.readonly) return;
+    const node = this.createNode(type);
+    this.emailDocument.body = [...this.emailDocument.body, node];
+    this.selectedNodeId = node.id;
+    this.emitDocument();
+  }
+
+  clearDocument(): void {
+    if (this.readonly) return;
+    this.emailDocument = { ...this.emailDocument, body: [] };
+    this.selectedNodeId = undefined;
+    this.emitDocument();
+  }
+
+  outlineLabel(node: EmailNode): string {
+    if (node.type === 'section') return 'Hero / Section';
+    if (node.type === 'row') return `MJML ${node.children?.length || 1} columns`;
+    if (node.type === 'text') return this.plainText(String(node.attrs['content'] || 'Text')).slice(0, 28) || 'Text paragraph';
+    if (node.type === 'image') return 'Image placeholder';
+    if (node.type === 'button') return String(node.attrs['label'] || 'CTA button');
+    if (node.type === 'divider') return 'Divider';
+    if (node.type === 'spacer') return 'Spacer';
+    return node.type;
   }
 
   setPreviewSize(size: EmailPreviewSize): void {
@@ -570,6 +719,10 @@ export class NgxEmailStudio implements OnChanges {
       const ids = node.type === 'column' || node.type === 'section' ? [this.dropListIdFor(node)] : [];
       return [...ids, ...this.collectContainerDropListIds(node.children || [])];
     });
+  }
+
+  private plainText(value: string): string {
+    return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
   private refreshOutputs(emit: boolean): void {

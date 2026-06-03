@@ -11,7 +11,7 @@ Initial development version: `0.0.1`.
 This release focuses on a frontend-only builder experience:
 
 - drag-and-drop block palette with Angular CDK;
-- builder-style UI: toolbar, left palette, center canvas, right properties panel;
+- OpenDesign-inspired builder shell: campaign header, searchable module library, outline, grid canvas, preview size chips, floating block controls, and tabbed inspector;
 - MJML import/export for a supported subset;
 - row layouts with 1-4 MJML columns via `<mj-section><mj-column>`;
 - frontend HTML export for the supported subset;
