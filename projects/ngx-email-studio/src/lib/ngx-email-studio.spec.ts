@@ -170,7 +170,7 @@ describe('NgxEmailStudio', () => {
     expect(fixture.nativeElement.querySelector('.nes-output-modal pre').textContent).toContain('<mjml>');
   });
 
-  it('should show HTML output when selected from the export menu', () => {
+  it('should show formatted HTML output when selected from the export menu', () => {
     fixture.detectChanges();
 
     const exportButton = fixture.nativeElement.querySelector('.nes-export > button') as HTMLButtonElement;
@@ -181,8 +181,37 @@ describe('NgxEmailStudio', () => {
     menuItems[1].click();
     fixture.detectChanges();
 
+    const output = fixture.nativeElement.querySelector('.nes-output-modal pre').textContent;
     expect(component.outputModalType).toBe('html');
     expect(component.outputModalTitle).toBe('HTML Output');
-    expect(fixture.nativeElement.querySelector('.nes-output-modal pre').textContent).toContain('<!doctype html>');
+    expect(output).toContain('<!doctype html>\n<html>');
+    expect(output).toContain('  <head>');
+    expect(output).toContain('          <table role="presentation"');
+  });
+
+  it('should copy the active export modal output', async () => {
+    component.openOutputModal('mjml');
+    await component.copyOutputToClipboard();
+
+    expect(component.copyState).toBe('Copied');
+  });
+
+  it('should open import in a modal and close it after a valid import', () => {
+    fixture.detectChanges();
+
+    const importButton = fixture.nativeElement.querySelector('.nes-import-trigger') as HTMLButtonElement;
+    importButton.click();
+    fixture.detectChanges();
+
+    expect(component.importModalOpen).toBe(true);
+    expect(fixture.nativeElement.querySelector('.nes-import-modal')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-import')).toBeFalsy();
+
+    component.mjmlDraft = '<mjml><mj-body><mj-section><mj-column><mj-text>Hello import</mj-text></mj-column></mj-section></mj-body></mjml>';
+    component.importMjml();
+
+    expect(component.importModalOpen).toBe(false);
+    expect(component.emailDocument.body[0].type).toBe('text');
+    expect(component.emailDocument.body[0].attrs['content']).toContain('Hello import');
   });
 });

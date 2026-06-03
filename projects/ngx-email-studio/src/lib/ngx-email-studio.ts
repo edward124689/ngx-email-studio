@@ -74,12 +74,7 @@ function resolveTinyMceScriptSrc(): string {
         </div>
         <div class="nes-actions">
           <span class="nes-save-state"><i class="fa fa-circle" aria-hidden="true"></i>{{ effectiveConfig.statusLabel || 'Draft saved' }}</span>
-          <label class="nes-import">
-            <i class="fa fa-upload" aria-hidden="true"></i>
-            Import
-            <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" placeholder="Paste MJML here"></textarea>
-            <button type="button" (click)="importMjml()">Apply</button>
-          </label>
+          <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen">
             <button type="button" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
               <i class="fa fa-download" aria-hidden="true"></i> Export <i class="fa fa-angle-down" aria-hidden="true"></i>
@@ -295,6 +290,27 @@ function resolveTinyMceScriptSrc(): string {
         </aside>
       </main>
 
+      <div class="nes-modal-backdrop" *ngIf="importModalOpen" (click)="closeImportModal()">
+        <section class="nes-import-modal" role="dialog" aria-modal="true" aria-label="Import MJML" (click)="$event.stopPropagation()">
+          <header>
+            <div>
+              <p>Import MJML</p>
+              <h3>Paste MJML to import</h3>
+            </div>
+            <button type="button" aria-label="Close import modal" (click)="closeImportModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div class="nes-import-body">
+            <p class="nes-muted">Paste a supported MJML subset below. Rows, columns, text, images, buttons, dividers, and spacers will be converted into editable blocks.</p>
+            <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" spellcheck="false" placeholder="<mjml>...</mjml>"></textarea>
+            <div class="nes-import-error" *ngIf="importErrorMessage"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ importErrorMessage }}</div>
+          </div>
+          <footer class="nes-modal-footer">
+            <button type="button" (click)="closeImportModal()">Cancel</button>
+            <button type="button" class="nes-primary" (click)="importMjml()"><i class="fa fa-check" aria-hidden="true"></i> Import MJML</button>
+          </footer>
+        </section>
+      </div>
+
       <div class="nes-modal-backdrop" *ngIf="outputModalType" (click)="closeOutputModal()">
         <section class="nes-output-modal" role="dialog" aria-modal="true" [attr.aria-label]="outputModalTitle" (click)="$event.stopPropagation()">
           <header>
@@ -302,7 +318,10 @@ function resolveTinyMceScriptSrc(): string {
               <p>Export output</p>
               <h3>{{ outputModalTitle }}</h3>
             </div>
-            <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+            <div class="nes-modal-actions">
+              <button type="button" class="nes-copy-btn" (click)="copyOutputToClipboard()"><i class="fa fa-copy" aria-hidden="true"></i> {{ copyState || 'Copy' }}</button>
+              <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+            </div>
           </header>
           <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
             Unsupported MJML preserved as warning: {{ emailDocument.unsupported?.join(', ') }}
@@ -412,10 +431,6 @@ function resolveTinyMceScriptSrc(): string {
     .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
     .nes-save-state { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: #ecfdf3; color: #15803d; font-size: 13px; font-weight: 700; }
     .nes-save-state i { font-size: 8px; }
-    .nes-import { position: relative; display: flex; align-items: center; gap: 6px; border: 1px solid var(--nes-border); border-radius: 10px; padding: 8px 10px; background: #fff; cursor: pointer; }
-    .nes-import textarea { position: absolute; top: 42px; right: 0; width: 320px; height: 140px; z-index: 20; opacity: 0; pointer-events: none; }
-    .nes-import:focus-within textarea, .nes-import:hover textarea { opacity: 1; pointer-events: auto; }
-    .nes-import button { padding: 4px 8px; }
     .nes-export { position: relative; }
     .nes-export > button { display: inline-flex; align-items: center; gap: 6px; }
     .nes-export-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 180px; padding: 6px; border: 1px solid var(--nes-border); border-radius: 12px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .16); }
@@ -490,10 +505,18 @@ function resolveTinyMceScriptSrc(): string {
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .48); }
-    .nes-output-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border-radius: 18px; background: #fff; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
-    .nes-output-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); }
-    .nes-output-modal header p { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
+    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border-radius: 18px; background: #fff; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
+    .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); }
+    .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; }
+    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); }
+    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
+    .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
+    .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
     .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; background: #0b1220; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .nes-import-body { padding: 20px; overflow: auto; }
+    .nes-import-body textarea { min-height: 420px; resize: vertical; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0b1220; color: #e5e7eb; border-color: #1e293b; }
+    .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
+    .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #f8fafc; }
     .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border-radius: 10px; margin: 12px 20px; }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
@@ -530,7 +553,11 @@ export class NgxEmailStudio implements OnChanges {
   paletteSearch = '';
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
   exportMenuOpen = false;
+  importModalOpen = false;
+  importErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
+  copyState = '';
+  private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   lastMjml = '';
   lastHtml = '';
@@ -745,12 +772,26 @@ export class NgxEmailStudio implements OnChanges {
     this.emitDocument();
   }
 
+  openImportModal(): void {
+    this.mjmlDraft = this.lastMjml || this.compileMjml(this.emailDocument);
+    this.importErrorMessage = '';
+    this.importModalOpen = true;
+  }
+
+  closeImportModal(): void {
+    this.importModalOpen = false;
+    this.importErrorMessage = '';
+  }
+
   importMjml(): void {
     try {
       this.emailDocument = this.parseMjml(this.mjmlDraft);
       this.selectedNodeId = this.emailDocument.body[0]?.id;
+      this.importModalOpen = false;
+      this.importErrorMessage = '';
       this.emitDocument();
     } catch (details) {
+      this.importErrorMessage = 'Unable to import MJML. Please check the markup and try again.';
       this.error.emit({ code: 'mjml_import_failed', message: 'Unable to import MJML.', details });
     }
   }
@@ -773,6 +814,23 @@ export class NgxEmailStudio implements OnChanges {
 
   closeOutputModal(): void {
     this.outputModalType = null;
+    this.copyState = '';
+  }
+
+  async copyOutputToClipboard(): Promise<void> {
+    const content = this.outputModalContent;
+    if (!content) return;
+    try {
+      if (globalThis.navigator?.clipboard?.writeText) {
+        await globalThis.navigator.clipboard.writeText(content);
+      } else {
+        this.fallbackCopyToClipboard(content);
+      }
+      this.setCopyState('Copied');
+    } catch {
+      this.fallbackCopyToClipboard(content);
+      this.setCopyState('Copied');
+    }
   }
 
   copyMjml(): void {
@@ -783,6 +841,26 @@ export class NgxEmailStudio implements OnChanges {
     this.lastMjml = this.compileMjml(this.emailDocument);
     this.lastHtml = this.renderHtml(this.emailDocument);
     this.htmlExport.emit(this.lastHtml);
+  }
+
+  private setCopyState(state: string): void {
+    this.copyState = state;
+    if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
+    this.copyStateTimer = setTimeout(() => (this.copyState = ''), 1800);
+  }
+
+  private fallbackCopyToClipboard(content: string): void {
+    const doc = globalThis.document;
+    if (!doc?.body) return;
+    const textarea = doc.createElement('textarea');
+    textarea.value = content;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    doc.body.appendChild(textarea);
+    textarea.select();
+    doc.execCommand?.('copy');
+    doc.body.removeChild(textarea);
   }
 
   private emitDocument(): void {
@@ -1040,65 +1118,113 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private renderHtml(document: EmailDocument): string {
-    const rows = document.body.map((node) => this.nodeToHtml(node)).join('\n');
-    return `<!doctype html><html><body style="margin:0;background:#f3f4f6;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;"><tr><td align="center"><table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">${rows}</table></td></tr></table></body></html>`;
+    const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
+    return [
+      '<!doctype html>',
+      '<html>',
+      '  <head>',
+      '    <meta charset="utf-8">',
+      '    <meta name="viewport" content="width=device-width, initial-scale=1">',
+      '    <title>Email Export</title>',
+      '  </head>',
+      '  <body style="margin:0;background:#f3f4f6;">',
+      '    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;">',
+      '      <tr>',
+      '        <td align="center">',
+      '          <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">',
+      rows,
+      '          </table>',
+      '        </td>',
+      '      </tr>',
+      '    </table>',
+      '  </body>',
+      '</html>',
+    ].join('\n');
   }
 
-  private nodeToHtml(node: EmailNode): string {
-    if (node.type === 'row') return this.rowToHtml(node);
-    if (node.type === 'column') return this.columnToHtml(node, this.autoColumnWidth(node));
-    if (node.type === 'section') return this.sectionToHtml(node);
-    return this.blockToHtmlRow(node);
+  private nodeToHtml(node: EmailNode, depth = 0): string {
+    if (node.type === 'row') return this.rowToHtml(node, depth);
+    if (node.type === 'column') return [this.indent('<tr>', depth), this.columnToHtml(node, this.autoColumnWidth(node), depth + 1), this.indent('</tr>', depth)].join('\n');
+    if (node.type === 'section') return this.sectionToHtml(node, depth);
+    return this.blockToHtmlRow(node, depth);
   }
 
-  private rowToHtml(row: EmailNode): string {
+  private rowToHtml(row: EmailNode, depth = 0): string {
     const columns = (row.children || []).filter((child) => child.type === 'column');
     const width = this.autoColumnWidth(row);
-    const cells = columns.map((column) => this.columnToHtml(column, width)).join('');
-    return `<tr><td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>${cells}</tr></table></td></tr>`;
+    const cells = columns.map((column) => this.columnToHtml(column, width, depth + 4)).join('\n');
+    return [
+      this.indent('<tr>', depth),
+      this.indent(`<td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth + 2),
+      this.indent('<tr>', depth + 3),
+      cells,
+      this.indent('</tr>', depth + 3),
+      this.indent('</table>', depth + 2),
+      this.indent('</td>', depth + 1),
+      this.indent('</tr>', depth),
+    ].join('\n');
   }
 
-  private sectionToHtml(section: EmailNode): string {
-    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child)).join('');
-    return `<tr><td style="padding:16px;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">${content}</td></tr>`;
+  private sectionToHtml(section: EmailNode, depth = 0): string {
+    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 2)).join('\n');
+    return [
+      this.indent('<tr>', depth),
+      this.indent(`<td style="padding:16px;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      content,
+      this.indent('</td>', depth + 1),
+      this.indent('</tr>', depth),
+    ].join('\n');
   }
 
-  private columnToHtml(column: EmailNode, fallbackWidth: string): string {
+  private columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): string {
     const width = String(column.attrs['width'] || fallbackWidth);
-    const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child)).join('');
-    return `<td width="${this.escapeAttr(width)}" valign="top" style="width:${this.escapeAttr(width)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">${content}</td>`;
+    const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
+    return [
+      this.indent(`<td width="${this.escapeAttr(width)}" valign="top" style="width:${this.escapeAttr(width)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      content,
+      this.indent('</td>', depth),
+    ].join('\n');
   }
 
-  private blockToHtmlRow(node: EmailNode): string {
+  private blockToHtmlRow(node: EmailNode, depth = 0): string {
     switch (node.type) {
       case 'row':
-        return this.rowToHtml(node);
+        return this.rowToHtml(node, depth);
       case 'column':
-        return `<tr>${this.columnToHtml(node, '100%')}</tr>`;
+        return [this.indent('<tr>', depth), this.columnToHtml(node, '100%', depth + 1), this.indent('</tr>', depth)].join('\n');
       default:
-        return `<tr><td>${this.blockToHtmlCellContent(node)}</td></tr>`;
+        return [this.indent('<tr>', depth), this.indent('<td>', depth + 1), this.blockToHtmlCellContent(node, depth + 2), this.indent('</td>', depth + 1), this.indent('</tr>', depth)].join('\n');
     }
   }
 
-  private blockToHtmlCellContent(node: EmailNode): string {
+  private blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     switch (node.type) {
       case 'row':
-        return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${this.rowToHtml(node)}</table>`;
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.rowToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'column':
-        return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>${this.columnToHtml(node, '100%')}</tr></table>`;
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
       case 'section':
-        return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${this.sectionToHtml(node)}</table>`;
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'text':
-        return `<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${node.attrs['content'] || ''}</div>`;
+        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${node.attrs['content'] || ''}</div>`, depth);
       case 'image':
-        return `<img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`;
+        return this.indent(`<img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`, depth);
       case 'button':
-        return `<div style="padding:24px;text-align:center;"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`;
+        return this.indent(`<div style="padding:24px;text-align:center;"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
       case 'divider':
-        return `<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`;
-      case 'spacer':
-        return `<div style="height:${Number(node.attrs['height'] || 24)}px;line-height:${Number(node.attrs['height'] || 24)}px;font-size:0;">&nbsp;</div>`;
+        return this.indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
+      case 'spacer': {
+        const height = Number(node.attrs['height'] || 24);
+        return this.indent(`<div style="height:${height}px;line-height:${height}px;font-size:0;">&nbsp;</div>`, depth);
+      }
+      default:
+        return '';
     }
+  }
+
+  private indent(value: string, depth: number): string {
+    return `${'  '.repeat(depth)}${value}`;
   }
 
   private findNode(id?: string): EmailNode | undefined {
