@@ -7,6 +7,12 @@ BUILD_DIR="$ROOT/dist/demo/browser"
 WORKTREE="${TMPDIR:-/tmp}/ngx-email-studio-gh-pages"
 BASE_HREF="/ngx-email-studio/"
 
+cleanup() {
+  git -C "$ROOT" worktree remove "$WORKTREE" --force >/dev/null 2>&1 || true
+  rm -rf "$WORKTREE"
+}
+trap cleanup EXIT
+
 cd "$ROOT"
 
 if [[ -n "$(git status --porcelain)" ]]; then
