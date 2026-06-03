@@ -121,8 +121,25 @@ npm run build:lib
 npm run build:demo
 npm test -- --watch=false
 npm run pack:lib
+npm run deploy:pages
 npm start
 ```
+
+## GitHub Pages Demo
+
+After each completed change, push `main`, then deploy the demo:
+
+```bash
+npm run deploy:pages
+```
+
+The deploy script builds the Angular demo with:
+
+```bash
+--base-href /ngx-email-studio/
+```
+
+Then publishes `dist/demo/browser` to the `gh-pages` branch.
 
 ## Planning Docs
 

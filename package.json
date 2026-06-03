@@ -9,7 +9,9 @@
     "build:demo": "ng build demo",
     "watch": "ng build ngx-email-studio --watch --configuration development",
     "test": "ng test",
-    "pack:lib": "npm pack ./dist/ngx-email-studio"
+    "pack:lib": "npm pack ./dist/ngx-email-studio",
+    "build:pages": "ng build ngx-email-studio && ng build demo --base-href /ngx-email-studio/",
+    "deploy:pages": "bash scripts/deploy-demo-pages.sh"
   },
   "private": true,
   "packageManager": "npm@11.11.0",
