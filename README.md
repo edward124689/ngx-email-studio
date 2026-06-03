@@ -1,6 +1,6 @@
-# ngx-mjml-builder
+# ngx-email-studio
 
-Angular MJML email builder library for browser-side email template editing and HTML export.
+Angular email studio library for browser-side MJML template editing and HTML export.
 
 ## Planned Scope
 
@@ -8,4 +8,3 @@ Angular MJML email builder library for browser-side email template editing and H
 - JSON template schema to MJML compiler
 - Browser-side MJML to HTML preview/export
 - Drag-and-drop blocks for sections, columns, text, image, button, and divider
-
