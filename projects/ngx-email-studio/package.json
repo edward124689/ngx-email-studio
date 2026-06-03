@@ -1,0 +1,27 @@
+{
+  "name": "ngx-email-studio",
+  "version": "0.0.1",
+  "description": "Angular 21 frontend email builder library with MJML import/export, HTML export, responsive preview, drag-and-drop blocks, Font Awesome 4.7 icons, and TinyMCE rich text editing.",
+  "keywords": [
+    "angular",
+    "email-builder",
+    "mjml",
+    "tinymce",
+    "drag-and-drop",
+    "newsletter"
+  ],
+  "author": "Edward",
+  "license": "MIT",
+  "peerDependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/cdk": "^21.0.0",
+    "@tinymce/tinymce-angular": "^9.1.1",
+    "tinymce": "^8.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false
+}
