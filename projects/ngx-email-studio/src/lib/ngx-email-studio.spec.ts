@@ -143,4 +143,10 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body[1].type).toBe('text');
     expect(component.emailDocument.body[1].attrs['content']).toContain('取消訂閱');
   });
+
+  it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
+    expect(component.tinyMceInit['skin']).toBe('oxide');
+    expect(component.tinyMceInit['content_css']).toBe('default');
+    expect(component.tinyMceInit['base_url']).toBeTruthy();
+  });
 });
