@@ -31,6 +31,7 @@ if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
   git fetch origin "$BRANCH":"refs/remotes/origin/$BRANCH"
   git worktree add "$WORKTREE" "origin/$BRANCH"
 else
+  git branch -D "$BRANCH" >/dev/null 2>&1 || true
   git worktree add --detach "$WORKTREE" HEAD
   git -C "$WORKTREE" switch --orphan "$BRANCH"
   git -C "$WORKTREE" rm -rf . >/dev/null 2>&1 || true
