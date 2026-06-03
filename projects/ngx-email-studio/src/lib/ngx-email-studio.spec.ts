@@ -190,10 +190,50 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should copy the active export modal output', async () => {
+    const originalClipboard = globalThis.navigator.clipboard;
+    const writes: string[] = [];
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (value: string) => writes.push(value) },
+    });
+
     component.openOutputModal('mjml');
     await component.copyOutputToClipboard();
 
+    expect(writes[0]).toContain('<mjml>');
     expect(component.copyState).toBe('Copied');
+
+    Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: originalClipboard });
+  });
+
+  it('should show copy failure when clipboard and fallback copy fail', async () => {
+    const originalClipboard = globalThis.navigator.clipboard;
+    const originalExecCommand = document.execCommand;
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async () => Promise.reject(new Error('denied')) },
+    });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: () => false });
+
+    component.openOutputModal('mjml');
+    await component.copyOutputToClipboard();
+
+    expect(component.copyState).toBe('Copy failed');
+
+    Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: originalClipboard });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: originalExecCommand });
+  });
+
+  it('should keep the import modal open and show an error for malformed MJML', () => {
+    component.openImportModal();
+    component.mjmlDraft = '<mjml><mj-body><mj-section><mj-column><mj-text>Broken';
+    const existingBody = component.emailDocument.body;
+
+    component.importMjml();
+
+    expect(component.importModalOpen).toBe(true);
+    expect(component.importErrorMessage).toContain('Unable to import MJML');
+    expect(component.emailDocument.body).toBe(existingBody);
   });
 
   it('should open import in a modal and close it after a valid import', () => {

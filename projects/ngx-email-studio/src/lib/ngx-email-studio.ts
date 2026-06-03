@@ -823,14 +823,20 @@ export class NgxEmailStudio implements OnChanges {
     try {
       if (globalThis.navigator?.clipboard?.writeText) {
         await globalThis.navigator.clipboard.writeText(content);
-      } else {
-        this.fallbackCopyToClipboard(content);
+        this.setCopyState('Copied');
+        return;
       }
-      this.setCopyState('Copied');
+      if (this.fallbackCopyToClipboard(content)) {
+        this.setCopyState('Copied');
+        return;
+      }
     } catch {
-      this.fallbackCopyToClipboard(content);
-      this.setCopyState('Copied');
+      if (this.fallbackCopyToClipboard(content)) {
+        this.setCopyState('Copied');
+        return;
+      }
     }
+    this.setCopyState('Copy failed');
   }
 
   copyMjml(): void {
@@ -849,18 +855,21 @@ export class NgxEmailStudio implements OnChanges {
     this.copyStateTimer = setTimeout(() => (this.copyState = ''), 1800);
   }
 
-  private fallbackCopyToClipboard(content: string): void {
+  private fallbackCopyToClipboard(content: string): boolean {
     const doc = globalThis.document;
-    if (!doc?.body) return;
+    if (!doc?.body || !doc.execCommand) return false;
     const textarea = doc.createElement('textarea');
     textarea.value = content;
     textarea.setAttribute('readonly', 'true');
     textarea.style.position = 'fixed';
     textarea.style.left = '-9999px';
     doc.body.appendChild(textarea);
-    textarea.select();
-    doc.execCommand?.('copy');
-    doc.body.removeChild(textarea);
+    try {
+      textarea.select();
+      return doc.execCommand('copy');
+    } finally {
+      doc.body.removeChild(textarea);
+    }
   }
 
   private emitDocument(): void {
@@ -1047,6 +1056,10 @@ export class NgxEmailStudio implements OnChanges {
       return { version: '0.0.1', body: [this.createNode('text', { content: mjml })], unsupported: ['DOMParser unavailable'] };
     }
     const xml = new DOMParser().parseFromString(mjml, 'text/xml');
+    const parserError = xml.querySelector('parsererror');
+    if (parserError) {
+      throw new Error(parserError.textContent || 'Invalid MJML markup.');
+    }
     const unsupported: string[] = [];
     const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
     const nodes: EmailNode[] = [];
