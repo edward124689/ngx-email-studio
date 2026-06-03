@@ -69,6 +69,42 @@ describe('NgxEmailStudio', () => {
   it('should resolve TinyMCE assets relative to the current base URI', () => {
     const baseUrl = (component as any).resolveTinyMceBaseUrl() as string;
     expect(baseUrl.endsWith('/tinymce')).toBe(true);
+    expect(baseUrl.startsWith('http')).toBe(true);
     expect((component.tinyMceInit['base_url'] as string).endsWith('/tinymce')).toBe(true);
+  });
+
+  it('should drop palette blocks into a row column', () => {
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    expect(column).toBeTruthy();
+    const before = column?.children?.length || 0;
+
+    component.drop({
+      previousContainer: { data: component.palette } as any,
+      container: { data: column?.children || [] } as any,
+      previousIndex: 0,
+      currentIndex: before,
+      item: { data: { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' } } as any,
+    } as any);
+
+    expect(column?.children?.length).toBe(before + 1);
+    expect(column?.children?.[before].type).toBe('text');
+  });
+
+  it('should compile section children instead of placeholder text', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [
+        {
+          id: 'section_1',
+          type: 'section',
+          attrs: { backgroundColor: '#ffffff' },
+          children: [{ id: 'text_1', type: 'text', attrs: { content: '<p>Inside section</p>' } }],
+        },
+      ],
+    };
+
+    const mjml = (component as any).compileMjml(document) as string;
+    expect(mjml).toContain('<mj-section background-color="#ffffff"><mj-column><mj-text><p>Inside section</p></mj-text></mj-column></mj-section>');
   });
 });

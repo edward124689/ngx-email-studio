@@ -1,4 +1,4 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -43,7 +43,7 @@ interface PaletteItem {
 
 function resolveTinyMceScriptSrc(): string {
   const base = globalThis.document?.baseURI || '/';
-  return `${new URL('tinymce/tinymce.min.js', base).pathname}`;
+  return new URL('tinymce/tinymce.min.js', base).href;
 }
 
 @Component({
@@ -82,7 +82,7 @@ function resolveTinyMceScriptSrc(): string {
             cdkDropList
             #paletteList="cdkDropList"
             [cdkDropListData]="palette"
-            [cdkDropListConnectedTo]="[canvasList]"
+            [cdkDropListConnectedTo]="connectedDropListIds"
             class="nes-block-list"
           >
             <article class="nes-block" *ngFor="let item of palette" cdkDrag [cdkDragData]="item">
@@ -104,8 +104,9 @@ function resolveTinyMceScriptSrc(): string {
             <div
               cdkDropList
               #canvasList="cdkDropList"
+              [id]="rootDropListId"
               [cdkDropListData]="emailDocument.body"
-              [cdkDropListConnectedTo]="[paletteList]"
+              [cdkDropListConnectedTo]="connectedDropListIds"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
             >
@@ -158,7 +159,7 @@ function resolveTinyMceScriptSrc(): string {
               <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
             </label>
 
-            <ng-container *ngIf="node.type === 'row' || node.type === 'column'">
+            <ng-container *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'">
               <p class="nes-muted">Add content inside this {{ node.type }}:</p>
               <div class="nes-add-grid">
                 <button type="button" (click)="addChildBlock(node, 'text')"><i class="fa fa-font"></i> Text</button>
@@ -235,10 +236,16 @@ function resolveTinyMceScriptSrc(): string {
       <ng-container [ngSwitch]="node.type">
         <section *ngSwitchCase="'row'" class="nes-render-row" [style.background]="node.attrs['backgroundColor'] || '#ffffff'">
           <div
+            cdkDropList
             class="nes-render-column"
             *ngFor="let column of node.children || []; let columnIndex = index; trackBy: trackNode"
+            [id]="dropListIdFor(column)"
+            [cdkDropListData]="childrenOf(column)"
+            [cdkDropListConnectedTo]="connectedDropListIds"
+            (cdkDropListDropped)="drop($event)"
             [style.width]="column.attrs['width'] || autoColumnWidth(node)"
             [class.is-selected]="column.id === selectedNodeId"
+            [class.is-empty]="childrenOf(column).length === 0"
             (click)="selectNode(column.id); $event.stopPropagation()"
           >
             <div class="nes-column-label">Column {{ columnIndex + 1 }}</div>
@@ -247,19 +254,47 @@ function resolveTinyMceScriptSrc(): string {
               tabindex="0"
               class="nes-child-node"
               [class.is-selected]="child.id === selectedNodeId"
-              *ngFor="let child of column.children || []; trackBy: trackNode"
+              *ngFor="let child of childrenOf(column); trackBy: trackNode"
+              cdkDrag
+              [cdkDragData]="child"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
+            <div class="nes-drop-hint" *ngIf="childrenOf(column).length === 0">Drop blocks here</div>
             <button type="button" class="nes-add-column-block" (click)="addChildBlock(column, 'text'); $event.stopPropagation()">
               <i class="fa fa-plus"></i> Add text
             </button>
           </div>
         </section>
         <div *ngSwitchCase="'column'" class="nes-render-column-alone">Column</div>
-        <section *ngSwitchCase="'section'" class="nes-render-section">Section container</section>
+        <section
+          *ngSwitchCase="'section'"
+          cdkDropList
+          class="nes-render-section"
+          [id]="dropListIdFor(node)"
+          [cdkDropListData]="childrenOf(node)"
+          [cdkDropListConnectedTo]="connectedDropListIds"
+          (cdkDropListDropped)="drop($event)"
+          [class.is-empty]="childrenOf(node).length === 0"
+        >
+          <div class="nes-column-label">Section</div>
+          <article
+            role="button"
+            tabindex="0"
+            class="nes-child-node"
+            [class.is-selected]="child.id === selectedNodeId"
+            *ngFor="let child of childrenOf(node); trackBy: trackNode"
+            cdkDrag
+            [cdkDragData]="child"
+            (click)="selectNode(child.id); $event.stopPropagation()"
+            (keydown.enter)="selectNode(child.id)"
+          >
+            <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
+          </article>
+          <div class="nes-drop-hint" *ngIf="childrenOf(node).length === 0">Drop blocks into this section</div>
+        </section>
         <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="node.attrs['content']"></div>
         <img *ngSwitchCase="'image'" class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
         <a *ngSwitchCase="'button'" class="nes-render-button">{{ node.attrs['label'] }}</a>
@@ -301,8 +336,11 @@ function resolveTinyMceScriptSrc(): string {
     .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, .12); }
     .nes-render-row { display: flex; align-items: stretch; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid #e5e7eb; }
     .nes-render-column { min-width: 0; flex: 1 1 0; border: 1px dashed #cfd8e6; border-radius: 12px; padding: 10px; background: #fbfcff; box-sizing: border-box; }
+    .nes-render-column.is-empty, .nes-render-section.is-empty { min-height: 110px; }
     .nes-column-label { font-size: 11px; color: #667085; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
     .nes-render-column-alone, .nes-render-section { padding: 16px; border: 1px dashed #cfd8e6; border-radius: 12px; color: #667085; }
+    .nes-render-section { background: #fbfcff; }
+    .nes-drop-hint { display: grid; place-items: center; min-height: 64px; margin: 8px 0; border: 1px dashed #cfd8e6; border-radius: 10px; color: #98a2b3; font-size: 12px; }
     .nes-add-column-block { width: 100%; padding: 7px 9px; color: #667085; border-style: dashed; }
     .nes-render-text { line-height: 1.55; color: #1f2937; }
     .nes-render-text :first-child { margin-top: 0; }
@@ -358,6 +396,11 @@ export class NgxEmailStudio implements OnChanges {
   lastHtml = '';
 
   tinyMceInit = this.createTinyMceInit();
+  readonly rootDropListId = 'nes-root-drop-list';
+
+  get connectedDropListIds(): string[] {
+    return [this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
+  }
 
   get selectedNode(): EmailNode | undefined {
     return this.findNode(this.selectedNodeId);
@@ -398,20 +441,33 @@ export class NgxEmailStudio implements OnChanges {
   drop(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): void {
     if (this.readonly) return;
     if (event.previousContainer === event.container) {
-      moveItemInArray(this.emailDocument.body, event.previousIndex, event.currentIndex);
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       this.emitDocument();
       return;
     }
 
-    const paletteItem = event.item.data as PaletteItem;
-    const node = this.createNode(paletteItem.type);
-    this.emailDocument.body.splice(event.currentIndex, 0, node);
-    this.selectedNodeId = node.id;
+    if (this.isPaletteItem(event.item.data)) {
+      const node = this.createNode(event.item.data.type);
+      event.container.data.splice(event.currentIndex, 0, node);
+      this.selectedNodeId = node.id;
+    } else {
+      transferArrayItem(event.previousContainer.data as EmailNode[], event.container.data, event.previousIndex, event.currentIndex);
+      this.selectedNodeId = event.container.data[event.currentIndex]?.id;
+    }
     this.emitDocument();
   }
 
   trackNode(_: number, node: EmailNode): string {
     return node.id;
+  }
+
+  dropListIdFor(node: EmailNode): string {
+    return `nes-drop-${node.id}`;
+  }
+
+  childrenOf(node: EmailNode): EmailNode[] {
+    node.children ??= [];
+    return node.children;
   }
 
   selectNode(id: string): void {
@@ -447,8 +503,8 @@ export class NgxEmailStudio implements OnChanges {
       return;
     }
 
-    if (parent.type !== 'column') return;
-    const child = this.createNode(type === 'row' ? 'text' : type);
+    if (parent.type !== 'column' && parent.type !== 'section') return;
+    const child = this.createNode(type === 'row' || type === 'section' ? 'text' : type);
     parent.children = [...(parent.children || []), child];
     this.selectedNodeId = child.id;
     this.emitDocument();
@@ -505,6 +561,17 @@ export class NgxEmailStudio implements OnChanges {
     this.refreshOutputs(true);
   }
 
+  private isPaletteItem(value: unknown): value is PaletteItem {
+    return !!value && typeof value === 'object' && 'type' in value && 'label' in value && 'description' in value;
+  }
+
+  private collectContainerDropListIds(nodes: EmailNode[]): string[] {
+    return nodes.flatMap((node) => {
+      const ids = node.type === 'column' || node.type === 'section' ? [this.dropListIdFor(node)] : [];
+      return [...ids, ...this.collectContainerDropListIds(node.children || [])];
+    });
+  }
+
   private refreshOutputs(emit: boolean): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
     if (this.config?.showHtmlPreview) this.lastHtml = this.renderHtml(this.emailDocument);
@@ -546,7 +613,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private resolveTinyMceBaseUrl(): string {
     const base = globalThis.document?.baseURI || '/';
-    return new URL('tinymce', base).pathname.replace(/\/$/, '');
+    return new URL('tinymce', base).href.replace(/\/$/, '');
   }
 
   private createNode(type: EmailBlockType, attrs: Record<string, string | number | boolean> = {}): EmailNode {
@@ -570,6 +637,15 @@ export class NgxEmailStudio implements OnChanges {
           this.createColumn([this.createNode('text', { content: '<p><strong>Left column</strong><br>Describe your offer.</p>' })], '50%'),
           this.createColumn([this.createNode('button', { label: 'Shop now', href: '#' })], '50%'),
         ],
+      };
+    }
+
+    if (type === 'section') {
+      return {
+        id: this.nextId(type),
+        type,
+        attrs: { ...defaults[type], ...attrs },
+        children: [this.createNode('text', { content: '<p>Drop blocks into this section.</p>' })],
       };
     }
 
@@ -597,7 +673,7 @@ export class NgxEmailStudio implements OnChanges {
   private nodeToMjml(node: EmailNode): string {
     if (node.type === 'row') return this.rowToMjml(node);
     if (node.type === 'column') return this.columnToMjml(node);
-    if (node.type === 'section') return `    <mj-section${this.backgroundAttr(node)}><mj-column><mj-text>Section container</mj-text></mj-column></mj-section>`;
+    if (node.type === 'section') return this.sectionToMjml(node);
     return `    <mj-section${this.backgroundAttr(node)}><mj-column>${this.blockToMjml(node)}</mj-column></mj-section>`;
   }
 
@@ -607,6 +683,11 @@ export class NgxEmailStudio implements OnChanges {
       ? columns.map((column) => this.columnToMjml(column)).join('')
       : this.columnToMjml(this.createColumn([this.createNode('text')]));
     return `    <mj-section${this.backgroundAttr(row)}>${columnMarkup}</mj-section>`;
+  }
+
+  private sectionToMjml(section: EmailNode): string {
+    const children = (section.children || []).map((child) => this.blockToMjml(child)).join('');
+    return `    <mj-section${this.backgroundAttr(section)}><mj-column>${children || '<mj-text></mj-text>'}</mj-column></mj-section>`;
   }
 
   private columnToMjml(column: EmailNode): string {
@@ -720,7 +801,7 @@ export class NgxEmailStudio implements OnChanges {
   private nodeToHtml(node: EmailNode): string {
     if (node.type === 'row') return this.rowToHtml(node);
     if (node.type === 'column') return this.columnToHtml(node, this.autoColumnWidth(node));
-    if (node.type === 'section') return `<tr><td style="padding:24px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};color:#667085;text-align:center;">Section container</td></tr>`;
+    if (node.type === 'section') return this.sectionToHtml(node);
     return this.blockToHtmlRow(node);
   }
 
@@ -729,6 +810,11 @@ export class NgxEmailStudio implements OnChanges {
     const width = this.autoColumnWidth(row);
     const cells = columns.map((column) => this.columnToHtml(column, width)).join('');
     return `<tr><td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>${cells}</tr></table></td></tr>`;
+  }
+
+  private sectionToHtml(section: EmailNode): string {
+    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child)).join('');
+    return `<tr><td style="padding:16px;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">${content}</td></tr>`;
   }
 
   private columnToHtml(column: EmailNode, fallbackWidth: string): string {
@@ -755,7 +841,7 @@ export class NgxEmailStudio implements OnChanges {
       case 'column':
         return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>${this.columnToHtml(node, '100%')}</tr></table>`;
       case 'section':
-        return `<div style="padding:24px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};color:#667085;text-align:center;">Section container</div>`;
+        return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${this.sectionToHtml(node)}</table>`;
       case 'text':
         return `<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${node.attrs['content'] || ''}</div>`;
       case 'image':
