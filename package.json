@@ -11,6 +11,7 @@
     "test": "ng test",
     "smoke:tinymce": "node scripts/tinymce-smoke.mjs",
     "smoke:tiptap": "node scripts/tiptap-smoke.mjs",
+    "smoke:tiptap-cursor": "node scripts/tiptap-cursor-smoke.mjs",
     "pack:lib": "npm pack ./dist/ngx-email-studio",
     "build:pages": "ng build ngx-email-studio && ng build demo --base-href /ngx-email-studio/",
     "deploy:pages": "bash scripts/deploy-demo-pages.sh"

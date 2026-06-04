@@ -375,7 +375,7 @@ function resolveTinyMceScriptSrc(): string {
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')">Del table</button>
                     </div>
-                    <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id"></div>
+                    <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id" (mousedown)="guardTiptapBlankMouseDown($event, 'inline')" (click)="$event.stopPropagation()"></div>
                   </div>
                   <textarea *ngSwitchDefault [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
                 </ng-container>
@@ -580,7 +580,7 @@ function resolveTinyMceScriptSrc(): string {
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')">Del table</button>
                 </div>
-                <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id"></div>
+                <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id" (mousedown)="guardTiptapBlankMouseDown($event, 'modal')" (click)="$event.stopPropagation()"></div>
               </div>
               <textarea *ngSwitchDefault [ngModel]="richTextNode.attrs['content']" (ngModelChange)="updateExpandedRichText($event)"></textarea>
             </ng-container>
@@ -937,9 +937,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
     .nes-tiptap-toolbar button:hover { background: #eff6ff; }
     .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
-    .nes-tiptap-editor { min-height: 150px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; }
+    .nes-tiptap-editor { min-height: 88px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; cursor: text; }
     .nes-tiptap-editor-large { min-height: 620px; }
-    .nes-tiptap-editor .ProseMirror { min-height: inherit; outline: none; }
+    .nes-tiptap-editor .ProseMirror { min-height: 0; outline: none; }
+    .nes-tiptap-editor-large .ProseMirror { min-height: 0; }
     .nes-tiptap-editor .ProseMirror > :first-child { margin-top: 0; }
     .nes-tiptap-editor .ProseMirror > :last-child { margin-bottom: 0; }
     .nes-tiptap-editor .ProseMirror h2 { margin: 0 0 10px; font-size: 22px; line-height: 1.2; }
@@ -1620,6 +1621,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     }
   }
 
+  guardTiptapBlankMouseDown(event: MouseEvent, scope: 'inline' | 'modal'): void {
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
+    editor?.view.focus();
+  }
+
   async copyOutputToClipboard(): Promise<void> {
     const content = this.outputModalContent;
     if (!content) return;
@@ -1880,7 +1889,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private createTiptapEditor(element: HTMLElement, node: EmailNode, scope: 'inline' | 'modal'): TiptapEditor {
-    return new TiptapEditor({
+    const editor = new TiptapEditor({
       element,
       content: this.sanitizeRichTextContent(node.attrs['content']),
       editable: !this.readonly,
@@ -1899,6 +1908,29 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         this.updateAttr(currentNode, 'content', editor.getHTML());
       },
     });
+    this.installTiptapBlankClickGuard(element, editor);
+    return editor;
+  }
+
+  private installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
+    element.addEventListener('mousedown', (event) => {
+      if (!(event instanceof MouseEvent)) return;
+      const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
+      if (!proseMirror) return;
+      const contentBottom = this.tiptapContentBottom(proseMirror);
+      if (event.target === element || event.clientY > contentBottom + 4) {
+        event.preventDefault();
+        event.stopPropagation();
+        editor.view.focus();
+      }
+    }, true);
+  }
+
+  private tiptapContentBottom(proseMirror: HTMLElement): number {
+    const children = Array.from(proseMirror.children) as HTMLElement[];
+    const visibleChildren = children.filter((child) => child.getClientRects().length > 0);
+    if (!visibleChildren.length) return proseMirror.getBoundingClientRect().top;
+    return Math.max(...visibleChildren.map((child) => child.getBoundingClientRect().bottom));
   }
 
   private syncTiptapContent(editor: TiptapEditor, node: EmailNode): void {
