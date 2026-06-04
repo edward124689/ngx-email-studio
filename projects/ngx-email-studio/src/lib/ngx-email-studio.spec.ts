@@ -624,76 +624,25 @@ describe('NgxEmailStudio', () => {
     expect(secondCalls.length).toBeGreaterThan(0);
   });
 
-  it('should support same-parent outline reorder with drag handles while keeping row click selection', () => {
+  it('should keep the outline click-only without drag handles or drop targets', () => {
     fixture.detectChanges();
     const tabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     tabs[1].click();
     fixture.detectChanges();
 
     const first = component.emailDocument.body[0];
-    const second = component.emailDocument.body[1];
-    const outlineHandles = queryAll(fixture, '.nes-outline-handle') as NodeListOf<HTMLElement>;
-    const outlineDropLists = queryAll(fixture, '.nes-outline-drop-list') as NodeListOf<HTMLElement>;
-
-    expect(outlineHandles.length).toBeGreaterThan(0);
-    expect(outlineDropLists[0].id).toBe(component.outlineRootDropListId);
-
-    outlineHandles[0].click();
-    expect(component.selectedNodeId).not.toBe(first.id);
-
-    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
-    outlineNodes[1].click();
-    expect(component.selectedNodeId).toBe(first.id);
-
-    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, first.id);
-    component.previewOutlineDrop({
-      preventDefault: () => undefined,
-      dataTransfer: { getData: () => first.id },
-      currentTarget: { getBoundingClientRect: () => ({ top: 0, height: 40 }) },
-      clientY: 32,
-    } as any, second.id);
-    component.dropOutlineOn({
-      preventDefault: () => undefined,
-      dataTransfer: { getData: () => first.id },
-    } as any, second.id);
-
-    expect(component.emailDocument.body[0].id).toBe(second.id);
-    expect(component.emailDocument.body[1].id).toBe(first.id);
-    expect(component.selectedNodeId).toBe(first.id);
-    expect(component.lastMjml).toContain('<mjml>');
-  });
-
-  it('should keep outline drag phase 1 limited to same-parent reordering', () => {
-    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
-    const sectionChildren = section.children!;
-    sectionChildren.push((component as any).createNode('divider'));
     const beforeRootIds = component.emailDocument.body.map((node) => node.id);
-    const beforeChildIds = sectionChildren.map((node) => node.id);
+    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
 
-    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, beforeChildIds[0]);
-    component.dropOutlineOn({
-      preventDefault: () => undefined,
-      dataTransfer: { getData: () => beforeChildIds[0] },
-    } as any, component.emailDocument.body[1].id);
+    expect(queryAll(fixture, '.nes-outline-handle').length).toBe(0);
+    expect(queryAll(fixture, '.nes-outline-drop-list').length).toBe(0);
+    expect((component as any).beginOutlineDrag).toBeUndefined();
+    expect((component as any).dropOutlineOn).toBeUndefined();
 
+    outlineNodes[1].click();
+
+    expect(component.selectedNodeId).toBe(first.id);
     expect(component.emailDocument.body.map((node) => node.id)).toEqual(beforeRootIds);
-    expect(section.children!.map((node) => node.id)).toEqual(beforeChildIds);
-
-    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, beforeChildIds[0]);
-    component.previewOutlineDrop({
-      preventDefault: () => undefined,
-      dataTransfer: { getData: () => beforeChildIds[0] },
-      currentTarget: { getBoundingClientRect: () => ({ top: 0, height: 40 }) },
-      clientY: 32,
-    } as any, beforeChildIds[1]);
-    component.dropOutlineOn({
-      preventDefault: () => undefined,
-      dataTransfer: { getData: () => beforeChildIds[0] },
-    } as any, beforeChildIds[1]);
-
-    expect(section.children![0].id).toBe(beforeChildIds[1]);
-    expect(section.children![1].id).toBe(beforeChildIds[0]);
-    expect(component.selectedNodeId).toBe(beforeChildIds[0]);
   });
 
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {

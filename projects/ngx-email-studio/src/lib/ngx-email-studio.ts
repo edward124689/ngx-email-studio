@@ -164,7 +164,7 @@ function resolveTinyMceScriptSrc(): string {
                 </span>
                 <span class="nes-outline-index">BODY</span>
               </button>
-              <div class="nes-outline-children nes-outline-drop-list" role="group" [id]="outlineRootDropListId">
+              <div class="nes-outline-children" role="group">
                 <ng-container *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode">
                   <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: node, depth: 1, indexPath: (i + 1).toString().padStart(2, '0') }"></ng-container>
                 </ng-container>
@@ -566,25 +566,10 @@ function resolveTinyMceScriptSrc(): string {
           role="treeitem"
           [attr.aria-selected]="node.id === selectedNodeId"
           [class.is-active]="node.id === selectedNodeId"
-          [class.is-drag-before]="outlineDragOverId === node.id && outlineDropPosition === 'before'"
-          [class.is-drag-after]="outlineDragOverId === node.id && outlineDropPosition === 'after'"
           [style.padding-left.px]="12 + depth * 18"
           (click)="selectNodeFromOutline(node.id)"
-          (dragover)="previewOutlineDrop($event, node.id)"
-          (drop)="dropOutlineOn($event, node.id)"
         >
           <span class="nes-outline-rail" aria-hidden="true"></span>
-          <span
-            class="nes-outline-handle"
-            title="Drag to reorder within this level"
-            aria-label="Drag to reorder"
-            [attr.draggable]="!readonly"
-            (dragstart)="beginOutlineDrag($event, node.id)"
-            (dragend)="resetOutlineDrag()"
-            (click)="$event.stopPropagation()"
-          >
-            <i class="nes-icon fa fa-ellipsis-v" aria-hidden="true"></i><i class="nes-icon fa fa-ellipsis-v" aria-hidden="true"></i>
-          </span>
           <span class="nes-outline-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
           <span class="nes-outline-copy">
             <strong>{{ outlineLabel(node) }}</strong>
@@ -592,7 +577,7 @@ function resolveTinyMceScriptSrc(): string {
           </span>
           <span class="nes-outline-index">{{ indexPath }}</span>
         </button>
-        <div class="nes-outline-children nes-outline-drop-list" role="group" *ngIf="node.children?.length" [id]="outlineDropListIdFor(node)">
+        <div class="nes-outline-children" role="group" *ngIf="node.children?.length">
           <ng-container *ngFor="let child of node.children; let childIndex = index; trackBy: trackNode">
             <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: child, depth: depth + 1, indexPath: indexPath + '.' + (childIndex + 1) }"></ng-container>
           </ng-container>
@@ -729,7 +714,6 @@ function resolveTinyMceScriptSrc(): string {
     .fa-code { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m8.6 16.6-1.4 1.4L1.2 12l6-6 1.4 1.4L4 12l4.6 4.6Zm6.8 0L20 12l-4.6-4.6L16.8 6l6 6-6 6-1.4-1.4ZM13.4 4l-4 16h-2l4-16h2Z'/%3E%3C/svg%3E"); }
     .fa-exclamation-triangle { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2 23 21H1L12 2Zm0 5-6.1 11h12.2L12 7Zm-1 3h2v5h-2v-5Zm0 6h2v2h-2v-2Z'/%3E%3C/svg%3E"); }
     .fa-pencil-square-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 4h11v2H6v12h12v-9h2v11H4V4Zm13.7-.7 3 3-10 10H7.7v-3l10-10Z'/%3E%3C/svg%3E"); }
-    .fa-ellipsis-v { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z'/%3E%3C/svg%3E"); }
     .fa-header { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 4h3v7h10V4h3v18h-3v-8H7v8H4V4Z'/%3E%3C/svg%3E"); }
     .fa-align-left, .fa-font { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v2H5V5Zm0 4h14v2H5V9Zm0 4h10v2H5v-2Zm0 4h12v2H5v-2Z'/%3E%3C/svg%3E"); }
     .fa-mouse-pointer { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 2 18 16l-7 1-3 6-4-21Z'/%3E%3C/svg%3E"); }
@@ -784,14 +768,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-tree { position: relative; display: grid; gap: 4px; margin-top: 16px; max-height: 548px; overflow: auto; padding: 6px 4px 8px 0; }
     .nes-outline-tree::before { content: ''; position: absolute; top: 10px; bottom: 12px; left: 22px; width: 1px; background: linear-gradient(#dbeafe, #bbf7d0); }
     .nes-outline-body { margin-bottom: 4px; }
-    .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
+    .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
     .nes-outline-node:hover { border-color: #bfdbfe; background: #f8fafc; color: var(--nes-accent); }
     .nes-outline-node.is-active { border-color: #bfdbfe; background: linear-gradient(135deg, #eff6ff, #f0fdf4); color: #1d4ed8; box-shadow: 0 10px 22px rgba(37, 99, 235, .08); }
     .nes-outline-rail { position: absolute; left: calc(100% - 100% + 4px); top: 50%; width: 12px; height: 1px; background: #cbd5e1; transform: translateY(-50%); }
-    .nes-outline-handle { position: relative; z-index: 1; width: 20px; height: 28px; display: inline-grid; grid-auto-flow: column; place-content: center; gap: 1px; border-radius: 8px; color: #94a3b8; cursor: grab; touch-action: none; }
-    .nes-outline-handle:hover { background: #eff6ff; color: var(--nes-accent); }
-    .nes-outline-handle:active { cursor: grabbing; }
-    .nes-outline-handle i { font-size: 11px; line-height: 1; }
     .nes-outline-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; background: #eff6ff; color: var(--nes-accent); font-size: 12px; }
     .nes-outline-node.is-active .nes-outline-icon { background: #dcfce7; color: var(--nes-success); }
     .nes-outline-copy { min-width: 0; }
@@ -801,10 +781,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-index { color: #94a3b8; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .nes-outline-item { display: grid; gap: 4px; }
     .nes-outline-children { display: grid; gap: 4px; min-height: 4px; }
-    .nes-outline-node.is-drag-before::before, .nes-outline-node.is-drag-after::after { content: ''; position: absolute; left: 12px; right: 8px; height: 4px; border-radius: 999px; background: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .14), 0 8px 18px rgba(220, 38, 38, .18); pointer-events: none; }
-    .nes-outline-node.is-drag-before::before { top: -4px; }
-    .nes-outline-node.is-drag-after::after { bottom: -4px; }
-    .nes-outline-handle[draggable="true"]:active { background: #eff6ff; color: var(--nes-accent); }
+
     .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
     .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
     .nes-stage { max-height: min(900px, calc(100vh - 112px)); overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
@@ -958,9 +935,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
   copyState = '';
-  outlineDragId?: string;
-  outlineDragOverId?: string;
-  outlineDropPosition: 'before' | 'after' = 'before';
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
@@ -973,7 +947,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
-  readonly outlineRootDropListId = `${this.dropListIdPrefix}-outline-root-drop-list`;
   readonly bodyNodeId = BODY_NODE_ID;
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
@@ -1101,67 +1074,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   dropListIdFor(node: EmailNode): string {
     return `${this.dropListIdPrefix}-drop-${node.id}`;
-  }
-
-  outlineDropListIdFor(node: EmailNode): string {
-    return `${this.dropListIdPrefix}-outline-drop-${node.id}`;
-  }
-
-  beginOutlineDrag(event: DragEvent, id: string): void {
-    if (this.readonly) return;
-    this.outlineDragId = id;
-    this.outlineDragOverId = undefined;
-    event.dataTransfer?.setData('text/plain', id);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-  }
-
-  previewOutlineDrop(event: DragEvent, targetId: string): void {
-    const sourceId = this.outlineDragId || event.dataTransfer?.getData('text/plain');
-    if (!sourceId || !this.canReorderOutline(sourceId, targetId)) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    this.outlineDragOverId = targetId;
-    const target = event.currentTarget as HTMLElement | null;
-    const rect = target?.getBoundingClientRect();
-    this.outlineDropPosition = rect && event.clientY > rect.top + rect.height / 2 ? 'after' : 'before';
-  }
-
-  dropOutlineOn(event: DragEvent, targetId: string): void {
-    const sourceId = this.outlineDragId || event.dataTransfer?.getData('text/plain');
-    if (!sourceId || !this.canReorderOutline(sourceId, targetId)) {
-      this.resetOutlineDrag();
-      return;
-    }
-    event.preventDefault();
-    const source = this.findNodeLocation(sourceId);
-    const target = this.findNodeLocation(targetId);
-    if (!source || !target || source.siblings !== target.siblings) {
-      this.resetOutlineDrag();
-      return;
-    }
-
-    const [node] = source.siblings.splice(source.index, 1);
-    let insertIndex = target.index;
-    if (source.index < target.index) insertIndex -= 1;
-    if (this.outlineDropPosition === 'after') insertIndex += 1;
-    insertIndex = Math.max(0, Math.min(source.siblings.length, insertIndex));
-    source.siblings.splice(insertIndex, 0, node);
-    this.selectedNodeId = sourceId;
-    this.resetOutlineDrag();
-    this.emitDocument();
-  }
-
-  resetOutlineDrag(): void {
-    this.outlineDragId = undefined;
-    this.outlineDragOverId = undefined;
-    this.outlineDropPosition = 'before';
-  }
-
-  private canReorderOutline(sourceId: string, targetId: string): boolean {
-    if (this.readonly || sourceId === targetId) return false;
-    const source = this.findNodeLocation(sourceId);
-    const target = this.findNodeLocation(targetId);
-    return !!source && !!target && source.siblings === target.siblings;
   }
 
   childrenOf(node: EmailNode): EmailNode[] {
