@@ -20,7 +20,11 @@ type EmailIframeMessage =
   | { type: 'nes:reorder'; sourceId: string; targetId: string; position: 'before' | 'after' }
   | { type: 'nes:drop-palette'; targetContainerId: string; index: number; paletteType: PaletteBlockType; preset?: PaletteItem['preset'] };
 
-type EmailIframeParentMessage = { type: 'nes:scroll-to-node'; nodeId: string; bridgeToken: string };
+type EmailIframeParentMessage =
+  | { type: 'nes:scroll-to-node'; nodeId: string; bridgeToken: string }
+  | { type: 'nes:palette-hover'; paletteType: PaletteBlockType; preset?: PaletteItem['preset']; x: number; y: number; bridgeToken: string }
+  | { type: 'nes:palette-drop-commit'; bridgeToken: string }
+  | { type: 'nes:palette-cancel'; bridgeToken: string };
 
 interface HtmlRenderOptions {
   editorHooks?: boolean;
@@ -138,7 +142,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragDisabled]="effectiveConfig.iframeCanvas === true" [cdkDragStartDelay]="0" [attr.title]="item.description" [attr.draggable]="effectiveConfig.iframeCanvas ? 'true' : null" (dragstart)="beginPaletteDrag($event, item)" (dragend)="endPaletteDrag()">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragDisabled]="effectiveConfig.iframeCanvas === true" [cdkDragStartDelay]="0" [attr.title]="item.description" [attr.draggable]="null" (mousedown)="beginIframePalettePointerDrag($event, item)" (dragstart)="beginPaletteDrag($event, item)" (dragend)="endPaletteDrag()">
                 <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -491,6 +495,11 @@ function resolveTinyMceScriptSrc(): string {
         </aside>
       </main>
 
+      <div class="nes-drag-ghost" *ngIf="iframePaletteDrag" [style.transform]="dragGhostTransform">
+        <span class="nes-block-icon"><i class="fa" [class]="'fa ' + iframePaletteDrag.item.icon" aria-hidden="true"></i></span>
+        <span>{{ iframePaletteDrag.item.label }}</span>
+      </div>
+
       <div class="nes-modal-backdrop" *ngIf="importModalOpen" (click)="closeImportModal()">
         <section class="nes-import-modal" role="dialog" aria-modal="true" aria-label="Import MJML" (click)="$event.stopPropagation()">
           <header>
@@ -764,6 +773,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-block strong { font-size: 12px; line-height: 1.2; text-wrap: balance; }
     .nes-block-description { position: absolute; left: 8px; right: 8px; bottom: 8px; opacity: 0; pointer-events: none; transform: translateY(4px); padding: 6px 7px; border: 1px solid #dbeafe; border-radius: 10px; background: rgba(255,255,255,.97); color: #475569; box-shadow: 0 10px 24px rgba(15, 23, 42, .12); font-size: 10px; line-height: 1.25; transition: .15s ease; }
     .nes-block:hover .nes-block-description { opacity: 1; transform: translateY(0); }
+    .nes-drag-ghost { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; display: inline-flex; align-items: center; gap: 9px; min-width: 150px; padding: 9px 12px; border: 1px solid #bfdbfe; border-radius: 14px; background: rgba(255,255,255,.96); color: var(--nes-ink); box-shadow: 0 18px 44px rgba(15, 23, 42, .22); font-size: 12px; font-weight: 800; will-change: transform; }
+    .nes-drag-ghost .nes-block-icon { width: 30px; height: 30px; border-radius: 10px; }
     .nes-left-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: linear-gradient(180deg, #f8fafc, #eef2f7); box-shadow: inset 0 1px 0 rgba(255,255,255,.75); }
     .nes-left-tabs button { min-width: 0; border: 0; border-radius: 10px; background: transparent; color: var(--nes-muted); padding: 9px 8px; font-size: 12px; font-weight: 900; letter-spacing: -.01em; }
     .nes-left-tabs button.is-active { background: #fff; color: var(--nes-ink); box-shadow: 0 8px 18px rgba(15, 23, 42, .08), inset 0 0 0 1px rgba(226, 232, 240, .8); }
@@ -952,6 +963,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
   outlineDragOverId?: string;
   outlineDropPosition: 'before' | 'after' = 'before';
   activePaletteDrag?: PaletteItem;
+  iframePaletteDrag?: { item: PaletteItem; x: number; y: number; overFrame: boolean };
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
@@ -983,6 +995,11 @@ export class NgxEmailStudio implements OnChanges, OnInit {
     const query = this.paletteSearch.trim().toLowerCase();
     if (!query) return this.palette;
     return this.palette.filter((item) => `${item.label} ${item.description} ${item.type}`.toLowerCase().includes(query));
+  }
+
+  get dragGhostTransform(): string {
+    const drag = this.iframePaletteDrag;
+    return drag ? `translate3d(${drag.x + 12}px, ${drag.y + 12}px, 0)` : 'translate3d(-9999px, -9999px, 0)';
   }
 
   get selectedNode(): EmailNode | undefined {
@@ -1103,6 +1120,23 @@ export class NgxEmailStudio implements OnChanges, OnInit {
     }
   }
 
+  @HostListener('window:mousemove', ['$event'])
+  handleWindowMouseMove(event: MouseEvent): void {
+    if (!this.iframePaletteDrag) return;
+    this.updateIframePalettePointerDrag(event);
+  }
+
+  @HostListener('window:mouseup', ['$event'])
+  handleWindowMouseUp(event: MouseEvent): void {
+    if (!this.iframePaletteDrag) return;
+    this.finishIframePalettePointerDrag(event);
+  }
+
+  @HostListener('window:blur')
+  handleWindowBlur(): void {
+    if (this.iframePaletteDrag) this.cancelIframePalettePointerDrag();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
       this.tinyMceInit = this.createTinyMceInit();
@@ -1141,6 +1175,62 @@ export class NgxEmailStudio implements OnChanges, OnInit {
       this.selectedNodeId = event.container.data[event.currentIndex]?.id;
     }
     this.emitDocument();
+  }
+
+  beginIframePalettePointerDrag(event: MouseEvent, item: PaletteItem): void {
+    if (this.readonly || !this.usesIframeEditCanvas || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.activePaletteDrag = item;
+    this.iframePaletteDrag = { item, x: event.clientX, y: event.clientY, overFrame: false };
+    this.updateIframePalettePointerDrag(event);
+  }
+
+  private updateIframePalettePointerDrag(event: MouseEvent): void {
+    const drag = this.iframePaletteDrag;
+    if (!drag) return;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    const frame = this.canvasIframe?.nativeElement;
+    const frameWindow = frame?.contentWindow;
+    if (!frame || !frameWindow) return;
+    const rect = frame.getBoundingClientRect();
+    const overFrame = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    drag.overFrame = overFrame;
+    if (!overFrame) {
+      frameWindow.postMessage({ type: 'nes:palette-cancel', bridgeToken: this.iframeBridgeToken } satisfies EmailIframeParentMessage, '*');
+      return;
+    }
+    frameWindow.postMessage({
+      type: 'nes:palette-hover',
+      paletteType: drag.item.type,
+      preset: drag.item.preset,
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+      bridgeToken: this.iframeBridgeToken,
+    } satisfies EmailIframeParentMessage, '*');
+  }
+
+  private finishIframePalettePointerDrag(event: MouseEvent): void {
+    const drag = this.iframePaletteDrag;
+    if (!drag) return;
+    this.updateIframePalettePointerDrag(event);
+    const frameWindow = this.canvasIframe?.nativeElement.contentWindow;
+    if (drag.overFrame && frameWindow) {
+      frameWindow.postMessage({ type: 'nes:palette-drop-commit', bridgeToken: this.iframeBridgeToken } satisfies EmailIframeParentMessage, '*');
+    } else {
+      frameWindow?.postMessage({ type: 'nes:palette-cancel', bridgeToken: this.iframeBridgeToken } satisfies EmailIframeParentMessage, '*');
+    }
+    setTimeout(() => {
+      this.activePaletteDrag = undefined;
+    }, 250);
+    this.iframePaletteDrag = undefined;
+  }
+
+  private cancelIframePalettePointerDrag(): void {
+    this.canvasIframe?.nativeElement.contentWindow?.postMessage({ type: 'nes:palette-cancel', bridgeToken: this.iframeBridgeToken } satisfies EmailIframeParentMessage, '*');
+    this.activePaletteDrag = undefined;
+    this.iframePaletteDrag = undefined;
   }
 
   beginPaletteDrag(event: DragEvent, item: PaletteItem): void {
@@ -1785,6 +1875,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
       .nes-iframe-selected > .nes-iframe-tools { display: flex; }
       .nes-iframe-tools button { width: 28px; height: 28px; border: 0; border-radius: 8px; padding: 0; background: transparent; color: #ffffff; font: 13px/1 Arial, sans-serif; cursor: pointer; }
       .nes-iframe-tools button:hover { background: rgba(255, 255, 255, .14); }
+      .nes-iframe-insertion-line { position: fixed; z-index: 9999; height: 4px; border-radius: 999px; background: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .16), 0 8px 18px rgba(220, 38, 38, .2); pointer-events: none; }
     </style>`;
     const script = `
     <script>
@@ -1833,6 +1924,68 @@ export class NgxEmailStudio implements OnChanges, OnInit {
             if (event.clientY < rect.top + rect.height / 2) return i;
           }
           return nodes.length;
+        }
+        var paletteHover = null;
+        var insertionLine = null;
+        function ensureInsertionLine() {
+          if (insertionLine) return insertionLine;
+          insertionLine = document.createElement('div');
+          insertionLine.className = 'nes-iframe-insertion-line';
+          insertionLine.style.display = 'none';
+          document.body.appendChild(insertionLine);
+          return insertionLine;
+        }
+        function hideInsertionLine() {
+          paletteHover = null;
+          if (insertionLine) insertionLine.style.display = 'none';
+          clearDropTargets();
+        }
+        function resolvePaletteHover(x, y, palette) {
+          var target = document.elementFromPoint(x, y);
+          if (!target) return null;
+          var container = closestWithAttr(target, 'data-nes-drop-container-id');
+          var targetNode = closestWithAttr(target, 'data-nes-node-id');
+          if (!container && targetNode) container = closestWithAttr(targetNode.parentElement, 'data-nes-drop-container-id');
+          if (!container) return null;
+          var nodes = childNodeElements(container);
+          var index = nodes.length;
+          var lineRect = container.getBoundingClientRect();
+          var lineTop = lineRect.bottom;
+          var lineLeft = lineRect.left + 6;
+          var lineRight = lineRect.right - 6;
+          for (var i = 0; i < nodes.length; i += 1) {
+            var rect = nodes[i].getBoundingClientRect();
+            if (y < rect.top + rect.height / 2) {
+              index = i;
+              lineTop = rect.top;
+              lineLeft = rect.left + 6;
+              lineRight = rect.right - 6;
+              break;
+            }
+            if (i === nodes.length - 1) {
+              lineTop = rect.bottom;
+              lineLeft = rect.left + 6;
+              lineRight = rect.right - 6;
+            }
+          }
+          return { container: container, index: index, palette: palette, top: lineTop, left: lineLeft, right: lineRight };
+        }
+        function showPaletteHover(x, y, palette) {
+          clearDropTargets();
+          var hover = resolvePaletteHover(x, y, palette);
+          if (!hover) return hideInsertionLine();
+          paletteHover = hover;
+          hover.container.classList.add('nes-iframe-drop-target');
+          var line = ensureInsertionLine();
+          line.style.display = 'block';
+          line.style.left = Math.max(0, hover.left) + 'px';
+          line.style.top = Math.max(0, hover.top - 2) + 'px';
+          line.style.width = Math.max(24, hover.right - hover.left) + 'px';
+        }
+        function commitPaletteHover() {
+          if (!paletteHover) return hideInsertionLine();
+          send({ type: 'nes:drop-palette', targetContainerId: paletteHover.container.getAttribute('data-nes-drop-container-id'), index: paletteHover.index, paletteType: paletteHover.palette.type, preset: paletteHover.palette.preset });
+          hideInsertionLine();
         }
         var draggedNodeId = null;
         document.addEventListener('dragstart', function(event) {
@@ -1901,7 +2054,20 @@ export class NgxEmailStudio implements OnChanges, OnInit {
         });
         window.addEventListener('message', function(event) {
           var data = event.data;
-          if (!data || data.bridgeToken !== bridgeToken || data.type !== 'nes:scroll-to-node' || typeof data.nodeId !== 'string') return;
+          if (!data || data.bridgeToken !== bridgeToken) return;
+          if (data.type === 'nes:palette-hover' && typeof data.x === 'number' && typeof data.y === 'number' && typeof data.paletteType === 'string') {
+            showPaletteHover(data.x, data.y, { type: data.paletteType, preset: data.preset });
+            return;
+          }
+          if (data.type === 'nes:palette-drop-commit') {
+            commitPaletteHover();
+            return;
+          }
+          if (data.type === 'nes:palette-cancel') {
+            hideInsertionLine();
+            return;
+          }
+          if (data.type !== 'nes:scroll-to-node' || typeof data.nodeId !== 'string') return;
           var selector = '[data-nes-node-id="' + String(data.nodeId).replace(/"/g, '\\\"') + '"]';
           var target = document.querySelector(selector);
           if (!target) return;

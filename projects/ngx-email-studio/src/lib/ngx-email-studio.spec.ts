@@ -23,6 +23,19 @@ describe('NgxEmailStudio', () => {
     return frameWindow;
   }
 
+  function connectIframeForParentPosts(target: NgxEmailStudio = component, rect = { left: 100, top: 50, right: 700, bottom: 650 }): { posts: unknown[]; frameWindow: Window } {
+    target.setCanvasMode('iframe-edit');
+    const posts: unknown[] = [];
+    const frameWindow = { postMessage: (message: unknown) => posts.push(message) } as unknown as Window;
+    (target as any).canvasIframe = {
+      nativeElement: {
+        contentWindow: frameWindow,
+        getBoundingClientRect: () => rect,
+      },
+    };
+    return { posts, frameWindow };
+  }
+
   function bridgeMessage(target: NgxEmailStudio, source: Window, data: Record<string, unknown>): MessageEvent {
     return { source, data: { ...data, bridgeToken: (target as any).iframeBridgeToken } } as MessageEvent;
   }
@@ -340,6 +353,33 @@ describe('NgxEmailStudio', () => {
 
     component.selectNode(component.emailDocument.body[1].id);
     expect(component.currentIframeSrcdoc).toBe(first);
+  });
+
+  it('should use a GrapesJS-style parent drag ghost and post iframe hover/commit messages', () => {
+    const { posts } = connectIframeForParentPosts();
+    const item = component.palette.find((entry) => entry.type === 'text' && !entry.preset)!;
+
+    component.beginIframePalettePointerDrag({ button: 0, clientX: 120, clientY: 70, preventDefault: () => undefined, stopPropagation: () => undefined } as MouseEvent, item);
+    expect(component.iframePaletteDrag?.item).toBe(item);
+    expect(component.dragGhostTransform).toContain('translate3d(132px, 82px, 0)');
+    expect(posts.at(-1)).toEqual({ type: 'nes:palette-hover', paletteType: 'text', preset: undefined, x: 20, y: 20, bridgeToken: (component as any).iframeBridgeToken });
+
+    component.handleWindowMouseMove({ clientX: 99, clientY: 49 } as MouseEvent);
+    expect(posts.at(-1)).toEqual({ type: 'nes:palette-cancel', bridgeToken: (component as any).iframeBridgeToken });
+
+    component.handleWindowMouseMove({ clientX: 220, clientY: 180 } as MouseEvent);
+    component.handleWindowMouseUp({ clientX: 220, clientY: 180 } as MouseEvent);
+    expect(posts.at(-1)).toEqual({ type: 'nes:palette-drop-commit', bridgeToken: (component as any).iframeBridgeToken });
+    expect(component.iframePaletteDrag).toBeUndefined();
+  });
+
+  it('should include iframe insertion-line hover hooks for parent-controlled palette drops', () => {
+    const html = component.editableIframeHtml;
+    expect(html).toContain('nes-iframe-insertion-line');
+    expect(html).toContain('nes:palette-hover');
+    expect(html).toContain('nes:palette-drop-commit');
+    expect(html).toContain('showPaletteHover');
+    expect(html).toContain('commitPaletteHover');
   });
 
   it('should render legacy Angular canvas when iframe canvas is explicitly disabled', () => {
