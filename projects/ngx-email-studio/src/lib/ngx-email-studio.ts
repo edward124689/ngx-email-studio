@@ -504,20 +504,26 @@ function resolveTinyMceScriptSrc(): string {
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .48); }
-    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border-radius: 18px; background: #fff; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
+    .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .54); backdrop-filter: blur(8px); }
+    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(217, 226, 236, .9); border-radius: 18px; background: var(--nes-soft); box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
     .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); }
     .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; }
-    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); }
-    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
+    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 55%, #ecfdf3 100%); }
+    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 12px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+    .nes-output-modal header h3, .nes-import-modal header h3 { color: var(--nes-ink); }
     .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
+    .nes-modal-actions button, .nes-import-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); }
+    .nes-modal-actions button:hover, .nes-import-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
     .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
-    .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; background: #0b1220; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .nes-import-body { padding: 20px; overflow: auto; }
-    .nes-import-body textarea { min-height: 420px; resize: vertical; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0b1220; color: #e5e7eb; border-color: #1e293b; }
-    .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
-    .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #f8fafc; }
-    .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border-radius: 10px; margin: 12px 20px; }
+    .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
+    .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; border-top: 1px solid #1e293b; background: #0f172a; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .nes-import-body { padding: 20px; overflow: auto; background: var(--nes-soft); }
+    .nes-import-body .nes-muted { margin-top: 0; color: #475569; }
+    .nes-import-body textarea { min-height: 420px; resize: vertical; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; border-color: #1e293b; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
+    .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); border-color: var(--nes-accent); }
+    .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
+    .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #fff; }
+    .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 10px; margin: 12px 20px; }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
