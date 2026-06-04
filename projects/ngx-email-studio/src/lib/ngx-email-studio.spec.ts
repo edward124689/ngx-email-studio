@@ -700,7 +700,7 @@ describe('NgxEmailStudio', () => {
     expect(baseUrl.endsWith('/')).toBe(false);
   });
 
-  it('should render internal palette icons with FA-compatible metadata', () => {
+  it('should render internal SVG-mask icons without relying on global Font Awesome CSS', () => {
     fixture.detectChanges();
 
     const paletteIcon = query<HTMLElement>(fixture, '.nes-block-icon .nes-icon');
@@ -711,6 +711,17 @@ describe('NgxEmailStudio', () => {
     expect(shadowStyles).toContain('mask: var(--nes-icon-mask)');
     expect(shadowStyles).toContain('data:image/svg+xml');
   });
+
+  it('should avoid broad drag-time highlights behind the dragged item', () => {
+    fixture.detectChanges();
+
+    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    expect(shadowStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
+    expect(shadowStyles).toMatch(/\.nes-render-column\.cdk-drop-list-dragging \.nes-drop-hit-pad,\s*\.nes-render-section\.cdk-drop-list-dragging \.nes-drop-hit-pad \{\s*opacity:\s*0;\s*background:\s*transparent;\s*\}/);
+    expect(shadowStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
+    expect(shadowStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
+  });
+
 
   it('should render CDK drag sources inside the shadow root for parent-container previews', () => {
     fixture.detectChanges();

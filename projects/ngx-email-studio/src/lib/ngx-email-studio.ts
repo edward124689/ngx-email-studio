@@ -753,6 +753,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-block-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 430px; overflow: auto; padding-right: 2px; }
     .nes-block { touch-action: none; user-select: none; position: relative; display: grid; grid-template-rows: auto minmax(30px, auto); place-items: center; gap: 8px; min-height: 92px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 8px; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; text-align: center; }
     .nes-block:hover { z-index: 2; border-color: #bfdbfe; background: #fff; box-shadow: 0 14px 30px rgba(37, 99, 235, .14); transform: translateY(-1px); }
+    .nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover { z-index: auto; border-color: #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); transform: none; }
     .nes-block:active { cursor: grabbing; }
     .nes-block-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
     .nes-block-copy { display: block; min-width: 0; }
@@ -817,9 +818,9 @@ function resolveTinyMceScriptSrc(): string {
     .nes-render-column-alone, .nes-render-section { min-height: 150px; padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
     .nes-render-section { background: #fff; }
     .nes-drop-hit-pad { height: 26px; margin: -6px 0; border-radius: 999px; opacity: 0; pointer-events: none; }
-    .nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 1; background: rgba(220, 38, 38, .06); }
+    .nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }
     .nes-empty-container-note { pointer-events: none; display: grid; place-items: center; min-height: 74px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-    .nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging { outline: 2px solid rgba(220, 38, 38, .22); outline-offset: -2px; }
+
     .nes-canvas .cdk-drag-placeholder, .nes-render-column .cdk-drag-placeholder, .nes-render-section .cdk-drag-placeholder { display: block !important; height: 8px !important; min-height: 8px !important; margin: 12px 0 !important; padding: 0 !important; border: 0 !important; border-radius: 999px !important; background: #dc2626 !important; opacity: 1 !important; box-shadow: 0 0 0 4px rgba(220, 38, 38, .14), 0 8px 18px rgba(220, 38, 38, .24) !important; overflow: hidden !important; color: transparent !important; font-size: 0 !important; }
     .nes-canvas .cdk-drag-placeholder *, .nes-render-column .cdk-drag-placeholder *, .nes-render-section .cdk-drag-placeholder * { visibility: hidden !important; }
     .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
