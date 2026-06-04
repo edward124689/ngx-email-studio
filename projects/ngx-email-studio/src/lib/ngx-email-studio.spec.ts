@@ -1,6 +1,31 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { EmailDocument, NgxEmailStudio } from './ngx-email-studio';
+
+function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
+  const host = fixture.nativeElement as HTMLElement;
+  return host.shadowRoot || host;
+}
+
+function query<T extends Element = Element>(fixture: ComponentFixture<unknown>, selector: string): T | null {
+  return studioRoot(fixture).querySelector(selector) as T | null;
+}
+
+function queryAll<T extends Element = Element>(fixture: ComponentFixture<unknown>, selector: string): NodeListOf<T> {
+  return studioRoot(fixture).querySelectorAll(selector) as NodeListOf<T>;
+}
+
+function studioText<T>(fixture: ComponentFixture<T>): string {
+  return (studioRoot(fixture) as HTMLElement | ShadowRoot).textContent || '';
+}
+
+@Component({
+  standalone: true,
+  imports: [NgxEmailStudio],
+  template: `<ngx-email-studio />`,
+})
+class HostileCssHostComponent {}
 
 describe('NgxEmailStudio', () => {
   let component: NgxEmailStudio;
@@ -18,6 +43,13 @@ describe('NgxEmailStudio', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should render the builder inside a shadow root', () => {
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).shadowRoot).toBeTruthy();
+    expect(query(fixture, '.nes-shell')).toBeTruthy();
   });
 
   it('should default email width to 100% and max-width to 600px', () => {
@@ -142,11 +174,11 @@ describe('NgxEmailStudio', () => {
 
   it('should expose Body as the outline root and edit exported body settings', () => {
     fixture.detectChanges();
-    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    const tabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     tabs[1].click();
     fixture.detectChanges();
 
-    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
     expect(outlineNodes.length).toBe(component.totalOutlineNodes);
     expect(outlineNodes[0].textContent).toContain('Body');
 
@@ -154,7 +186,7 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     expect(component.selectedNodeId).toBe((component as any).bodyNodeId);
-    expect(fixture.nativeElement.textContent).toContain('Body / Email canvas');
+    expect(studioText(fixture)).toContain('Body / Email canvas');
     component.updateDocumentAttr('width', 700);
     component.updateDocumentAttr('widthUnit', 'px');
     component.updateDocumentAttr('maxWidth', 720);
@@ -212,7 +244,7 @@ describe('NgxEmailStudio', () => {
   it('should stack columns vertically at 480px and below in preview and exported HTML', () => {
     fixture.detectChanges();
     (component as any).refreshOutputs(false);
-    const styleText = fixture.nativeElement.textContent + Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const styleText = studioText(fixture) + Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
     const html = component.lastHtml;
 
     expect(styleText).toContain('@media (max-width: 480px)');
@@ -228,7 +260,7 @@ describe('NgxEmailStudio', () => {
 
   it('should toggle between Preview and Edit canvas modes from the header controls', () => {
     fixture.detectChanges();
-    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    const modeButtons = queryAll(fixture, '.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
 
     modeButtons[1].click();
     fixture.detectChanges();
@@ -242,19 +274,19 @@ describe('NgxEmailStudio', () => {
   it('should render the editable canvas only in edit mode', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.nes-preview-frame')).toBeFalsy();
+    expect(query(fixture, '.nes-canvas')).toBeTruthy();
+    expect(query(fixture, '.nes-preview-frame')).toBeFalsy();
   });
 
   it('should render an isolated iframe preview instead of the editable canvas in preview mode', () => {
     fixture.detectChanges();
-    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    const modeButtons = queryAll(fixture, '.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
     modeButtons[1].click();
     fixture.detectChanges();
 
-    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    const iframe = query(fixture, '.nes-preview-frame') as HTMLIFrameElement;
     expect(iframe).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
+    expect(query(fixture, '.nes-canvas')).toBeFalsy();
     expect(iframe.getAttribute('title')).toBe('Email preview');
     expect(iframe.hasAttribute('sandbox')).toBe(true);
     expect(iframe.getAttribute('sandbox')).not.toContain('allow-scripts');
@@ -263,11 +295,11 @@ describe('NgxEmailStudio', () => {
 
   it('should bind exported HTML with the real 480px media query into the preview iframe srcdoc', () => {
     fixture.detectChanges();
-    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    const modeButtons = queryAll(fixture, '.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
     modeButtons[1].click();
     fixture.detectChanges();
 
-    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    const iframe = query(fixture, '.nes-preview-frame') as HTMLIFrameElement;
     const srcdoc = iframe.getAttribute('srcdoc') || '';
 
     expect(srcdoc).toContain(component.lastHtml);
@@ -276,14 +308,14 @@ describe('NgxEmailStudio', () => {
 
   it('should use the shared 400px preview size for the preview iframe width', () => {
     fixture.detectChanges();
-    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    const modeButtons = queryAll(fixture, '.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
     modeButtons[1].click();
     fixture.detectChanges();
-    const sizeButtons = fixture.nativeElement.querySelectorAll('.nes-size-bar > button') as NodeListOf<HTMLButtonElement>;
+    const sizeButtons = queryAll(fixture, '.nes-size-bar > button') as NodeListOf<HTMLButtonElement>;
     Array.from(sizeButtons).find((button) => button.textContent?.trim() === '400')?.click();
     fixture.detectChanges();
 
-    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    const iframe = query(fixture, '.nes-preview-frame') as HTMLIFrameElement;
     expect(component.previewWidth).toBe(400);
     expect(iframe).toBeTruthy();
     expect(iframe.style.width).toBe('400px');
@@ -293,12 +325,12 @@ describe('NgxEmailStudio', () => {
     const helperText = 'Preview mode renders the exported HTML in an isolated iframe. Switch to Edit to change content.';
 
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).not.toContain(helperText);
+    expect(studioText(fixture)).not.toContain(helperText);
 
-    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    const modeButtons = queryAll(fixture, '.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
     modeButtons[1].click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(helperText);
+    expect(studioText(fixture)).toContain(helperText);
   });
 
   it('should support section width/max-width units and all-or-side padding controls', () => {
@@ -326,7 +358,7 @@ describe('NgxEmailStudio', () => {
 
     expect(localComponent.effectiveConfig.showHtmlPreview).toBe(true);
     expect(localComponent.resolvedUseTinyMce).toBe(true);
-    expect(localFixture.nativeElement.textContent).toContain('Custom Builder');
+    expect(studioText(localFixture)).toContain('Custom Builder');
   });
 
   it('should tolerate null config bindings', () => {
@@ -358,11 +390,11 @@ describe('NgxEmailStudio', () => {
   it('should keep Content modules as drag-only two-column cards with hover descriptions', () => {
     fixture.detectChanges();
     const before = component.emailDocument.body.length;
-    const cards = fixture.nativeElement.querySelectorAll('.nes-block') as NodeListOf<HTMLElement>;
+    const cards = queryAll(fixture, '.nes-block') as NodeListOf<HTMLElement>;
 
     expect(cards.length).toBeGreaterThan(1);
-    expect(fixture.nativeElement.querySelector('.nes-block-description')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).toContain('Drag modules into the canvas, sections, or columns');
+    expect(query(fixture, '.nes-block-description')).toBeTruthy();
+    expect(studioText(fixture)).toContain('Drag modules into the canvas, sections, or columns');
 
     cards[0].click();
     fixture.detectChanges();
@@ -373,26 +405,26 @@ describe('NgxEmailStudio', () => {
   it('should remove visible drop zones and use red insertion-line styling', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).not.toContain('Add content inside this column');
-    expect(fixture.nativeElement.querySelector('.nes-add-grid')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-add-column-block')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-column-drop-zone')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-bottom-drop')).toBeFalsy();
-    expect(fixture.nativeElement.textContent).not.toContain('Drag another module into this column');
-    expect(fixture.nativeElement.textContent).not.toContain('Drag another module into this section');
-    expect(fixture.nativeElement.textContent).not.toContain('Drop Content modules here');
-    expect(fixture.nativeElement.textContent).not.toContain('Add text');
+    expect(studioText(fixture)).not.toContain('Add content inside this column');
+    expect(query(fixture, '.nes-add-grid')).toBeFalsy();
+    expect(query(fixture, '.nes-add-column-block')).toBeFalsy();
+    expect(query(fixture, '.nes-column-drop-zone')).toBeFalsy();
+    expect(query(fixture, '.nes-section-drop-zone')).toBeFalsy();
+    expect(query(fixture, '.nes-bottom-drop')).toBeFalsy();
+    expect(studioText(fixture)).not.toContain('Drag another module into this column');
+    expect(studioText(fixture)).not.toContain('Drag another module into this section');
+    expect(studioText(fixture)).not.toContain('Drop Content modules here');
+    expect(studioText(fixture)).not.toContain('Add text');
     expect((component as any).paletteDropListId).toBe('nes-palette-drop-list');
   });
 
   it('should make drag targets easier to enter without adding visible drop-zone boxes', () => {
     fixture.detectChanges();
 
-    const hitPads = fixture.nativeElement.querySelectorAll('.nes-drop-hit-pad') as NodeListOf<HTMLElement>;
-    const section = fixture.nativeElement.querySelector('.nes-render-section') as HTMLElement;
-    const column = fixture.nativeElement.querySelector('.nes-render-column') as HTMLElement;
-    const paletteCard = fixture.nativeElement.querySelector('.nes-block') as HTMLElement;
+    const hitPads = queryAll(fixture, '.nes-drop-hit-pad') as NodeListOf<HTMLElement>;
+    const section = query(fixture, '.nes-render-section') as HTMLElement;
+    const column = query(fixture, '.nes-render-column') as HTMLElement;
+    const paletteCard = query(fixture, '.nes-block') as HTMLElement;
 
     expect(hitPads.length).toBeGreaterThan(0);
     expect(section).toBeTruthy();
@@ -417,10 +449,10 @@ describe('NgxEmailStudio', () => {
 
   it('should allow multiple content modules to be dragged from the palette into a section', () => {
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeFalsy();
+    expect(query(fixture, '.nes-section-drop-zone')).toBeFalsy();
     expect(component.connectedDropListIds).toContain(component.paletteDropListId);
 
-    const paletteList = fixture.nativeElement.querySelector('.nes-block-list') as HTMLElement;
+    const paletteList = query(fixture, '.nes-block-list') as HTMLElement;
     expect(paletteList.id).toBe(component.paletteDropListId);
 
     const section = component.emailDocument.body.find((node) => node.type === 'section')!;
@@ -444,7 +476,7 @@ describe('NgxEmailStudio', () => {
     component.selectNode(child.id);
     fixture.detectChanges();
 
-    const nestedNode = fixture.nativeElement.querySelector(`[data-node-id="${child.id}"]`) as HTMLElement;
+    const nestedNode = query(fixture, `[data-node-id="${child.id}"]`) as HTMLElement;
     expect(nestedNode).toBeTruthy();
     expect(nestedNode.querySelector('.nes-floating-tools')).toBeTruthy();
   });
@@ -494,26 +526,26 @@ describe('NgxEmailStudio', () => {
 
     expect(localComponent.emailDocument.body.length).toBe(originalLength);
     expect(localComponent.emailDocument.body[0].id).toBe(selected);
-    expect(localFixture.nativeElement.querySelector('.nes-floating-tools')).toBeFalsy();
+    expect(query(localFixture, '.nes-floating-tools')).toBeFalsy();
   });
 
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {
     fixture.detectChanges();
 
-    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    const tabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     expect(tabs.length).toBe(2);
-    expect(fixture.nativeElement.textContent).toContain('Content modules');
-    expect(fixture.nativeElement.querySelector('.nes-block-list')).toBeTruthy();
+    expect(studioText(fixture)).toContain('Content modules');
+    expect(query(fixture, '.nes-block-list')).toBeTruthy();
 
     tabs[1].click();
     fixture.detectChanges();
 
-    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
-    expect(fixture.nativeElement.querySelector('.nes-outline-tree')).toBeTruthy();
+    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    expect(query(fixture, '.nes-outline-tree')).toBeTruthy();
     expect(outlineNodes.length).toBe(component.totalOutlineNodes);
     expect(outlineNodes.length).toBeGreaterThan(component.emailDocument.body.length);
-    expect(fixture.nativeElement.textContent).toContain('Tree view of sections, rows, columns and nested blocks');
-    expect(fixture.nativeElement.textContent).toContain('02.1');
+    expect(studioText(fixture)).toContain('Tree view of sections, rows, columns and nested blocks');
+    expect(studioText(fixture)).toContain('02.1');
 
     outlineNodes[1].click();
     expect(component.selectedNodeId).toBeTruthy();
@@ -522,20 +554,20 @@ describe('NgxEmailStudio', () => {
 
   it('should label sections simply and scroll the stage when an outline item is clicked', async () => {
     fixture.detectChanges();
-    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    const tabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     tabs[1].click();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Section');
-    expect(fixture.nativeElement.textContent).not.toContain('Hero / Section');
+    expect(studioText(fixture)).toContain('Section');
+    expect(studioText(fixture)).not.toContain('Hero / Section');
 
-    const stage = fixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
+    const stage = query(fixture, '.nes-stage') as HTMLElement;
     const calls: ScrollToOptions[] = [];
     stage.scrollTo = (options?: ScrollToOptions | number, y?: number) => {
       calls.push(typeof options === 'number' ? { top: y } : options || {});
     };
 
-    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
     outlineNodes[1].click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -550,17 +582,17 @@ describe('NgxEmailStudio', () => {
     firstFixture.detectChanges();
     secondFixture.detectChanges();
 
-    const firstStage = firstFixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
-    const secondStage = secondFixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
+    const firstStage = query(firstFixture, '.nes-stage') as HTMLElement;
+    const secondStage = query(secondFixture, '.nes-stage') as HTMLElement;
     const firstCalls: ScrollToOptions[] = [];
     const secondCalls: ScrollToOptions[] = [];
     firstStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => firstCalls.push(typeof options === 'number' ? { top: y } : options || {});
     secondStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => secondCalls.push(typeof options === 'number' ? { top: y } : options || {});
 
-    const secondTabs = secondFixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    const secondTabs = queryAll(secondFixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     secondTabs[1].click();
     secondFixture.detectChanges();
-    const secondOutlineNodes = secondFixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    const secondOutlineNodes = queryAll(secondFixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
     secondOutlineNodes[1].click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -570,14 +602,14 @@ describe('NgxEmailStudio', () => {
 
   it('should support same-parent outline reorder with drag handles while keeping row click selection', () => {
     fixture.detectChanges();
-    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    const tabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     tabs[1].click();
     fixture.detectChanges();
 
     const first = component.emailDocument.body[0];
     const second = component.emailDocument.body[1];
-    const outlineHandles = fixture.nativeElement.querySelectorAll('.nes-outline-handle') as NodeListOf<HTMLElement>;
-    const outlineDropLists = fixture.nativeElement.querySelectorAll('.nes-outline-drop-list') as NodeListOf<HTMLElement>;
+    const outlineHandles = queryAll(fixture, '.nes-outline-handle') as NodeListOf<HTMLElement>;
+    const outlineDropLists = queryAll(fixture, '.nes-outline-drop-list') as NodeListOf<HTMLElement>;
 
     expect(outlineHandles.length).toBeGreaterThan(0);
     expect(outlineDropLists[0].id).toBe(component.outlineRootDropListId);
@@ -585,7 +617,7 @@ describe('NgxEmailStudio', () => {
     outlineHandles[0].click();
     expect(component.selectedNodeId).not.toBe(first.id);
 
-    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    const outlineNodes = queryAll(fixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
     outlineNodes[1].click();
     expect(component.selectedNodeId).toBe(first.id);
 
@@ -641,20 +673,93 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
+    fixture.detectChanges();
+    expect(query(fixture, 'link[data-nes-tinymce-skin]')).toBeTruthy();
     expect(component.tinyMceInit['skin']).toBe('oxide');
     expect(component.tinyMceInit['content_css']).toBe('default');
     expect(component.tinyMceInit['base_url']).toBeTruthy();
     expect(component.largeTinyMceInit['height']).toBe(620);
   });
 
-  it('should simplify the header and use a Font Awesome logo icon', () => {
+  it('should not inject TinyMCE skin CSS when TinyMCE is disabled', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('config', { useTinyMce: false });
+    localFixture.detectChanges();
+
+    expect(localFixture.componentInstance.resolvedUseTinyMce).toBe(false);
+    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
+  });
+
+  it('should update the shadow-root TinyMCE skin link when the base URL changes', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.detectChanges();
+
+    localFixture.componentInstance.config = { tinyMceBaseUrl: 'https://cdn.example.test/tinymce' };
+    localFixture.componentInstance.ngOnChanges({ config: {} as any });
+    localFixture.detectChanges();
+
+    const skinLink = query<HTMLLinkElement>(localFixture, 'link[data-nes-tinymce-skin]');
+    expect(skinLink?.href).toBe('https://cdn.example.test/tinymce/skins/ui/oxide/skin.min.css');
+  });
+
+  it('should render internal palette icons with FA-compatible metadata', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Email Studio');
-    expect(fixture.nativeElement.textContent).not.toContain('Membership Email');
-    expect(fixture.nativeElement.querySelector('.nes-breadcrumb')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-save-state')).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-logo .fa-envelope-open-o')).toBeTruthy();
+    const paletteIcon = query<HTMLElement>(fixture, '.nes-block-icon .nes-icon');
+    expect(paletteIcon).toBeTruthy();
+    expect(paletteIcon?.className).toContain('fa-');
+    expect(query(fixture, '.nes-block-icon .fa')).toBeTruthy();
+  });
+
+  it('should render CDK drag sources inside the shadow root for parent-container previews', () => {
+    fixture.detectChanges();
+
+    const drags = queryAll<HTMLElement>(fixture, '.cdk-drag');
+    expect(drags.length).toBeGreaterThan(0);
+    expect(query(fixture, '.nes-block.cdk-drag')).toBeTruthy();
+    expect(query(fixture, '.nes-node.cdk-drag')).toBeTruthy();
+  });
+
+  it('should isolate builder styles from hostile host CSS', () => {
+    const hostileStyle = document.createElement('style');
+    hostileStyle.textContent = `
+      button { padding: 0 !important; border-radius: 0 !important; }
+      div { display: flex !important; }
+      img { border-radius: 999px !important; }
+      * { box-sizing: content-box !important; }
+    `;
+    document.head.appendChild(hostileStyle);
+    try {
+      const hostileFixture = TestBed.createComponent(HostileCssHostComponent);
+      hostileFixture.detectChanges();
+
+      const host = hostileFixture.nativeElement.querySelector('ngx-email-studio') as HTMLElement;
+      const root = host.shadowRoot!;
+      expect(root).toBeTruthy();
+      const builder = root.querySelector('.nes-builder') as HTMLElement;
+      const button = root.querySelector('.nes-toolbar button') as HTMLButtonElement;
+      const shadowStyles = Array.from(root.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+
+      expect(builder).toBeTruthy();
+      expect(button).toBeTruthy();
+      expect(shadowStyles).toMatch(/\.nes-builder\s*{[\s\S]*display:\s*grid;/);
+      expect(shadowStyles).toMatch(/button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
+      expect(shadowStyles).not.toContain('box-sizing: content-box');
+    } finally {
+      hostileStyle.remove();
+    }
+  });
+
+  it('should simplify the header and render an internal logo icon', () => {
+    fixture.detectChanges();
+
+    expect(studioText(fixture)).toContain('Email Studio');
+    expect(studioText(fixture)).not.toContain('Membership Email');
+    expect(query(fixture, '.nes-breadcrumb')).toBeFalsy();
+    expect(query(fixture, '.nes-save-state')).toBeFalsy();
+    const logoIcon = query<HTMLElement>(fixture, '.nes-logo .nes-icon');
+    expect(logoIcon).toBeTruthy();
+    expect(logoIcon?.className).toContain('fa-envelope-open-o');
   });
 
   it('should open a large rich text editor modal from the inspector', () => {
@@ -671,38 +776,38 @@ describe('NgxEmailStudio', () => {
   it('should open export dropdown and show MJML output in a modal instead of bottom output panels', () => {
     fixture.detectChanges();
 
-    const exportButton = fixture.nativeElement.querySelector('.nes-export > button') as HTMLButtonElement;
+    const exportButton = query(fixture, '.nes-export > button') as HTMLButtonElement;
     exportButton.click();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.nes-export-menu')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.nes-output')).toBeFalsy();
+    expect(query(fixture, '.nes-export-menu')).toBeTruthy();
+    expect(query(fixture, '.nes-output')).toBeFalsy();
 
-    const menuItem = fixture.nativeElement.querySelector('.nes-export-menu button') as HTMLButtonElement;
+    const menuItem = query(fixture, '.nes-export-menu button') as HTMLButtonElement;
     menuItem.click();
     fixture.detectChanges();
 
     expect(component.outputModalType).toBe('mjml');
-    expect(fixture.nativeElement.querySelector('.nes-output-modal')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).toContain('MJML Output');
-    expect(fixture.nativeElement.querySelector('.nes-output-modal pre').textContent).toContain('<mjml>');
+    expect(query(fixture, '.nes-output-modal')).toBeTruthy();
+    expect(studioText(fixture)).toContain('MJML Output');
+    expect(query(fixture, '.nes-output-modal pre')?.textContent).toContain('<mjml>');
   });
 
   it('should show formatted HTML output when selected from the export menu', () => {
     fixture.detectChanges();
 
-    const exportButton = fixture.nativeElement.querySelector('.nes-export > button') as HTMLButtonElement;
+    const exportButton = query(fixture, '.nes-export > button') as HTMLButtonElement;
     exportButton.click();
     fixture.detectChanges();
 
-    const menuItems = fixture.nativeElement.querySelectorAll('.nes-export-menu button') as NodeListOf<HTMLButtonElement>;
+    const menuItems = queryAll(fixture, '.nes-export-menu button') as NodeListOf<HTMLButtonElement>;
     menuItems[1].click();
     fixture.detectChanges();
 
-    const output = fixture.nativeElement.querySelector('.nes-output-modal pre').textContent;
+    const output = query(fixture, '.nes-output-modal pre')?.textContent || '';
     expect(component.outputModalType).toBe('html');
     expect(component.outputModalTitle).toBe('HTML Output');
-    expect(fixture.nativeElement.querySelector('.nes-preview-btn')).toBeTruthy();
+    expect(query(fixture, '.nes-preview-btn')).toBeTruthy();
     expect(output).toContain('<!doctype html>\n<html>');
     expect(output).toContain('  <head>');
     expect(output).toContain('          <table role="presentation"');
@@ -781,13 +886,13 @@ describe('NgxEmailStudio', () => {
   it('should open import in a modal and close it after a valid import', () => {
     fixture.detectChanges();
 
-    const importButton = fixture.nativeElement.querySelector('.nes-import-trigger') as HTMLButtonElement;
+    const importButton = query(fixture, '.nes-import-trigger') as HTMLButtonElement;
     importButton.click();
     fixture.detectChanges();
 
     expect(component.importModalOpen).toBe(true);
-    expect(fixture.nativeElement.querySelector('.nes-import-modal')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.nes-import')).toBeFalsy();
+    expect(query(fixture, '.nes-import-modal')).toBeTruthy();
+    expect(query(fixture, '.nes-import')).toBeFalsy();
 
     component.mjmlDraft = '<mjml><mj-body><mj-section><mj-column><mj-text>Hello import</mj-text></mj-column></mj-section></mj-body></mjml>';
     component.importMjml();

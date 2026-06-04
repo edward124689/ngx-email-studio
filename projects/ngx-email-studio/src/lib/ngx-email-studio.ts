@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
@@ -59,39 +59,40 @@ const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
 const BODY_NODE_ID = 'nes-body-root';
 
 function resolveTinyMceScriptSrc(): string {
-  const base = globalThis.document?.baseURI || '/';
+  const base = globalThis.document?.baseURI || 'http://localhost/';
   return new URL('tinymce/tinymce.min.js', base).href;
 }
 
 @Component({
   selector: 'ngx-email-studio',
   standalone: true,
+  encapsulation: ViewEncapsulation.ShadowDom,
   imports: [CommonModule, FormsModule, DragDropModule, EditorModule],
   providers: [
     { provide: TINYMCE_SCRIPT_SRC, useFactory: resolveTinyMceScriptSrc },
-    { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2 } },
+    { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
   template: `
     <section class="nes-shell">
       <header class="nes-toolbar">
         <div class="nes-brand">
-          <div class="nes-logo" aria-hidden="true"><i class="fa fa-envelope-open-o"></i></div>
+          <div class="nes-logo" aria-hidden="true"><i class="nes-icon fa fa-envelope-open-o"></i></div>
           <div>
             <h2>{{ effectiveConfig.title || 'Email Studio' }}</h2>
           </div>
         </div>
         <div class="nes-actions">
-          <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
+          <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen">
             <button type="button" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
-              <i class="fa fa-download" aria-hidden="true"></i> Export <i class="fa fa-angle-down" aria-hidden="true"></i>
+              <i class="nes-icon fa fa-download" aria-hidden="true"></i> Export <i class="nes-icon fa fa-angle-down" aria-hidden="true"></i>
             </button>
             <div class="nes-export-menu" role="menu" *ngIf="exportMenuOpen">
               <button type="button" role="menuitem" (click)="openOutputModal('mjml')">MJML output</button>
               <button type="button" role="menuitem" (click)="openOutputModal('html')">HTML output</button>
             </div>
           </div>
-          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="fa fa-floppy-o" aria-hidden="true"></i> Save</button>
+          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
         </div>
       </header>
 
@@ -108,7 +109,7 @@ function resolveTinyMceScriptSrc(): string {
               <p>Drag modules into the canvas, sections, or columns</p>
             </div>
             <label class="nes-search">
-              <i class="fa fa-search" aria-hidden="true"></i>
+              <i class="nes-icon fa fa-search" aria-hidden="true"></i>
               <input [ngModel]="paletteSearch" (ngModelChange)="paletteSearch = $event" placeholder="Search modules" />
             </label>
             <div
@@ -120,8 +121,8 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragStartDelay]="0" [attr.title]="item.description">
-                <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" [attr.title]="item.description">
+                <span class="nes-block-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
                   <small class="nes-block-description">{{ item.description }}</small>
@@ -148,7 +149,7 @@ function resolveTinyMceScriptSrc(): string {
                 (click)="selectBodyFromOutline()"
               >
                 <span class="nes-outline-rail" aria-hidden="true"></span>
-                <span class="nes-outline-icon"><i class="fa fa-envelope-o" aria-hidden="true"></i></span>
+                <span class="nes-outline-icon"><i class="nes-icon fa fa-envelope-o" aria-hidden="true"></i></span>
                 <span class="nes-outline-copy">
                   <strong>Body</strong>
                   <small>{{ emailWidthCss }} email canvas</small>
@@ -162,7 +163,7 @@ function resolveTinyMceScriptSrc(): string {
               </div>
             </div>
             <ng-template #emptyOutline>
-              <div class="nes-outline-empty"><i class="fa fa-sitemap" aria-hidden="true"></i>No blocks yet. Add a module to build the tree.</div>
+              <div class="nes-outline-empty"><i class="nes-icon fa fa-sitemap" aria-hidden="true"></i>No blocks yet. Add a module to build the tree.</div>
             </ng-template>
           </ng-template>
         </aside>
@@ -174,7 +175,7 @@ function resolveTinyMceScriptSrc(): string {
               <p>{{ previewWidth }}px viewport · {{ emailWidthCss }} email width · {{ emailDocument.body.length }} blocks</p>
             </div>
             <div class="nes-stage-actions">
-              <button type="button" class="danger" (click)="clearDocument()"><i class="fa fa-trash" aria-hidden="true"></i> Clear</button>
+              <button type="button" class="danger" (click)="clearDocument()"><i class="nes-icon fa fa-trash" aria-hidden="true"></i> Clear</button>
             </div>
           </div>
 
@@ -217,18 +218,19 @@ function resolveTinyMceScriptSrc(): string {
                     *ngFor="let node of emailDocument.body; trackBy: trackNode"
                     cdkDrag
                     [cdkDragData]="node"
+                    [cdkDragPreviewContainer]="'parent'"
                     [cdkDragStartDelay]="0"
                     (click)="selectNode(node.id); $event.stopPropagation()"
                     (keydown.enter)="selectNode(node.id)"
                   >
                     <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId && !readonly">
-                      <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
-                      <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+                      <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-clone"></i></button>
+                      <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-trash"></i></button>
                     </div>
                     <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: node, nested: false }"></ng-container>
                   </article>
                   <div class="nes-empty" *ngIf="emailDocument.body.length === 0">
-                    <i class="fa fa-magic" aria-hidden="true"></i>
+                    <i class="nes-icon fa fa-magic" aria-hidden="true"></i>
                     Drag blocks here to start building your email.
                   </div>
                   <div class="nes-root-drop-space" aria-hidden="true"></div>
@@ -322,7 +324,7 @@ function resolveTinyMceScriptSrc(): string {
                 <span class="nes-field-heading">
                   Rich text
                   <button type="button" class="nes-expand-editor" (click)="openRichTextModal(node); $event.stopPropagation()">
-                    <i class="fa fa-expand" aria-hidden="true"></i> Open editor
+                    <i class="nes-icon fa fa-expand" aria-hidden="true"></i> Open editor
                   </button>
                 </span>
                 <editor
@@ -447,7 +449,7 @@ function resolveTinyMceScriptSrc(): string {
                 Unsupported MJML: {{ emailDocument.unsupported?.join(', ') }}
               </div>
               <ng-template #checksOk>
-                <div class="nes-check-card is-ok"><i class="fa fa-check-circle"></i> No blocking issues for this supported subset.</div>
+                <div class="nes-check-card is-ok"><i class="nes-icon fa fa-check-circle"></i> No blocking issues for this supported subset.</div>
               </ng-template>
             </div>
           </ng-container>
@@ -462,13 +464,13 @@ function resolveTinyMceScriptSrc(): string {
         <section class="nes-import-modal" role="dialog" aria-modal="true" aria-label="Import MJML" (click)="$event.stopPropagation()">
           <header>
             <div class="nes-modal-heading">
-              <span class="nes-modal-icon"><i class="fa fa-upload" aria-hidden="true"></i></span>
+              <span class="nes-modal-icon"><i class="nes-icon fa fa-upload" aria-hidden="true"></i></span>
               <div>
                 <p>Import MJML</p>
                 <h3>Paste MJML to import</h3>
               </div>
             </div>
-            <button type="button" aria-label="Close import modal" (click)="closeImportModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+            <button type="button" aria-label="Close import modal" (click)="closeImportModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
           </header>
           <div class="nes-import-body">
             <div class="nes-modal-intro">
@@ -477,16 +479,16 @@ function resolveTinyMceScriptSrc(): string {
             </div>
             <div class="nes-code-shell">
               <div class="nes-code-toolbar">
-                <span><i class="fa fa-code" aria-hidden="true"></i> MJML source</span>
+                <span><i class="nes-icon fa fa-code" aria-hidden="true"></i> MJML source</span>
                 <small>Editable</small>
               </div>
               <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" spellcheck="false" placeholder="<mjml>...</mjml>"></textarea>
             </div>
-            <div class="nes-import-error" *ngIf="importErrorMessage"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ importErrorMessage }}</div>
+            <div class="nes-import-error" *ngIf="importErrorMessage"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ importErrorMessage }}</div>
           </div>
           <footer class="nes-modal-footer">
             <button type="button" (click)="closeImportModal()">Cancel</button>
-            <button type="button" class="nes-primary" (click)="importMjml()"><i class="fa fa-check" aria-hidden="true"></i> Import MJML</button>
+            <button type="button" class="nes-primary" (click)="importMjml()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Import MJML</button>
           </footer>
         </section>
       </div>
@@ -495,13 +497,13 @@ function resolveTinyMceScriptSrc(): string {
         <section class="nes-rich-text-modal" role="dialog" aria-modal="true" aria-label="Rich text editor" (click)="$event.stopPropagation()">
           <header>
             <div class="nes-modal-heading">
-              <span class="nes-modal-icon"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></span>
+              <span class="nes-modal-icon"><i class="nes-icon fa fa-pencil-square-o" aria-hidden="true"></i></span>
               <div>
                 <p>Rich text</p>
                 <h3>Large editing canvas</h3>
               </div>
             </div>
-            <button type="button" aria-label="Close rich text editor" (click)="closeRichTextModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+            <button type="button" aria-label="Close rich text editor" (click)="closeRichTextModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
           </header>
           <div class="nes-rich-text-modal-body" *ngIf="expandedRichTextNode as richTextNode">
             <editor
@@ -522,16 +524,16 @@ function resolveTinyMceScriptSrc(): string {
         <section class="nes-output-modal" role="dialog" aria-modal="true" [attr.aria-label]="outputModalTitle" (click)="$event.stopPropagation()">
           <header>
             <div class="nes-modal-heading">
-              <span class="nes-modal-icon"><i class="fa fa-download" aria-hidden="true"></i></span>
+              <span class="nes-modal-icon"><i class="nes-icon fa fa-download" aria-hidden="true"></i></span>
               <div>
                 <p>Export output</p>
                 <h3>{{ outputModalTitle }}</h3>
               </div>
             </div>
             <div class="nes-modal-actions">
-              <button type="button" class="nes-preview-btn" *ngIf="outputModalType === 'html'" (click)="previewHtmlOutput()"><i class="fa fa-external-link" aria-hidden="true"></i> Preview</button>
-              <button type="button" class="nes-copy-btn" (click)="copyOutputToClipboard()"><i class="fa fa-copy" aria-hidden="true"></i> {{ copyState || 'Copy' }}</button>
-              <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+              <button type="button" class="nes-preview-btn" *ngIf="outputModalType === 'html'" (click)="previewHtmlOutput()"><i class="nes-icon fa fa-external-link" aria-hidden="true"></i> Preview</button>
+              <button type="button" class="nes-copy-btn" (click)="copyOutputToClipboard()"><i class="nes-icon fa fa-copy" aria-hidden="true"></i> {{ copyState || 'Copy' }}</button>
+              <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
             </div>
           </header>
           <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
@@ -539,7 +541,7 @@ function resolveTinyMceScriptSrc(): string {
           </div>
           <div class="nes-code-shell nes-output-code">
             <div class="nes-code-toolbar">
-              <span><i class="fa fa-code" aria-hidden="true"></i> {{ outputModalType === 'html' ? 'Generated HTML' : 'Generated MJML' }}</span>
+              <span><i class="nes-icon fa fa-code" aria-hidden="true"></i> {{ outputModalType === 'html' ? 'Generated HTML' : 'Generated MJML' }}</span>
               <small>Read-only</small>
             </div>
             <pre>{{ outputModalContent }}</pre>
@@ -573,9 +575,9 @@ function resolveTinyMceScriptSrc(): string {
             (dragend)="resetOutlineDrag()"
             (click)="$event.stopPropagation()"
           >
-            <i class="fa fa-ellipsis-v" aria-hidden="true"></i><i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+            <i class="nes-icon fa fa-ellipsis-v" aria-hidden="true"></i><i class="nes-icon fa fa-ellipsis-v" aria-hidden="true"></i>
           </span>
-          <span class="nes-outline-icon"><i class="fa" [class]="'fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
+          <span class="nes-outline-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
           <span class="nes-outline-copy">
             <strong>{{ outlineLabel(node) }}</strong>
             <small>{{ outlineMeta(node) }}</small>
@@ -620,13 +622,14 @@ function resolveTinyMceScriptSrc(): string {
               *ngFor="let child of childrenOf(column); trackBy: trackNode"
               cdkDrag
               [cdkDragData]="child"
+              [cdkDragPreviewContainer]="'parent'"
               [cdkDragStartDelay]="0"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
               <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId && !readonly">
-                <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
-                <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+                <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-clone"></i></button>
+                <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-trash"></i></button>
               </div>
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
@@ -667,8 +670,8 @@ function resolveTinyMceScriptSrc(): string {
             (keydown.enter)="selectNode(child.id)"
           >
             <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId && !readonly">
-              <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
-              <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+              <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-clone"></i></button>
+              <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="nes-icon fa fa-trash"></i></button>
             </div>
             <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
           </article>
@@ -685,6 +688,7 @@ function resolveTinyMceScriptSrc(): string {
   `,
   styles: `
     :host {
+      all: initial;
       --nes-accent: #2563eb;
       --nes-success: #16a34a;
       --nes-ink: #0f172a;
@@ -694,9 +698,41 @@ function resolveTinyMceScriptSrc(): string {
       --nes-soft: #f8fafc;
       --nes-grid: rgba(148, 163, 184, .18);
       display: block;
+      box-sizing: border-box;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       color: var(--nes-ink);
     }
+    *, *::before, *::after { box-sizing: border-box; }
+    .nes-icon { display: inline-grid; place-items: center; min-width: 1em; font-style: normal; font-weight: 900; line-height: 1; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .fa-envelope-open-o::before, .fa-envelope-o::before { content: '✉'; }
+    .fa-upload::before { content: '↑'; }
+    .fa-download::before { content: '↓'; }
+    .fa-angle-down::before { content: '⌄'; }
+    .fa-floppy-o::before { content: '▣'; }
+    .fa-search::before { content: '⌕'; }
+    .fa-sitemap::before { content: '☷'; }
+    .fa-trash::before { content: '×'; }
+    .fa-clone::before { content: '⧉'; }
+    .fa-magic::before { content: '✦'; }
+    .fa-expand::before { content: '↗'; }
+    .fa-check-circle::before, .fa-check::before { content: '✓'; }
+    .fa-times::before { content: '×'; }
+    .fa-code::before { content: '</>'; font-size: .72em; letter-spacing: -.08em; }
+    .fa-exclamation-triangle::before { content: '⚠'; }
+    .fa-pencil-square-o::before { content: '✎'; }
+    .fa-external-link::before { content: '↗'; }
+    .fa-copy::before { content: '⧉'; }
+    .fa-ellipsis-v::before { content: '⋮'; }
+    .fa-header::before { content: 'H'; }
+    .fa-align-left::before, .fa-font::before { content: 'T'; }
+    .fa-mouse-pointer::before { content: '↖'; }
+    .fa-picture-o::before { content: '▧'; }
+    .fa-columns::before { content: '▥'; }
+    .fa-minus::before { content: '—'; }
+    .fa-arrows-v::before { content: '↕'; }
+    .fa-window-maximize::before { content: '▤'; }
+    .fa-object-group::before { content: '▦'; }
+    .fa-square-o::before { content: '□'; }
     .nes-shell { border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; min-height: 780px; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -877,7 +913,7 @@ function resolveTinyMceScriptSrc(): string {
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })
-export class NgxEmailStudio implements OnChanges {
+export class NgxEmailStudio implements OnChanges, AfterViewInit {
   @Input() mjml?: string;
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
@@ -931,6 +967,10 @@ export class NgxEmailStudio implements OnChanges {
   readonly bodyNodeId = BODY_NODE_ID;
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
+
+  ngAfterViewInit(): void {
+    this.ensureTinyMceSkinInShadowRoot();
+  }
 
   get connectedDropListIds(): string[] {
     return [this.paletteDropListId, this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
@@ -1009,6 +1049,7 @@ export class NgxEmailStudio implements OnChanges {
     if (changes['config']) {
       this.tinyMceInit = this.createTinyMceInit();
       this.largeTinyMceInit = this.createTinyMceInit(620);
+      this.ensureTinyMceSkinInShadowRoot();
     }
 
     if (changes['document'] && this.document) {
@@ -1531,9 +1572,9 @@ export class NgxEmailStudio implements OnChanges {
   private scrollNodeIntoStage(id: string): void {
     const selector = `[data-node-id="${this.escapeCssIdentifier(id)}"]`;
     setTimeout(() => {
-      const host = this.hostRef.nativeElement;
-      const stage = host.querySelector('.nes-stage') as HTMLElement | null;
-      const target = host.querySelector(selector) as HTMLElement | null;
+      const root = this.componentRoot();
+      const stage = root.querySelector('.nes-stage') as HTMLElement | null;
+      const target = root.querySelector(selector) as HTMLElement | null;
       if (!stage || !target) return;
       const stageBox = stage.getBoundingClientRect();
       const targetBox = target.getBoundingClientRect();
@@ -1544,7 +1585,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private scrollStageToTop(): void {
     setTimeout(() => {
-      const stage = this.hostRef.nativeElement.querySelector('.nes-stage') as HTMLElement | null;
+      const stage = this.componentRoot().querySelector('.nes-stage') as HTMLElement | null;
       if (stage) this.scrollStageToPosition(stage, 0);
     }, 0);
   }
@@ -1600,6 +1641,33 @@ export class NgxEmailStudio implements OnChanges {
     };
   }
 
+
+  private componentRoot(): ParentNode {
+    return this.hostRef.nativeElement.shadowRoot || this.hostRef.nativeElement;
+  }
+
+  private ensureTinyMceSkinInShadowRoot(): void {
+    const root = this.hostRef.nativeElement.shadowRoot;
+    const doc = globalThis.document;
+    if (!root || !doc) return;
+    const existing = root.querySelector('link[data-nes-tinymce-skin]') as HTMLLinkElement | null;
+    if (!this.resolvedUseTinyMce) {
+      existing?.remove();
+      return;
+    }
+    const tinyMceBaseUrl = this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl();
+    const href = `${tinyMceBaseUrl.replace(/\/$/, '')}/skins/ui/oxide/skin.min.css`;
+    if (existing) {
+      if (existing.href !== href) existing.href = href;
+      return;
+    }
+    const link = doc.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.setAttribute('data-nes-tinymce-skin', 'true');
+    root.appendChild(link);
+  }
+
   private createTinyMceInit(height = 240): Record<string, unknown> {
     return {
       base_url: this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl(),
@@ -1615,6 +1683,7 @@ export class NgxEmailStudio implements OnChanges {
       content_css: 'default',
       content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#1f2937;margin:12px;} a{color:#7c3aed;}',
       setup: (editor: { on: (event: string, callback: () => void) => void; getContainer?: () => HTMLElement | null }) => {
+        this.ensureTinyMceSkinInShadowRoot();
         const reveal = () => {
           const run = () => editor.getContainer?.()?.style.removeProperty('visibility');
           if (typeof globalThis.requestAnimationFrame === 'function') {
@@ -1631,7 +1700,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private resolveTinyMceBaseUrl(): string {
-    const base = globalThis.document?.baseURI || '/';
+    const base = globalThis.document?.baseURI || 'http://localhost/';
     return new URL('tinymce', base).href.replace(/\/$/, '');
   }
 
