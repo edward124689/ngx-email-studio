@@ -107,13 +107,13 @@ describe('NgxEmailStudio', () => {
     };
 
     const mjml = (component as any).compileMjml(document) as string;
-    expect(mjml).toContain('<mj-section background-color="#ffffff"><mj-column><mj-text><p>Inside section</p></mj-text></mj-column></mj-section>');
+    expect(mjml).toContain('<mj-section background-color="#ffffff" padding="16px 16px 16px 16px"><mj-column><mj-text><p>Inside section</p></mj-text></mj-column></mj-section>');
   });
 
   it('should use document body settings for HTML wrapper width and backgrounds', () => {
     const document: EmailDocument = {
       version: '0.0.1',
-      attrs: { backgroundColor: '#111827', contentBackgroundColor: '#fefce8', width: 720 },
+      attrs: { backgroundColor: '#111827', contentBackgroundColor: '#fefce8', width: 720, widthUnit: 'px', maxWidth: 720, maxWidthUnit: 'px' },
       body: [{ id: 'text_1', type: 'text', attrs: { content: '<p>Body settings</p>', backgroundColor: '#ffffff' } }],
     };
 
@@ -121,7 +121,7 @@ describe('NgxEmailStudio', () => {
 
     expect(html).toContain('<body style="margin:0;background:#111827;">');
     expect(html).toContain('style="background:#111827;padding:24px 0;"');
-    expect(html).toContain('<table role="presentation" width="720" cellspacing="0" cellpadding="0" style="max-width:720px;background:#fefce8;');
+    expect(html).toContain('<table role="presentation" width="720" cellspacing="0" cellpadding="0" style="width:720px;max-width:720px;background:#fefce8;');
   });
 
   it('should expose Body as the outline root and edit exported body settings', () => {
@@ -140,8 +140,43 @@ describe('NgxEmailStudio', () => {
     expect(component.selectedNodeId).toBe((component as any).bodyNodeId);
     expect(fixture.nativeElement.textContent).toContain('Body / Email canvas');
     component.updateDocumentAttr('width', 700);
+    component.updateDocumentAttr('maxWidth', 720);
     expect(component.emailWidth).toBe(700);
+    expect(component.emailWidthCss).toBe('700px');
+    expect(component.emailMaxWidthCss).toBe('720px');
     expect(component.lastHtml).toContain('width="700"');
+    expect(component.lastHtml).toContain('max-width:720px');
+  });
+
+  it('should render color pickers and separate body width/max-width unit controls', () => {
+    component.updateDocumentAttr('width', 100);
+    component.updateDocumentAttr('widthUnit', '%');
+    component.updateDocumentAttr('maxWidth', 640);
+    component.updateDocumentAttr('maxWidthUnit', 'px');
+
+    expect(component.colorPickerValue('#112233')).toBe('#112233');
+    expect(component.emailWidthCss).toBe('100%');
+    expect(component.emailMaxWidthCss).toBe('640px');
+    expect(component.lastMjml).toContain('<mj-body background-color="#f3f4f6" width="100%">');
+    expect(component.lastHtml).toContain('width="100%"');
+    expect(component.lastHtml).toContain('style="width:100%;max-width:640px;');
+  });
+
+  it('should support section width/max-width units and all-or-side padding controls', () => {
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    component.updateAttr(section, 'width', 100);
+    component.updateAttr(section, 'widthUnit', '%');
+    component.updateAttr(section, 'maxWidth', 600);
+    component.updateAttr(section, 'maxWidthUnit', 'px');
+    component.updateSectionPaddingAll(section, 24);
+    component.updateSectionPaddingSide(section, 'paddingTop', 12);
+
+    expect(component.sectionWidthCss(section)).toBe('100%');
+    expect(component.sectionMaxWidthCss(section)).toBe('600px');
+    expect(component.sectionPaddingCss(section)).toBe('12px 24px 24px 24px');
+    expect(component.lastHtml).toContain('width:100%;max-width:600px;');
+    expect(component.lastHtml).toContain('padding:12px 24px 24px 24px;');
+    expect(component.lastMjml).toContain('padding="12px 24px 24px 24px"');
   });
 
   it('should keep default config behavior when a host passes only shell labels', () => {

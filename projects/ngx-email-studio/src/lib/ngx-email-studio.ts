@@ -7,6 +7,7 @@ import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'divider' | 'spacer';
 export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
+export type EmailSizeUnit = 'px' | '%';
 
 export interface EmailStudioConfig {
   useTinyMce?: boolean;
@@ -143,7 +144,7 @@ function resolveTinyMceScriptSrc(): string {
                 <span class="nes-outline-icon"><i class="fa fa-envelope-o" aria-hidden="true"></i></span>
                 <span class="nes-outline-copy">
                   <strong>Body</strong>
-                  <small>{{ emailWidth }}px email canvas</small>
+                  <small>{{ emailWidthCss }} email canvas</small>
                 </span>
                 <span class="nes-outline-index">BODY</span>
               </button>
@@ -163,7 +164,7 @@ function resolveTinyMceScriptSrc(): string {
           <div class="nes-stage-head">
             <div>
               <h3>Email canvas</h3>
-              <p>{{ previewWidth }}px viewport · {{ emailWidth }}px email width · {{ emailDocument.body.length }} blocks</p>
+              <p>{{ previewWidth }}px viewport · {{ emailWidthCss }} email width · {{ emailDocument.body.length }} blocks</p>
             </div>
             <div class="nes-stage-actions">
               <button type="button" class="danger" (click)="clearDocument()"><i class="fa fa-trash" aria-hidden="true"></i> Clear</button>
@@ -190,7 +191,8 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListConnectedTo]="connectedDropListIds"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
-              [style.width.px]="emailWidth"
+              [style.width]="emailWidthCss"
+              [style.max-width]="emailMaxWidthCss"
               [style.background]="emailBackgroundColor"
             >
               <article
@@ -232,17 +234,39 @@ function resolveTinyMceScriptSrc(): string {
             <div class="nes-tab-panel">
               <label>
                 Body background
-                <input [ngModel]="bodyBackgroundColor" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" placeholder="#f3f4f6" />
+                <span class="nes-color-control">
+                  <input type="color" [ngModel]="colorPickerValue(bodyBackgroundColor)" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" />
+                  <input [ngModel]="bodyBackgroundColor" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" placeholder="#f3f4f6" />
+                </span>
               </label>
               <label>
                 Email background
-                <input [ngModel]="emailBackgroundColor" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" placeholder="#ffffff" />
+                <span class="nes-color-control">
+                  <input type="color" [ngModel]="colorPickerValue(emailBackgroundColor)" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" />
+                  <input [ngModel]="emailBackgroundColor" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" placeholder="#ffffff" />
+                </span>
               </label>
-              <label>
-                Email width
-                <input type="number" min="320" max="1200" [ngModel]="emailWidth" (ngModelChange)="updateDocumentAttr('width', +$event)" />
-              </label>
-              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code> and the HTML wrapper table width/max-width.</p>
+              <div class="nes-control-row">
+                <label>
+                  Email width
+                  <span class="nes-unit-field">
+                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'width', 640)" (ngModelChange)="updateDocumentAttr('width', +$event)" />
+                    <select [ngModel]="dimensionUnit(documentAttrs, 'width', 'px')" (ngModelChange)="updateDocumentAttr('widthUnit', $event)">
+                      <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                    </select>
+                  </span>
+                </label>
+                <label>
+                  Email max width
+                  <span class="nes-unit-field">
+                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'maxWidth', 640)" (ngModelChange)="updateDocumentAttr('maxWidth', +$event)" />
+                    <select [ngModel]="dimensionUnit(documentAttrs, 'maxWidth', 'px')" (ngModelChange)="updateDocumentAttr('maxWidthUnit', $event)">
+                      <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                    </select>
+                  </span>
+                </label>
+              </div>
+              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code>, HTML table width, and max-width separately.</p>
             </div>
           </ng-container>
           <ng-template #blockSelection>
@@ -316,25 +340,61 @@ function resolveTinyMceScriptSrc(): string {
                 Column width
                 <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
               </label>
-              <label *ngIf="node.type === 'section'">
-                Section width
-                <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="100%" />
-              </label>
-              <label *ngIf="node.type === 'section'">
-                Section max width
-                <input [ngModel]="node.attrs['maxWidth']" (ngModelChange)="updateAttr(node, 'maxWidth', $event)" placeholder="640px" />
-              </label>
-              <label *ngIf="node.type === 'section'">
-                Section padding
-                <input [ngModel]="node.attrs['padding']" (ngModelChange)="updateAttr(node, 'padding', $event)" placeholder="16px" />
-              </label>
+              <ng-container *ngIf="node.type === 'section'">
+                <div class="nes-control-row">
+                  <label>
+                    Section width
+                    <span class="nes-unit-field">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'width', 100)" (ngModelChange)="updateAttr(node, 'width', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'width', '%')" (ngModelChange)="updateAttr(node, 'widthUnit', $event)">
+                        <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                      </select>
+                    </span>
+                  </label>
+                  <label>
+                    Section max width
+                    <span class="nes-unit-field">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 640)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', 'px')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
+                        <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                      </select>
+                    </span>
+                  </label>
+                </div>
+                <div class="nes-padding-control">
+                  <div class="nes-control-heading">Section padding</div>
+                  <div class="nes-control-row">
+                    <label>
+                      All
+                      <span class="nes-unit-field">
+                        <input type="number" min="0" [ngModel]="paddingValue(node, 'padding')" (ngModelChange)="updateSectionPaddingAll(node, +$event)" />
+                        <select [ngModel]="paddingUnit(node)" (ngModelChange)="updateAttr(node, 'paddingUnit', $event)">
+                          <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                        </select>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="nes-padding-grid">
+                    <label>Top<input type="number" min="0" [ngModel]="paddingValue(node, 'paddingTop')" (ngModelChange)="updateSectionPaddingSide(node, 'paddingTop', +$event)" /></label>
+                    <label>Right<input type="number" min="0" [ngModel]="paddingValue(node, 'paddingRight')" (ngModelChange)="updateSectionPaddingSide(node, 'paddingRight', +$event)" /></label>
+                    <label>Bottom<input type="number" min="0" [ngModel]="paddingValue(node, 'paddingBottom')" (ngModelChange)="updateSectionPaddingSide(node, 'paddingBottom', +$event)" /></label>
+                    <label>Left<input type="number" min="0" [ngModel]="paddingValue(node, 'paddingLeft')" (ngModelChange)="updateSectionPaddingSide(node, 'paddingLeft', +$event)" /></label>
+                  </div>
+                </div>
+              </ng-container>
               <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
                 Background color
-                <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
+                <span class="nes-color-control">
+                  <input type="color" [ngModel]="colorPickerValue(node.attrs['backgroundColor'] || '#ffffff')" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" />
+                  <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
+                </span>
               </label>
               <label *ngIf="node.type === 'divider'">
                 Border color
-                <input [ngModel]="node.attrs['borderColor']" (ngModelChange)="updateAttr(node, 'borderColor', $event)" placeholder="#d0d5dd" />
+                <span class="nes-color-control">
+                  <input type="color" [ngModel]="colorPickerValue(node.attrs['borderColor'] || '#d0d5dd')" (ngModelChange)="updateAttr(node, 'borderColor', $event)" />
+                  <input [ngModel]="node.attrs['borderColor']" (ngModelChange)="updateAttr(node, 'borderColor', $event)" placeholder="#d0d5dd" />
+                </span>
               </label>
             </div>
 
@@ -512,9 +572,9 @@ function resolveTinyMceScriptSrc(): string {
           class="nes-render-section"
           [id]="dropListIdFor(node)"
           [style.background]="node.attrs['backgroundColor'] || '#ffffff'"
-          [style.width]="node.attrs['width'] || '100%'"
-          [style.max-width]="node.attrs['maxWidth'] || null"
-          [style.padding]="node.attrs['padding'] || null"
+          [style.width]="sectionWidthCss(node)"
+          [style.max-width]="sectionMaxWidthCss(node)"
+          [style.padding]="sectionPaddingCss(node)"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
           (cdkDropListDropped)="drop($event)"
@@ -661,8 +721,17 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tab-panel { margin-top: 14px; }
     .nes-inline-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
     label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
-    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
+    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
     textarea { min-height: 120px; }
+    select { appearance: none; color: #0f172a; font-weight: 800; background: linear-gradient(180deg, #ffffff, #f8fafc); }
+    input[type="color"] { width: 44px; min-width: 44px; height: 42px; padding: 4px; border-radius: 12px; cursor: pointer; }
+    .nes-color-control, .nes-unit-field { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+    .nes-unit-field { grid-template-columns: minmax(0, 1fr) 76px; }
+    .nes-control-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .nes-control-heading { margin: 14px 0 8px; color: #475467; font-size: 13px; font-weight: 800; }
+    .nes-padding-control { margin-top: 6px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
+    .nes-padding-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .nes-padding-grid label { margin: 0; gap: 5px; font-size: 12px; }
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
@@ -748,6 +817,7 @@ export class NgxEmailStudio implements OnChanges {
   copyState = '';
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
+  readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
   lastMjml = '';
   lastHtml = '';
 
@@ -785,8 +855,15 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   get emailWidth(): number {
-    const width = Number(this.documentAttrs['width'] || 640);
-    return Number.isFinite(width) ? Math.max(320, Math.min(1200, Math.floor(width))) : 640;
+    return this.dimensionValue(this.documentAttrs, 'width', 640);
+  }
+
+  get emailWidthCss(): string {
+    return this.dimensionCss(this.documentAttrs, 'width', 640, 'px');
+  }
+
+  get emailMaxWidthCss(): string {
+    return this.dimensionCss(this.documentAttrs, 'maxWidth', this.emailWidth, 'px');
   }
 
   get effectiveConfig(): EmailStudioConfig {
@@ -973,6 +1050,69 @@ export class NgxEmailStudio implements OnChanges {
       attrs: { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}), [key]: value },
     };
     this.emitDocument();
+  }
+
+  colorPickerValue(value: unknown): string {
+    const color = String(value || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#ffffff';
+  }
+
+  dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {
+    const raw = attrs[key];
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : fallback;
+    const parsed = Number.parseFloat(String(raw || ''));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  dimensionUnit(attrs: Record<string, string | number | boolean>, key: string, fallback: EmailSizeUnit): EmailSizeUnit {
+    const unitValue = attrs[`${key}Unit`];
+    if (unitValue === 'px' || unitValue === '%') return unitValue;
+    const raw = String(attrs[key] || '');
+    if (raw.trim().endsWith('%')) return '%';
+    if (raw.trim().endsWith('px')) return 'px';
+    return fallback;
+  }
+
+  sectionWidthCss(section: EmailNode): string {
+    return this.dimensionCss(section.attrs, 'width', 100, '%');
+  }
+
+  sectionMaxWidthCss(section: EmailNode): string {
+    return this.dimensionCss(section.attrs, 'maxWidth', 640, 'px');
+  }
+
+  paddingUnit(section: EmailNode): EmailSizeUnit {
+    return section.attrs['paddingUnit'] === '%' ? '%' : 'px';
+  }
+
+  paddingValue(section: EmailNode, key: 'padding' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft'): number {
+    return this.dimensionValue(section.attrs, key, this.dimensionValue(section.attrs, 'padding', 16));
+  }
+
+  updateSectionPaddingAll(section: EmailNode, value: number): void {
+    section.attrs = {
+      ...section.attrs,
+      padding: value,
+      paddingTop: value,
+      paddingRight: value,
+      paddingBottom: value,
+      paddingLeft: value,
+    };
+    this.emitDocument();
+  }
+
+  updateSectionPaddingSide(section: EmailNode, key: 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft', value: number): void {
+    section.attrs = { ...section.attrs, [key]: value };
+    this.emitDocument();
+  }
+
+  sectionPaddingCss(section: EmailNode): string {
+    const unit = this.paddingUnit(section);
+    const top = this.paddingValue(section, 'paddingTop');
+    const right = this.paddingValue(section, 'paddingRight');
+    const bottom = this.paddingValue(section, 'paddingBottom');
+    const left = this.paddingValue(section, 'paddingLeft');
+    return `${top}${unit} ${right}${unit} ${bottom}${unit} ${left}${unit}`;
   }
 
   setRowColumns(row: EmailNode, count: number): void {
@@ -1203,6 +1343,9 @@ export class NgxEmailStudio implements OnChanges {
       backgroundColor: '#f3f4f6',
       contentBackgroundColor: '#ffffff',
       width: 640,
+      widthUnit: 'px',
+      maxWidth: 640,
+      maxWidthUnit: 'px',
     };
   }
 
@@ -1257,7 +1400,7 @@ export class NgxEmailStudio implements OnChanges {
     const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
       row: { backgroundColor: '#ffffff' },
       column: { width: '50%', backgroundColor: '#ffffff' },
-      section: { backgroundColor: '#ffffff', width: '100%', maxWidth: '640px', padding: '16px' },
+      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
       text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
       image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
       button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },
@@ -1324,7 +1467,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private sectionToMjml(section: EmailNode): string {
     const children = (section.children || []).map((child) => this.blockToMjml(child)).join('');
-    return `    <mj-section${this.backgroundAttr(section)}><mj-column>${children || '<mj-text></mj-text>'}</mj-column></mj-section>`;
+    return `    <mj-section${this.sectionMjmlAttrs(section)}><mj-column>${children || '<mj-text></mj-text>'}</mj-column></mj-section>`;
   }
 
   private columnToMjml(column: EmailNode): string {
@@ -1368,7 +1511,11 @@ export class NgxEmailStudio implements OnChanges {
     const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
     const documentAttrs = this.defaultDocumentAttrs();
     if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = body.getAttribute('background-color') || '#f3f4f6';
-    if (body.getAttribute('width')) documentAttrs['width'] = Number.parseInt(body.getAttribute('width') || '640', 10);
+    if (body.getAttribute('width')) {
+      const bodyWidth = body.getAttribute('width') || '640px';
+      documentAttrs['width'] = Number.parseFloat(bodyWidth);
+      documentAttrs['widthUnit'] = bodyWidth.trim().endsWith('%') ? '%' : 'px';
+    }
     const nodes: EmailNode[] = [];
 
     this.elementChildren(body)
@@ -1442,7 +1589,9 @@ export class NgxEmailStudio implements OnChanges {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
     const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
-    const emailWidth = Math.max(320, Math.min(1200, Number(attrs['width'] || 640) || 640));
+    const emailWidth = this.dimensionCss(attrs, 'width', 640, 'px');
+    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', this.dimensionValue(attrs, 'width', 640), 'px');
+    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 640, 'px');
     const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
     return [
       '<!doctype html>',
@@ -1456,7 +1605,7 @@ export class NgxEmailStudio implements OnChanges {
       `    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;">`,
       '      <tr>',
       '        <td align="center">',
-      `          <table role="presentation" width="${emailWidth}" cellspacing="0" cellpadding="0" style="max-width:${emailWidth}px;background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
+      `          <table role="presentation" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
       rows,
       '          </table>',
       '        </td>',
@@ -1496,9 +1645,9 @@ export class NgxEmailStudio implements OnChanges {
     return [
       this.indent('<tr>', depth),
       this.indent(`<td align="center" style="padding:0;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent(`<table role="presentation" width="${this.escapeAttr(String(section.attrs['width'] || '100%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(String(section.attrs['width'] || '100%'))};max-width:${this.escapeAttr(String(section.attrs['maxWidth'] || '640px'))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
+      this.indent(`<table role="presentation" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
       this.indent('<tr>', depth + 3),
-      this.indent(`<td style="padding:${this.escapeAttr(String(section.attrs['padding'] || '16px'))};">`, depth + 4),
+      this.indent(`<td style="padding:${this.escapeAttr(this.sectionPaddingCss(section))};">`, depth + 4),
       content,
       this.indent('</td>', depth + 4),
       this.indent('</tr>', depth + 3),
@@ -1554,6 +1703,16 @@ export class NgxEmailStudio implements OnChanges {
     }
   }
 
+  private dimensionCss(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {
+    return `${this.dimensionValue(attrs, key, fallback)}${this.dimensionUnit(attrs, key, fallbackUnit)}`;
+  }
+
+  private dimensionHtmlWidthAttr(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {
+    const value = this.dimensionValue(attrs, key, fallback);
+    const unit = this.dimensionUnit(attrs, key, fallbackUnit);
+    return unit === 'px' ? String(value) : `${value}%`;
+  }
+
   private indent(value: string, depth: number): string {
     return `${'  '.repeat(depth)}${value}`;
   }
@@ -1588,10 +1747,15 @@ export class NgxEmailStudio implements OnChanges {
     return node.attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(node.attrs['backgroundColor']))}"` : '';
   }
 
+  private sectionMjmlAttrs(section: EmailNode): string {
+    const padding = ` padding="${this.escapeAttr(this.sectionPaddingCss(section))}"`;
+    return `${this.backgroundAttr(section)}${padding}`;
+  }
+
   private bodyMjmlAttrs(document: EmailDocument): string {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const background = attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(attrs['backgroundColor']))}"` : '';
-    const width = attrs['width'] ? ` width="${this.escapeAttr(String(attrs['width']))}px"` : '';
+    const width = attrs['width'] ? ` width="${this.escapeAttr(this.dimensionCss(attrs, 'width', 640, 'px'))}"` : '';
     return `${background}${width}`;
   }
 
