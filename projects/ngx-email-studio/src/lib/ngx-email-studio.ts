@@ -100,7 +100,7 @@ function resolveTinyMceScriptSrc(): string {
           <ng-container *ngIf="activeLeftTab === 'modules'; else outlinePanel">
             <div class="nes-panel-head">
               <h3>Content modules</h3>
-              <p>Drag modules into the canvas or into a column drop zone</p>
+              <p>Drag modules into the canvas, sections, or columns</p>
             </div>
             <label class="nes-search">
               <i class="fa fa-search" aria-hidden="true"></i>
@@ -109,8 +109,10 @@ function resolveTinyMceScriptSrc(): string {
             <div
               cdkDropList
               #paletteList="cdkDropList"
+              [id]="paletteDropListId"
               [cdkDropListData]="palette"
               [cdkDropListConnectedTo]="connectedDropListIds"
+              [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
               <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [attr.title]="item.description">
@@ -217,7 +219,7 @@ function resolveTinyMceScriptSrc(): string {
                 <i class="fa fa-magic" aria-hidden="true"></i>
                 Drag blocks here to start building your email.
               </div>
-              <div class="nes-bottom-drop">Drop here to append to the end</div>
+              <div class="nes-root-drop-space" aria-hidden="true"></div>
             </div>
             </div>
           </div>
@@ -291,7 +293,7 @@ function resolveTinyMceScriptSrc(): string {
                 <input type="number" min="1" max="4" [ngModel]="node.children?.length || 1" (ngModelChange)="setRowColumns(node, +$event)" />
               </label>
 
-              <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules into the canvas drop zones to add nested content.</p>
+              <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules from the left into this container; the red insertion line shows the exact position.</p>
 
               <label *ngIf="node.type === 'text'" class="nes-rich-text-field">
                 <span class="nes-field-heading">
@@ -566,10 +568,7 @@ function resolveTinyMceScriptSrc(): string {
               </div>
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
-            <div class="nes-column-drop-zone" [class.is-empty]="childrenOf(column).length === 0">
-              <i class="fa fa-level-down" aria-hidden="true"></i>
-              <span>{{ childrenOf(column).length ? 'Drag another module into this column' : 'Drop Content modules here' }}</span>
-            </div>
+            <div class="nes-empty-container-note" *ngIf="childrenOf(column).length === 0">Empty column</div>
           </div>
         </section>
         <div *ngSwitchCase="'column'" class="nes-render-column-alone">Column</div>
@@ -607,10 +606,7 @@ function resolveTinyMceScriptSrc(): string {
             </div>
             <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
           </article>
-          <div class="nes-section-drop-zone" [class.is-empty]="childrenOf(node).length === 0">
-            <i class="fa fa-level-down" aria-hidden="true"></i>
-            <span>{{ childrenOf(node).length ? 'Drag another module into this section' : 'Drop Content modules here' }}</span>
-          </div>
+          <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
         <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="node.attrs['content']"></div>
         <img *ngSwitchCase="'image'" class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
@@ -716,10 +712,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-column-label { font-size: 11px; color: var(--nes-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
     .nes-render-column-alone, .nes-render-section { padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
     .nes-render-section { background: #fff; }
-    .nes-drop-hint, .nes-column-drop-zone, .nes-section-drop-zone { display: grid; place-items: center; min-height: 58px; margin: 8px 0 0; border: 1px dashed #bfdbfe; border-radius: 12px; color: #64748b; background: linear-gradient(135deg, #f8fafc, #eff6ff); font-size: 12px; font-weight: 800; }
-    .nes-column-drop-zone, .nes-section-drop-zone { grid-auto-flow: column; justify-content: center; gap: 8px; transition: .15s ease; }
-    .nes-column-drop-zone.is-empty, .nes-section-drop-zone.is-empty { min-height: 92px; border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #eff6ff); color: #15803d; }
-    .nes-render-column:hover .nes-column-drop-zone, .nes-render-section:hover .nes-section-drop-zone { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .10); }
+    .nes-empty-container-note { display: grid; place-items: center; min-height: 74px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging { outline: 1px solid rgba(220, 38, 38, .18); outline-offset: -1px; }
+    .nes-canvas .cdk-drag-placeholder, .nes-render-column .cdk-drag-placeholder, .nes-render-section .cdk-drag-placeholder { display: block !important; height: 8px !important; min-height: 8px !important; margin: 12px 0 !important; padding: 0 !important; border: 0 !important; border-radius: 999px !important; background: #dc2626 !important; opacity: 1 !important; box-shadow: 0 0 0 4px rgba(220, 38, 38, .14), 0 8px 18px rgba(220, 38, 38, .24) !important; overflow: hidden !important; color: transparent !important; font-size: 0 !important; }
+    .nes-canvas .cdk-drag-placeholder *, .nes-render-column .cdk-drag-placeholder *, .nes-render-section .cdk-drag-placeholder * { visibility: hidden !important; }
     .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
     .nes-render-text :first-child { margin-top: 0; }
     .nes-render-text :last-child { margin-bottom: 0; }
@@ -730,7 +726,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-render-button { display: inline-block; margin: 22px 32px 30px; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
     .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
     .nes-empty { min-height: 380px; display: grid; place-items: center; color: var(--nes-muted); border: 2px dashed #d0d5dd; text-align: center; }
-    .nes-bottom-drop { margin: 16px 24px 24px; padding: 15px; text-align: center; border: 1px dashed #86efac; border-radius: 12px; background: #f0fdf4; color: #15803d; font-weight: 800; font-size: 13px; }
+    .nes-root-drop-space { min-height: 24px; }
     .nes-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 16px 0; border-radius: 12px; background: #f1f5f9; }
     .nes-tabs button { border: 0; background: transparent; padding: 8px; font-size: 13px; color: var(--nes-muted); }
     .nes-tabs button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
@@ -840,12 +836,13 @@ export class NgxEmailStudio implements OnChanges {
   tinyMceInit = this.createTinyMceInit();
   largeTinyMceInit = this.createTinyMceInit(620);
   readonly rootDropListId = 'nes-root-drop-list';
+  readonly paletteDropListId = 'nes-palette-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>) {}
 
   get connectedDropListIds(): string[] {
-    return [this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
+    return [this.paletteDropListId, this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
   }
 
   get filteredPalette(): PaletteItem[] {

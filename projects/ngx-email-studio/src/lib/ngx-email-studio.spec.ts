@@ -91,6 +91,8 @@ describe('NgxEmailStudio', () => {
 
     expect(column?.children?.length).toBe(before + 1);
     expect(column?.children?.[before].type).toBe('text');
+    expect(component.connectedDropListIds).toContain(component.dropListIdFor(column!));
+    expect(component.connectedDropListIds).toContain(component.paletteDropListId);
   });
 
   it('should compile section children instead of placeholder text', () => {
@@ -223,7 +225,7 @@ describe('NgxEmailStudio', () => {
 
     expect(cards.length).toBeGreaterThan(1);
     expect(fixture.nativeElement.querySelector('.nes-block-description')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).toContain('Drag modules into the canvas or into a column drop zone');
+    expect(fixture.nativeElement.textContent).toContain('Drag modules into the canvas, sections, or columns');
 
     cards[0].click();
     fixture.detectChanges();
@@ -231,15 +233,20 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body.length).toBe(before);
   });
 
-  it('should expose canvas column drop zones instead of inspector add-content buttons', () => {
+  it('should remove visible drop zones and use red insertion-line styling', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).not.toContain('Add content inside this column');
     expect(fixture.nativeElement.querySelector('.nes-add-grid')).toBeFalsy();
     expect(fixture.nativeElement.querySelector('.nes-add-column-block')).toBeFalsy();
-    expect(fixture.nativeElement.querySelectorAll('.nes-column-drop-zone').length).toBeGreaterThan(0);
-    expect(fixture.nativeElement.textContent).toContain('Drag another module into this column');
+    expect(fixture.nativeElement.querySelector('.nes-column-drop-zone')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-bottom-drop')).toBeFalsy();
+    expect(fixture.nativeElement.textContent).not.toContain('Drag another module into this column');
+    expect(fixture.nativeElement.textContent).not.toContain('Drag another module into this section');
+    expect(fixture.nativeElement.textContent).not.toContain('Drop Content modules here');
     expect(fixture.nativeElement.textContent).not.toContain('Add text');
+    expect((component as any).paletteDropListId).toBe('nes-palette-drop-list');
   });
 
 
@@ -255,10 +262,13 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('width="640"');
   });
 
-  it('should allow multiple content modules in a section and expose a section drop zone', () => {
+  it('should allow multiple content modules to be dragged from the palette into a section', () => {
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeTruthy();
-    expect(fixture.nativeElement.textContent).toContain('Drag another module into this section');
+    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeFalsy();
+    expect(component.connectedDropListIds).toContain(component.paletteDropListId);
+
+    const paletteList = fixture.nativeElement.querySelector('.nes-block-list') as HTMLElement;
+    expect(paletteList.id).toBe(component.paletteDropListId);
 
     const section = component.emailDocument.body.find((node) => node.type === 'section')!;
     const before = section.children?.length || 0;
