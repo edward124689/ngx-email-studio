@@ -249,6 +249,22 @@ describe('NgxEmailStudio', () => {
     expect((component as any).paletteDropListId).toBe('nes-palette-drop-list');
   });
 
+  it('should make drag targets easier to enter without adding visible drop-zone boxes', () => {
+    fixture.detectChanges();
+
+    const hitPads = fixture.nativeElement.querySelectorAll('.nes-drop-hit-pad') as NodeListOf<HTMLElement>;
+    const section = fixture.nativeElement.querySelector('.nes-render-section') as HTMLElement;
+    const column = fixture.nativeElement.querySelector('.nes-render-column') as HTMLElement;
+    const paletteCard = fixture.nativeElement.querySelector('.nes-block') as HTMLElement;
+
+    expect(hitPads.length).toBeGreaterThan(0);
+    expect(section).toBeTruthy();
+    expect(column).toBeTruthy();
+    expect(paletteCard).toBeTruthy();
+    expect(component.connectedDropListIds).toContain(component.paletteDropListId);
+    expect(component.connectedDropListIds).toContain(component.rootDropListId);
+  });
+
 
   it('should keep the 600 preview contained while preserving exported email width', () => {
     component.setPreviewSize(600);

@@ -1,4 +1,4 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -65,7 +65,10 @@ function resolveTinyMceScriptSrc(): string {
   selector: 'ngx-email-studio',
   standalone: true,
   imports: [CommonModule, FormsModule, DragDropModule, EditorModule],
-  providers: [{ provide: TINYMCE_SCRIPT_SRC, useFactory: resolveTinyMceScriptSrc }],
+  providers: [
+    { provide: TINYMCE_SCRIPT_SRC, useFactory: resolveTinyMceScriptSrc },
+    { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2 } },
+  ],
   template: `
     <section class="nes-shell">
       <header class="nes-toolbar">
@@ -115,7 +118,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [attr.title]="item.description">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragStartDelay]="0" [attr.title]="item.description">
                 <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -191,6 +194,7 @@ function resolveTinyMceScriptSrc(): string {
               [id]="rootDropListId"
               [cdkDropListData]="emailDocument.body"
               [cdkDropListConnectedTo]="connectedDropListIds"
+              [cdkDropListAutoScrollStep]="18"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
               [style.width]="emailCanvasWidthCss"
@@ -206,6 +210,7 @@ function resolveTinyMceScriptSrc(): string {
                 *ngFor="let node of emailDocument.body; trackBy: trackNode"
                 cdkDrag
                 [cdkDragData]="node"
+                [cdkDragStartDelay]="0"
                 (click)="selectNode(node.id); $event.stopPropagation()"
                 (keydown.enter)="selectNode(node.id)"
               >
@@ -542,6 +547,7 @@ function resolveTinyMceScriptSrc(): string {
             [id]="dropListIdFor(column)"
             [cdkDropListData]="childrenOf(column)"
             [cdkDropListConnectedTo]="connectedDropListIds"
+            [cdkDropListAutoScrollStep]="18"
             (cdkDropListDropped)="drop($event)"
             [style.width]="column.attrs['width'] || autoColumnWidth(node)"
             [attr.data-node-id]="column.id"
@@ -550,6 +556,7 @@ function resolveTinyMceScriptSrc(): string {
             (click)="selectNode(column.id); $event.stopPropagation()"
           >
             <div class="nes-column-label">Column {{ columnIndex + 1 }}</div>
+            <div class="nes-drop-hit-pad" aria-hidden="true"></div>
             <article
               role="button"
               tabindex="0"
@@ -559,6 +566,7 @@ function resolveTinyMceScriptSrc(): string {
               *ngFor="let child of childrenOf(column); trackBy: trackNode"
               cdkDrag
               [cdkDragData]="child"
+              [cdkDragStartDelay]="0"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
@@ -568,6 +576,7 @@ function resolveTinyMceScriptSrc(): string {
               </div>
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
+            <div class="nes-drop-hit-pad" aria-hidden="true"></div>
             <div class="nes-empty-container-note" *ngIf="childrenOf(column).length === 0">Empty column</div>
           </div>
         </section>
@@ -584,10 +593,12 @@ function resolveTinyMceScriptSrc(): string {
           [attr.data-node-id]="node.id"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
+          [cdkDropListAutoScrollStep]="18"
           (cdkDropListDropped)="drop($event)"
           [class.is-empty]="childrenOf(node).length === 0"
         >
           <div class="nes-column-label">Section</div>
+          <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <article
             role="button"
             tabindex="0"
@@ -597,6 +608,7 @@ function resolveTinyMceScriptSrc(): string {
             *ngFor="let child of childrenOf(node); trackBy: trackNode"
             cdkDrag
             [cdkDragData]="child"
+            [cdkDragStartDelay]="0"
             (click)="selectNode(child.id); $event.stopPropagation()"
             (keydown.enter)="selectNode(child.id)"
           >
@@ -606,6 +618,7 @@ function resolveTinyMceScriptSrc(): string {
             </div>
             <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
           </article>
+          <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
         <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="node.attrs['content']"></div>
@@ -655,7 +668,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
     .nes-search input { padding-left: 34px; background: #f8fafc; }
     .nes-block-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 430px; overflow: auto; padding-right: 2px; }
-    .nes-block { position: relative; display: grid; grid-template-rows: auto minmax(30px, auto); place-items: center; gap: 8px; min-height: 92px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 8px; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; text-align: center; }
+    .nes-block { touch-action: none; user-select: none; position: relative; display: grid; grid-template-rows: auto minmax(30px, auto); place-items: center; gap: 8px; min-height: 92px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 8px; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; text-align: center; }
     .nes-block:hover { z-index: 2; border-color: #bfdbfe; background: #fff; box-shadow: 0 14px 30px rgba(37, 99, 235, .14); transform: translateY(-1px); }
     .nes-block:active { cursor: grabbing; }
     .nes-block-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
@@ -707,13 +720,15 @@ function resolveTinyMceScriptSrc(): string {
     .nes-floating-tools { position: absolute; right: 10px; top: 10px; z-index: 5; display: flex; gap: 4px; padding: 4px; background: #0f172a; border-radius: 10px; }
     .nes-floating-tools button { padding: 5px 7px; border: 0; background: transparent; color: #fff; }
     .nes-render-row { display: flex; align-items: stretch; gap: 14px; padding: 24px; }
-    .nes-render-column { min-width: 0; flex: 1 1 0; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; background: #fff; box-sizing: border-box; }
+    .nes-render-column { min-width: 0; min-height: 150px; flex: 1 1 0; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #fff; box-sizing: border-box; }
     .nes-render-column.is-empty, .nes-render-section.is-empty { min-height: 110px; }
     .nes-column-label { font-size: 11px; color: var(--nes-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
-    .nes-render-column-alone, .nes-render-section { padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
+    .nes-render-column-alone, .nes-render-section { min-height: 150px; padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
     .nes-render-section { background: #fff; }
-    .nes-empty-container-note { display: grid; place-items: center; min-height: 74px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-    .nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging { outline: 1px solid rgba(220, 38, 38, .18); outline-offset: -1px; }
+    .nes-drop-hit-pad { height: 26px; margin: -6px 0; border-radius: 999px; opacity: 0; pointer-events: none; }
+    .nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 1; background: rgba(220, 38, 38, .06); }
+    .nes-empty-container-note { pointer-events: none; display: grid; place-items: center; min-height: 74px; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging { outline: 2px solid rgba(220, 38, 38, .22); outline-offset: -2px; }
     .nes-canvas .cdk-drag-placeholder, .nes-render-column .cdk-drag-placeholder, .nes-render-section .cdk-drag-placeholder { display: block !important; height: 8px !important; min-height: 8px !important; margin: 12px 0 !important; padding: 0 !important; border: 0 !important; border-radius: 999px !important; background: #dc2626 !important; opacity: 1 !important; box-shadow: 0 0 0 4px rgba(220, 38, 38, .14), 0 8px 18px rgba(220, 38, 38, .24) !important; overflow: hidden !important; color: transparent !important; font-size: 0 !important; }
     .nes-canvas .cdk-drag-placeholder *, .nes-render-column .cdk-drag-placeholder *, .nes-render-section .cdk-drag-placeholder * { visibility: hidden !important; }
     .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
