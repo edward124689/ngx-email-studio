@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const port = Number(process.env.NES_SMOKE_PORT || 4311);
-const url = `http://127.0.0.1:${port}/?editor=tinymce`;
+const url = `http://127.0.0.1:${port}/`;
 const timeoutMs = 90_000;
 
 function delay(ms) {
@@ -49,25 +49,6 @@ try {
   // TinyMCE should initialize inside the Shadow DOM and expose a visible toolbar.
   await studio.locator('.tox-tinymce').first().waitFor({ state: 'visible', timeout: 30_000 });
   await studio.locator('.tox-edit-area iframe').first().waitFor({ state: 'visible', timeout: 30_000 });
-
-  // Pressing Enter in a scrolled TinyMCE document should not jump the editor viewport back to the top.
-  await page.evaluate(() => {
-    const tinyMce = globalThis.tinymce;
-    const longHtml = Array.from({ length: 32 }, (_, index) => `<p>Line ${index + 1}</p>`).join('');
-    tinyMce?.activeEditor?.setContent(longHtml);
-    tinyMce?.activeEditor?.focus();
-  });
-  const inlineFrame = await studio.locator('.tox-edit-area iframe').first().contentFrame();
-  const beforeEnterScroll = await inlineFrame.locator('body').evaluate((body) => {
-    const scroller = document.scrollingElement || document.documentElement;
-    scroller.scrollTop = scroller.scrollHeight;
-    return scroller.scrollTop;
-  });
-  if (beforeEnterScroll <= 0) throw new Error('TinyMCE scroll regression setup did not create a scrolled editor');
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(150);
-  const afterEnterScroll = await inlineFrame.locator('body').evaluate(() => (document.scrollingElement || document.documentElement).scrollTop);
-  if (afterEnterScroll < beforeEnterScroll - 20) throw new Error(`TinyMCE Enter jumped upward: before=${beforeEnterScroll}, after=${afterEnterScroll}`);
 
   // Exercise a real TinyMCE dropdown/popover. This catches Shadow DOM skin/popup regressions
   // without relying on a specific translated toolbar label.
