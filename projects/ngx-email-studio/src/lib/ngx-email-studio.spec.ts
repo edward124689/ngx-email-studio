@@ -144,6 +144,28 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body[1].attrs['content']).toContain('取消訂閱');
   });
 
+  it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {
+    fixture.detectChanges();
+
+    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    expect(tabs.length).toBe(2);
+    expect(fixture.nativeElement.textContent).toContain('Content modules');
+    expect(fixture.nativeElement.querySelector('.nes-block-list')).toBeTruthy();
+
+    tabs[1].click();
+    fixture.detectChanges();
+
+    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    expect(fixture.nativeElement.querySelector('.nes-outline-tree')).toBeTruthy();
+    expect(outlineNodes.length).toBe(component.totalOutlineNodes);
+    expect(outlineNodes.length).toBeGreaterThan(component.emailDocument.body.length);
+    expect(fixture.nativeElement.textContent).toContain('Tree view of sections, rows, columns and nested blocks');
+    expect(fixture.nativeElement.textContent).toContain('02.1');
+
+    outlineNodes[1].click();
+    expect(component.selectedNodeId).toBeTruthy();
+  });
+
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
     expect(component.tinyMceInit['skin']).toBe('oxide');
     expect(component.tinyMceInit['content_css']).toBe('default');

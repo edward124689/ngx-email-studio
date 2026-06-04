@@ -90,43 +90,54 @@ function resolveTinyMceScriptSrc(): string {
 
       <main class="nes-builder">
         <aside class="nes-panel nes-palette">
-          <div class="nes-panel-head">
-            <h3>Content modules</h3>
-            <p>Drag into the canvas or click to add</p>
-          </div>
-          <label class="nes-search">
-            <i class="fa fa-search" aria-hidden="true"></i>
-            <input [ngModel]="paletteSearch" (ngModelChange)="paletteSearch = $event" placeholder="Search modules" />
-          </label>
-          <div
-            cdkDropList
-            #paletteList="cdkDropList"
-            [cdkDropListData]="palette"
-            [cdkDropListConnectedTo]="connectedDropListIds"
-            class="nes-block-list"
-          >
-            <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" (click)="addBlock(item)">
-              <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
-              <span>
-                <strong>{{ item.label }}</strong>
-                <small>{{ item.description }}</small>
-              </span>
-            </article>
+          <div class="nes-left-tabs" role="tablist" aria-label="Builder side panel">
+            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'modules'" [class.is-active]="activeLeftTab === 'modules'" (click)="activeLeftTab = 'modules'">Content modules</button>
+            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'outline'" [class.is-active]="activeLeftTab === 'outline'" (click)="activeLeftTab = 'outline'">Outline</button>
           </div>
 
-          <div class="nes-outline">
-            <div class="nes-outline-title"><strong>Outline</strong><span>{{ emailDocument.body.length }}</span></div>
-            <button
-              type="button"
-              class="nes-outline-item"
-              *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode"
-              [class.is-active]="node.id === selectedNodeId"
-              (click)="selectNode(node.id)"
+          <ng-container *ngIf="activeLeftTab === 'modules'; else outlinePanel">
+            <div class="nes-panel-head">
+              <h3>Content modules</h3>
+              <p>Drag into the canvas or click to add</p>
+            </div>
+            <label class="nes-search">
+              <i class="fa fa-search" aria-hidden="true"></i>
+              <input [ngModel]="paletteSearch" (ngModelChange)="paletteSearch = $event" placeholder="Search modules" />
+            </label>
+            <div
+              cdkDropList
+              #paletteList="cdkDropList"
+              [cdkDropListData]="palette"
+              [cdkDropListConnectedTo]="connectedDropListIds"
+              class="nes-block-list"
             >
-              <span>{{ (i + 1).toString().padStart(2, '0') }}</span>
-              {{ outlineLabel(node) }}
-            </button>
-          </div>
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" (click)="addBlock(item)">
+                <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
+                <span>
+                  <strong>{{ item.label }}</strong>
+                  <small>{{ item.description }}</small>
+                </span>
+              </article>
+            </div>
+          </ng-container>
+
+          <ng-template #outlinePanel>
+            <div class="nes-panel-head nes-outline-head">
+              <div>
+                <h3>Outline</h3>
+                <p>Tree view of sections, rows, columns and nested blocks</p>
+              </div>
+              <span>{{ totalOutlineNodes }}</span>
+            </div>
+            <div class="nes-outline-tree" role="tree" *ngIf="emailDocument.body.length; else emptyOutline">
+              <ng-container *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode">
+                <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: node, depth: 0, indexPath: (i + 1).toString().padStart(2, '0') }"></ng-container>
+              </ng-container>
+            </div>
+            <ng-template #emptyOutline>
+              <div class="nes-outline-empty"><i class="fa fa-sitemap" aria-hidden="true"></i>No blocks yet. Add a module to build the tree.</div>
+            </ng-template>
+          </ng-template>
         </aside>
 
         <section class="nes-stage">
@@ -353,6 +364,31 @@ function resolveTinyMceScriptSrc(): string {
       </div>
     </section>
 
+    <ng-template #outlineTreeNode let-node="node" let-depth="depth" let-indexPath="indexPath">
+      <button
+        type="button"
+        class="nes-outline-node"
+        role="treeitem"
+        [attr.aria-selected]="node.id === selectedNodeId"
+        [class.is-active]="node.id === selectedNodeId"
+        [style.padding-left.px]="12 + depth * 18"
+        (click)="selectNode(node.id)"
+      >
+        <span class="nes-outline-rail" aria-hidden="true"></span>
+        <span class="nes-outline-icon"><i class="fa" [class]="'fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
+        <span class="nes-outline-copy">
+          <strong>{{ outlineLabel(node) }}</strong>
+          <small>{{ outlineMeta(node) }}</small>
+        </span>
+        <span class="nes-outline-index">{{ indexPath }}</span>
+      </button>
+      <div class="nes-outline-children" role="group" *ngIf="node.children?.length">
+        <ng-container *ngFor="let child of node.children; let childIndex = index; trackBy: trackNode">
+          <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: child, depth: depth + 1, indexPath: indexPath + '.' + (childIndex + 1) }"></ng-container>
+        </ng-container>
+      </div>
+    </ng-template>
+
     <ng-template #nodePreview let-node="node" let-nested="nested">
       <ng-container [ngSwitch]="node.type">
         <section *ngSwitchCase="'row'" class="nes-render-row" [style.background]="node.attrs['backgroundColor'] || '#ffffff'">
@@ -471,12 +507,27 @@ function resolveTinyMceScriptSrc(): string {
     .nes-block-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
     .nes-block strong, .nes-block small { display: block; }
     .nes-block small { color: var(--nes-muted); margin-top: 2px; font-size: 11px; line-height: 1.3; }
-    .nes-outline { margin-top: 22px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
-    .nes-outline-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; }
-    .nes-outline-title span { background: #e0f2fe; color: #0369a1; border-radius: 999px; padding: 2px 8px; font-weight: 800; }
-    .nes-outline-item { width: 100%; display: flex; gap: 8px; align-items: center; border: 0; background: transparent; color: #475569; padding: 8px 10px; text-align: left; }
-    .nes-outline-item span { color: #94a3b8; font-variant-numeric: tabular-nums; }
-    .nes-outline-item.is-active { background: #eff6ff; color: #1d4ed8; font-weight: 800; }
+    .nes-left-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: linear-gradient(180deg, #f8fafc, #eef2f7); box-shadow: inset 0 1px 0 rgba(255,255,255,.75); }
+    .nes-left-tabs button { min-width: 0; border: 0; border-radius: 10px; background: transparent; color: var(--nes-muted); padding: 9px 8px; font-size: 12px; font-weight: 900; letter-spacing: -.01em; }
+    .nes-left-tabs button.is-active { background: #fff; color: var(--nes-ink); box-shadow: 0 8px 18px rgba(15, 23, 42, .08), inset 0 0 0 1px rgba(226, 232, 240, .8); }
+    .nes-outline-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .nes-outline-head span { flex: 0 0 auto; background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 900; }
+    .nes-outline-tree { position: relative; display: grid; gap: 4px; margin-top: 16px; max-height: 548px; overflow: auto; padding: 6px 4px 8px 0; }
+    .nes-outline-tree::before { content: ''; position: absolute; top: 10px; bottom: 12px; left: 22px; width: 1px; background: linear-gradient(#dbeafe, #bbf7d0); }
+    .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
+    .nes-outline-node:hover { border-color: #bfdbfe; background: #f8fafc; color: var(--nes-accent); }
+    .nes-outline-node.is-active { border-color: #bfdbfe; background: linear-gradient(135deg, #eff6ff, #f0fdf4); color: #1d4ed8; box-shadow: 0 10px 22px rgba(37, 99, 235, .08); }
+    .nes-outline-rail { position: absolute; left: calc(100% - 100% + 4px); top: 50%; width: 12px; height: 1px; background: #cbd5e1; transform: translateY(-50%); }
+    .nes-outline-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; background: #eff6ff; color: var(--nes-accent); font-size: 12px; }
+    .nes-outline-node.is-active .nes-outline-icon { background: #dcfce7; color: var(--nes-success); }
+    .nes-outline-copy { min-width: 0; }
+    .nes-outline-copy strong, .nes-outline-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nes-outline-copy strong { color: currentColor; font-size: 12px; line-height: 1.25; }
+    .nes-outline-copy small { margin-top: 2px; color: var(--nes-muted); font-size: 10px; line-height: 1.2; text-transform: uppercase; letter-spacing: .045em; }
+    .nes-outline-index { color: #94a3b8; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .nes-outline-children { display: grid; gap: 4px; }
+    .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
+    .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
     .nes-stage { overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; }
     .nes-stage::-webkit-scrollbar { height: 10px; }
     .nes-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
@@ -592,6 +643,7 @@ export class NgxEmailStudio implements OnChanges {
   selectedNodeId?: string;
   mjmlDraft = '';
   paletteSearch = '';
+  activeLeftTab: 'modules' | 'outline' = 'modules';
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
   exportMenuOpen = false;
   importModalOpen = false;
@@ -750,6 +802,34 @@ export class NgxEmailStudio implements OnChanges {
     if (node.type === 'divider') return 'Divider';
     if (node.type === 'spacer') return 'Spacer';
     return node.type;
+  }
+
+  outlineMeta(node: EmailNode): string {
+    const childCount = node.children?.length || 0;
+    if (node.type === 'row') return `${childCount || 1} column${(childCount || 1) === 1 ? '' : 's'}`;
+    if (node.type === 'column') return `${childCount} nested block${childCount === 1 ? '' : 's'}`;
+    if (node.type === 'section') return childCount ? `${childCount} nested block${childCount === 1 ? '' : 's'}` : 'container';
+    return node.type;
+  }
+
+  outlineIcon(node: EmailNode): string {
+    if (node.type === 'row') return 'fa-columns';
+    if (node.type === 'column') return 'fa-window-maximize';
+    if (node.type === 'section') return 'fa-object-group';
+    if (node.type === 'text') return 'fa-font';
+    if (node.type === 'image') return 'fa-picture-o';
+    if (node.type === 'button') return 'fa-mouse-pointer';
+    if (node.type === 'divider') return 'fa-minus';
+    if (node.type === 'spacer') return 'fa-arrows-v';
+    return 'fa-square-o';
+  }
+
+  get totalOutlineNodes(): number {
+    return this.countOutlineNodes(this.emailDocument.body);
+  }
+
+  private countOutlineNodes(nodes: EmailNode[]): number {
+    return nodes.reduce((count, node) => count + 1 + this.countOutlineNodes(node.children || []), 0);
   }
 
   setPreviewSize(size: EmailPreviewSize): void {
