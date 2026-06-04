@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
@@ -79,7 +79,7 @@ function resolveTinyMceScriptSrc(): string {
     { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
   template: `
-    <section class="nes-shell">
+    <section class="nes-shell" [class.is-dragging]="dragInProgress" (click)="closeTransientMenus()">
       <header class="nes-toolbar">
         <div class="nes-brand">
           <div class="nes-logo" aria-hidden="true"><i class="nes-icon fa fa-envelope-open-o"></i></div>
@@ -90,7 +90,7 @@ function resolveTinyMceScriptSrc(): string {
         <div class="nes-actions">
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
-          <div class="nes-export" [class.is-open]="exportMenuOpen">
+          <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
               <i class="nes-icon fa fa-download" aria-hidden="true"></i>
               <span>Export</span>
@@ -130,7 +130,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListEnterPredicate]="rejectPaletteDrop"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="clearNativeSelection()" [attr.title]="item.description">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="beginDrag()" (cdkDragEnded)="endDrag()" [attr.title]="item.description">
                 <span class="nes-block-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -230,7 +230,8 @@ function resolveTinyMceScriptSrc(): string {
                     [cdkDragData]="node"
                     [cdkDragPreviewContainer]="'parent'"
                     [cdkDragStartDelay]="0"
-                    (cdkDragStarted)="clearNativeSelection()"
+                    (cdkDragStarted)="beginDrag()"
+                    (cdkDragEnded)="endDrag()"
                     (click)="selectNode(node.id); $event.stopPropagation()"
                     (keydown.enter)="selectNode(node.id)"
                   >
@@ -621,7 +622,8 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDragData]="child"
               [cdkDragPreviewContainer]="'parent'"
               [cdkDragStartDelay]="0"
-              (cdkDragStarted)="clearNativeSelection()"
+              (cdkDragStarted)="beginDrag()"
+              (cdkDragEnded)="endDrag()"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
@@ -665,7 +667,8 @@ function resolveTinyMceScriptSrc(): string {
             cdkDrag
             [cdkDragData]="child"
             [cdkDragStartDelay]="0"
-            (cdkDragStarted)="clearNativeSelection()"
+            (cdkDragStarted)="beginDrag()"
+            (cdkDragEnded)="endDrag()"
             (click)="selectNode(child.id); $event.stopPropagation()"
             (keydown.enter)="selectNode(child.id)"
           >
@@ -678,7 +681,7 @@ function resolveTinyMceScriptSrc(): string {
           <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
-        <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="node.attrs['content']"></div>
+        <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
         <img *ngSwitchCase="'image'" class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
         <a *ngSwitchCase="'button'" class="nes-render-button">{{ node.attrs['label'] }}</a>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
@@ -810,8 +813,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
     .nes-canvas-shell { min-height: 520px; padding: 24px 12px; transition: background .15s ease; overflow: hidden; box-sizing: border-box; }
     .nes-canvas-shell.is-preview { padding: 0; }
-    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-    .nes-canvas *, .cdk-drag-preview, .cdk-drag-preview * { user-select: none; -webkit-user-select: none; }
+    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; }
+    .nes-shell.is-dragging .nes-canvas, .nes-shell.is-dragging .nes-canvas *, .cdk-drag-preview, .cdk-drag-preview * { user-select: none; -webkit-user-select: none; }
     .nes-preview-help { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.45; }
     .nes-preview-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
@@ -939,6 +942,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
   canvasMode: CanvasMode = 'edit';
   exportMenuOpen = false;
+  dragInProgress = false;
   importModalOpen = false;
   importErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
@@ -961,6 +965,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => this.canDropIntoContainer(drag.data, drop.id);
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const path = event.composedPath?.() || [];
+    if (!path.includes(this.hostRef.nativeElement)) this.closeTransientMenus();
+  }
+
+  @HostListener('document:keydown.escape')
+  onDocumentEscape(): void {
+    this.closeTransientMenus();
+    if (this.outputModalType) this.closeOutputModal();
+    if (this.importModalOpen) this.closeImportModal();
+    if (this.expandedRichTextNode) this.closeRichTextModal();
+  }
 
   ngAfterViewInit(): void {
     this.ensureTinyMceSkinInShadowRoot();
@@ -1098,8 +1116,26 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     this.selectedNodeId = id;
   }
 
+  beginDrag(): void {
+    this.dragInProgress = true;
+    this.clearNativeSelection();
+  }
+
+  endDrag(): void {
+    this.dragInProgress = false;
+    this.clearNativeSelection();
+  }
+
   clearNativeSelection(): void {
     globalThis.getSelection?.()?.removeAllRanges();
+  }
+
+  closeTransientMenus(): void {
+    this.exportMenuOpen = false;
+  }
+
+  sanitizedRichText(value: unknown): string {
+    return this.sanitizeRichTextContent(value);
   }
 
   selectNodeFromOutline(id: string): void {
@@ -1213,6 +1249,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   updateAttr(node: EmailNode, key: string, value: string | number | boolean): void {
     if (this.readonly) return;
+    if (key === 'content') value = this.sanitizeRichTextContent(value);
     node.attrs = { ...node.attrs, [key]: value };
     this.emitDocument();
   }
@@ -1423,7 +1460,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     if (this.readonly) return;
     const node = this.expandedRichTextNode;
     if (!node) return;
-    this.updateAttr(node, 'content', value);
+    this.updateAttr(node, 'content', this.sanitizeRichTextContent(value));
   }
 
   async copyOutputToClipboard(): Promise<void> {
@@ -1835,7 +1872,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       case 'section':
         return (node.children || []).map((child) => this.blockToMjml(child)).join('') || '<mj-text></mj-text>';
       case 'text':
-        return `<mj-text${this.backgroundAttr(node)}>${node.attrs['content'] || ''}</mj-text>`;
+        return `<mj-text${this.backgroundAttr(node)}>${this.sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
       case 'image':
         return `<mj-image src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" />`;
       case 'button':
@@ -1915,7 +1952,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   private parseMjmlBlock(element: Element, unsupported: string[]): EmailNode | undefined {
     switch (element.tagName.toLowerCase()) {
       case 'mj-text':
-        return this.createNode('text', { content: element.innerHTML || element.textContent || '<p></p>' });
+        return this.createNode('text', { content: this.sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>') });
       case 'mj-image':
         return this.createNode('image', { src: element.getAttribute('src') || '', alt: element.getAttribute('alt') || '' });
       case 'mj-button':
@@ -2044,7 +2081,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       case 'section':
         return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'text':
-        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${node.attrs['content'] || ''}</div>`, depth);
+        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${this.sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
       case 'image':
         return this.indent(`<img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`, depth);
       case 'button':
@@ -2117,6 +2154,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   private readonly supportedMjmlTags = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
+
+  private sanitizeRichTextContent(value: unknown): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, String(value || '')) || '';
+  }
 
   private escapeAttr(value: string): string {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

@@ -786,25 +786,31 @@ describe('NgxEmailStudio', () => {
     expect(shadowStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
 
-  it('should prevent native browser text selection from showing during canvas drag', () => {
+  it('should prevent native browser text selection only while dragging on the canvas', () => {
     fixture.detectChanges();
 
     const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
-    let cleared = false;
+    let cleared = 0;
     const originalGetSelection = globalThis.getSelection;
     Object.defineProperty(globalThis, 'getSelection', {
       configurable: true,
-      value: () => ({ removeAllRanges: () => { cleared = true; } }),
+      value: () => ({ removeAllRanges: () => { cleared += 1; } }),
     });
 
     try {
-      component.clearNativeSelection();
+      expect(component.dragInProgress).toBe(false);
+      component.beginDrag();
+      expect(component.dragInProgress).toBe(true);
+      component.endDrag();
+      expect(component.dragInProgress).toBe(false);
     } finally {
       Object.defineProperty(globalThis, 'getSelection', { configurable: true, value: originalGetSelection });
     }
 
-    expect(shadowStyles).toMatch(/\.nes-canvas \*,\s*\.cdk-drag-preview,\s*\.cdk-drag-preview \* \{\s*user-select:\s*none;\s*-webkit-user-select:\s*none;\s*\}/);
-    expect(cleared).toBe(true);
+    expect(shadowStyles).toMatch(/\.nes-canvas \{[^}]*box-sizing:\s*border-box;\s*\}/);
+    expect(shadowStyles).not.toMatch(/\.nes-canvas \{[^}]*user-select/);
+    expect(shadowStyles).toMatch(/\.nes-shell\.is-dragging \.nes-canvas,\s*\.nes-shell\.is-dragging \.nes-canvas \*,\s*\.cdk-drag-preview,\s*\.cdk-drag-preview \* \{\s*user-select:\s*none;\s*-webkit-user-select:\s*none;\s*\}/);
+    expect(cleared).toBe(2);
   });
 
 
@@ -870,6 +876,38 @@ describe('NgxEmailStudio', () => {
     expect(textNode!.attrs['content']).toContain('Updated from large editor');
   });
 
+  it('should sanitize rich text for canvas render, MJML import, and generated exports', () => {
+    const textNode = component.emailDocument.body[0].children?.[0];
+    expect(textNode?.type).toBe('text');
+
+    const unsafe = '<p onclick="window.evil=true">Safe <strong>copy</strong></p><script>window.evil=true</script><img src="x" onerror="window.evil=true">';
+    component.updateAttr(textNode!, 'content', unsafe);
+    const sanitized = String(textNode!.attrs['content']);
+
+    expect(sanitized).toContain('<strong>copy</strong>');
+    expect(sanitized).not.toContain('<script');
+    expect(sanitized).not.toContain('onclick');
+    expect(sanitized).not.toContain('onerror');
+
+    expect(component.sanitizedRichText(unsafe)).not.toContain('<script');
+    expect(component.sanitizedRichText(unsafe)).not.toContain('onerror');
+
+    const mjml = (component as any).compileMjml(component.emailDocument) as string;
+    const html = (component as any).renderHtml(component.emailDocument) as string;
+    expect(mjml).not.toContain('<script');
+    expect(mjml).not.toContain('onclick');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('onerror');
+
+    const importUnsafe = '<p onclick="window.evil=true">Safe <strong>copy</strong></p><img src="x" onerror="window.evil=true" />';
+    const imported = (component as any).parseMjml(`<mjml><mj-body><mj-section><mj-column><mj-text>${importUnsafe}</mj-text></mj-column></mj-section></mj-body></mjml>`) as EmailDocument;
+    const importedContent = String(imported.body[0].children?.[0].attrs['content'] || '');
+    expect(importedContent).toContain('<strong>copy</strong>');
+    expect(importedContent).not.toContain('<script');
+    expect(importedContent).not.toContain('onclick');
+    expect(importedContent).not.toContain('onerror');
+  });
+
   it('should open export dropdown and show MJML output in a modal instead of bottom output panels', () => {
     fixture.detectChanges();
 
@@ -888,6 +926,26 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, '.nes-output-modal')).toBeTruthy();
     expect(studioText(fixture)).toContain('MJML Output');
     expect(query(fixture, '.nes-output-modal pre')?.textContent).toContain('<mjml>');
+  });
+
+  it('should close the export dropdown on outside click and Escape', () => {
+    fixture.detectChanges();
+
+    component.toggleExportMenu();
+    expect(component.exportMenuOpen).toBe(true);
+
+    component.closeTransientMenus();
+    expect(component.exportMenuOpen).toBe(false);
+
+    component.toggleExportMenu();
+    expect(component.exportMenuOpen).toBe(true);
+    component.onDocumentEscape();
+    expect(component.exportMenuOpen).toBe(false);
+
+    component.toggleExportMenu();
+    expect(component.exportMenuOpen).toBe(true);
+    component.onDocumentClick({ composedPath: () => [document.body] } as unknown as MouseEvent);
+    expect(component.exportMenuOpen).toBe(false);
   });
 
   it('should keep toolbar actions ordered as Import, Save, Export with a decorated export menu', () => {

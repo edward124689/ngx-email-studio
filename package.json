@@ -9,6 +9,7 @@
     "build:demo": "ng build demo",
     "watch": "ng build ngx-email-studio --watch --configuration development",
     "test": "ng test",
+    "smoke:tinymce": "node scripts/tinymce-smoke.mjs",
     "pack:lib": "npm pack ./dist/ngx-email-studio",
     "build:pages": "ng build ngx-email-studio && ng build demo --base-href /ngx-email-studio/",
     "deploy:pages": "bash scripts/deploy-demo-pages.sh"
@@ -32,6 +33,7 @@
     "@angular/build": "^21.2.13",
     "@angular/cli": "^21.2.13",
     "@angular/compiler-cli": "^21.2.0",
+    "@playwright/test": "^1.60.0",
     "jsdom": "^28.0.0",
     "ng-packagr": "^21.2.0",
     "prettier": "^3.8.1",
