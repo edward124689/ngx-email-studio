@@ -287,9 +287,27 @@ describe('NgxEmailStudio', () => {
 
     const html = (component as any).renderHtml(document) as string;
 
-    expect(html).toContain('<body style="margin:0;background:#111827;">');
-    expect(html).toContain('style="background:#111827;padding:24px 0;"');
-    expect(html).toContain('<table role="presentation" width="720" cellspacing="0" cellpadding="0" style="width:720px;max-width:720px;background:#fefce8;');
+    expect(html).toContain('<body style="margin:0;padding:0;background:#111827;word-spacing:normal;">');
+    expect(html).toContain('style="background:#111827;padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;"');
+    expect(html).toContain('<table role="presentation" border="0" width="720" cellspacing="0" cellpadding="0" style="width:720px;max-width:720px;background:#fefce8;');
+    expect(html).toContain('width="720"><tr><td><![endif]-->');
+  });
+
+  it('should include email-client compatibility head and Outlook resets in HTML export', () => {
+    const html = (component as any).renderHtml(component.emailDocument) as string;
+
+    expect(html).toContain('<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">');
+    expect(html).toContain('<!--[if !mso]><!-->');
+    expect(html).toContain('<meta http-equiv="X-UA-Compatible" content="IE=edge">');
+    expect(html).toContain('<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">');
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    expect(html).toContain('#outlook a { padding:0; }');
+    expect(html).toContain('table, td { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }');
+    expect(html).toContain('img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }');
+    expect(html).toContain('<o:PixelsPerInch>96</o:PixelsPerInch>');
+    expect(html).toContain('.nes-email-outlook-fix { width:100% !important; }');
+    expect(html).toContain('@media only screen and (max-width:480px)');
+    expect(html).toContain('class="nes-email-column nes-email-outlook-fix"');
   });
 
   it('should expose Body as the outline root and edit exported body settings', () => {
@@ -357,7 +375,7 @@ describe('NgxEmailStudio', () => {
     expect(component.columnWidthCss(column)).toBe('45%');
     expect(component.columnMaxWidthCss(column)).toBe('600px');
     expect(component.lastMjml).toContain('<mj-column width="45%"');
-    expect(component.lastHtml).toContain('class="nes-email-column" width="45%"');
+    expect(component.lastHtml).toContain('class="nes-email-column nes-email-outlook-fix" width="45%"');
     expect(component.lastHtml).toContain('width:45%;max-width:600px;');
   });
 
@@ -1022,7 +1040,7 @@ describe('NgxEmailStudio', () => {
     expect(component.outputModalType).toBe('html');
     expect(component.outputModalTitle).toBe('HTML Output');
     expect(query(fixture, '.nes-preview-btn')).toBeTruthy();
-    expect(output).toContain('<!doctype html>\n<html>');
+    expect(output).toContain('<!doctype html>\n<html xmlns="http://www.w3.org/1999/xhtml"');
     expect(output).toContain('  <head>');
     expect(output).toContain('          <table role="presentation"');
   });

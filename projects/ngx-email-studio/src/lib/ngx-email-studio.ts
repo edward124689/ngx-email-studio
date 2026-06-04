@@ -2006,27 +2006,58 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     const emailWidth = this.dimensionCss(attrs, 'width', 100, '%');
     const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 600, 'px');
     const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
+    const outlookWidth = this.escapeAttr(this.outlookHtmlWidth(attrs));
     const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
     return [
       '<!doctype html>',
-      '<html>',
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">',
       '  <head>',
-      '    <meta charset="utf-8">',
-      '    <meta name="viewport" content="width=device-width, initial-scale=1">',
       '    <title>Email Export</title>',
-      '    <style>',
+      '    <!--[if !mso]><!-->',
+      '    <meta http-equiv="X-UA-Compatible" content="IE=edge">',
+      '    <!--<![endif]-->',
+      '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">',
+      '    <meta name="viewport" content="width=device-width, initial-scale=1">',
+      '    <style type="text/css">',
+      '      #outlook a { padding:0; }',
+      '      body { margin:0; padding:0; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }',
+      '      table, td { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }',
+      '      img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }',
+      '      p { display:block; margin:13px 0; }',
+      '    </style>',
+      '    <!--[if mso]>',
+      '    <noscript>',
+      '      <xml>',
+      '        <o:OfficeDocumentSettings>',
+      '          <o:AllowPNG/>',
+      '          <o:PixelsPerInch>96</o:PixelsPerInch>',
+      '        </o:OfficeDocumentSettings>',
+      '      </xml>',
+      '    </noscript>',
+      '    <![endif]-->',
+      '    <!--[if lte mso 11]>',
+      '    <style type="text/css">',
+      '      .nes-email-outlook-fix { width:100% !important; }',
+      '    </style>',
+      '    <![endif]-->',
+      '    <style type="text/css">',
       '      @media only screen and (max-width:480px) {',
       '        .nes-email-column { display:block !important; width:100% !important; max-width:100% !important; }',
       '      }',
+      '      @media only screen and (min-width:480px) {',
+      '        .nes-email-column { display:table-cell !important; }',
+      '      }',
       '    </style>',
       '  </head>',
-      `  <body style="margin:0;background:${bodyBackground};">`,
-      `    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;">`,
+      `  <body style="margin:0;padding:0;background:${bodyBackground};word-spacing:normal;">`,
+      `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
       '      <tr>',
       '        <td align="center">',
-      `          <table role="presentation" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
+      `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
+      `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
       rows,
       '          </table>',
+      '          <!--[if mso | IE]></td></tr></table><![endif]-->',
       '        </td>',
       '      </tr>',
       '    </table>',
@@ -2049,7 +2080,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     return [
       this.indent('<tr>', depth),
       this.indent(`<td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth + 2),
+      this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth + 2),
       this.indent('<tr>', depth + 3),
       cells,
       this.indent('</tr>', depth + 3),
@@ -2064,7 +2095,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     return [
       this.indent('<tr>', depth),
       this.indent(`<td align="center" style="padding:0;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent(`<table role="presentation" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
+      this.indent(`<table role="presentation" border="0" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
       this.indent('<tr>', depth + 3),
       this.indent(`<td style="padding:${this.escapeAttr(this.sectionPaddingCss(section))};">`, depth + 4),
       content,
@@ -2083,7 +2114,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     const maxWidth = this.columnMaxWidthCss(column);
     const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
     return [
-      this.indent(`<td class="nes-email-column" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      this.indent(`<td class="nes-email-column nes-email-outlook-fix" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;">`, depth),
       content,
       this.indent('</td>', depth),
     ].join('\n');
@@ -2103,11 +2134,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   private blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     switch (node.type) {
       case 'row':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.rowToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
+        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.rowToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'column':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
+        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
       case 'section':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
+        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'text':
         return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;text-align:${this.escapeAttr(this.contentAlign(node))};">${this.sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
       case 'image':
@@ -2133,6 +2164,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     const value = this.dimensionValue(attrs, key, fallback);
     const unit = this.dimensionUnit(attrs, key, fallbackUnit);
     return unit === 'px' ? String(value) : `${value}%`;
+  }
+
+  private outlookHtmlWidth(attrs: Record<string, string | number | boolean>): string {
+    if (this.dimensionUnit(attrs, 'maxWidth', 'px') === 'px') return String(this.dimensionValue(attrs, 'maxWidth', 600));
+    if (this.dimensionUnit(attrs, 'width', '%') === 'px') return String(this.dimensionValue(attrs, 'width', 600));
+    return '600';
   }
 
   private indent(value: string, depth: number): string {
