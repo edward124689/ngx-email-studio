@@ -187,7 +187,8 @@ describe('NgxEmailStudio', () => {
       .join('\n');
     const compactStyles = styles.replace(/\s+/g, ' ');
 
-    expect(compactStyles).toContain('.nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; height: min(900px, calc(100vh - 112px)); min-height: 660px; align-items: stretch; overflow: hidden; }');
+    expect(compactStyles).toContain('.nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh);');
+    expect(compactStyles).toContain('.nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; align-items: stretch; overflow: hidden; }');
     expect(compactStyles).toContain('.nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain;');
     expect(compactStyles).toContain('.nes-stage { min-height: 0; overflow: auto;');
     expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');

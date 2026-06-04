@@ -744,7 +744,7 @@ function resolveTinyMceScriptSrc(): string {
     .fa-minus { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 11h16v2H4v-2Z'/%3E%3C/svg%3E"); }
     .fa-arrows-v { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m12 2 5 5-1.4 1.4L13 5.8v12.4l2.6-2.6L17 17l-5 5-5-5 1.4-1.4 2.6 2.6V5.8L8.4 8.4 7 7l5-5Z'/%3E%3C/svg%3E"); }
     .fa-square-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v14H5V5Zm2 2v10h10V7H7Z'/%3E%3C/svg%3E"); }
-    .nes-shell { border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; min-height: 780px; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
+    .nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh); border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
     .nes-logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; font-size: 18px; background: linear-gradient(135deg, #14b8a6, #22c55e); box-shadow: 0 10px 24px rgba(20, 184, 166, .28); }
@@ -765,7 +765,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-export-menu::before { content: ''; position: absolute; right: 24px; top: -6px; width: 10px; height: 10px; transform: rotate(45deg); background: #fff; border-left: 1px solid var(--nes-border); border-top: 1px solid var(--nes-border); }
     .nes-export-menu button { width: 100%; justify-content: flex-start; gap: 10px; border: 0; background: transparent; text-align: left; padding: 10px 11px; border-radius: 10px; color: #172033; }
     .nes-export-menu button:hover { background: #eff6ff; color: var(--nes-accent); }
-    .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; height: min(900px, calc(100vh - 112px)); min-height: 660px; align-items: stretch; overflow: hidden; }
+    .nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; align-items: stretch; overflow: hidden; }
     .nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
     .nes-panel::-webkit-scrollbar, .nes-stage::-webkit-scrollbar { width: 10px; height: 10px; }
     .nes-panel::-webkit-scrollbar-thumb, .nes-stage::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
