@@ -344,10 +344,28 @@ function resolveTinyMceScriptSrc(): string {
             </div>
 
             <div class="nes-tab-panel" *ngIf="activeInspectorTab === 'style'">
-              <label *ngIf="node.type === 'column'">
-                Column width
-                <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
-              </label>
+              <ng-container *ngIf="node.type === 'column'">
+                <div class="nes-control-row">
+                  <label>
+                    Column width
+                    <span class="nes-unit-field">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'width', 100)" (ngModelChange)="updateAttr(node, 'width', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'width', '%')" (ngModelChange)="updateAttr(node, 'widthUnit', $event)">
+                        <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                      </select>
+                    </span>
+                  </label>
+                  <label>
+                    Column max width
+                    <span class="nes-unit-field">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 600)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', 'px')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
+                        <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                      </select>
+                    </span>
+                  </label>
+                </div>
+              </ng-container>
               <ng-container *ngIf="node.type === 'section'">
                 <div class="nes-control-row">
                   <label>
@@ -362,8 +380,8 @@ function resolveTinyMceScriptSrc(): string {
                   <label>
                     Section max width
                     <span class="nes-unit-field">
-                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 100)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
-                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', '%')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 600)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', 'px')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
                         <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
                       </select>
                     </span>
@@ -915,15 +933,15 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   get emailWidth(): number {
-    return this.dimensionValue(this.documentAttrs, 'width', 600);
+    return this.dimensionValue(this.documentAttrs, 'width', 100);
   }
 
   get emailWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'width', 600, 'px');
+    return this.dimensionCss(this.documentAttrs, 'width', 100, '%');
   }
 
   get emailMaxWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'maxWidth', 100, '%');
+    return this.dimensionCss(this.documentAttrs, 'maxWidth', 600, 'px');
   }
 
   get emailCanvasWidthCss(): string {
@@ -1217,7 +1235,15 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   sectionMaxWidthCss(section: EmailNode): string {
-    return this.dimensionCss(section.attrs, 'maxWidth', 100, '%');
+    return this.dimensionCss(section.attrs, 'maxWidth', 600, 'px');
+  }
+
+  columnWidthCss(column: EmailNode, fallback = 100, fallbackUnit: EmailSizeUnit = '%'): string {
+    return this.dimensionCss(column.attrs, 'width', fallback, fallbackUnit);
+  }
+
+  columnMaxWidthCss(column: EmailNode): string {
+    return this.dimensionCss(column.attrs, 'maxWidth', 600, 'px');
   }
 
   paddingUnit(section: EmailNode): EmailSizeUnit {
@@ -1261,7 +1287,7 @@ export class NgxEmailStudio implements OnChanges {
     while (columns.length < safeCount) columns.push(this.createColumn([this.createNode('text', { content: '<p>New column text</p>' })]));
     row.children = columns.slice(0, safeCount).map((column) => ({
       ...column,
-      attrs: { ...column.attrs, width: `${Math.floor(100 / safeCount)}%` },
+      attrs: { ...column.attrs, width: Math.floor(100 / safeCount), widthUnit: '%', maxWidth: column.attrs['maxWidth'] || 600, maxWidthUnit: column.attrs['maxWidthUnit'] || 'px' },
     }));
     this.emitDocument();
   }
@@ -1520,10 +1546,10 @@ export class NgxEmailStudio implements OnChanges {
     return {
       backgroundColor: '#f3f4f6',
       contentBackgroundColor: '#ffffff',
-      width: 600,
-      widthUnit: 'px',
-      maxWidth: 100,
-      maxWidthUnit: '%',
+      width: 100,
+      widthUnit: '%',
+      maxWidth: 600,
+      maxWidthUnit: 'px',
     };
   }
 
@@ -1592,8 +1618,8 @@ export class NgxEmailStudio implements OnChanges {
   private createNode(type: EmailBlockType, attrs: Record<string, string | number | boolean> = {}): EmailNode {
     const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
       row: { backgroundColor: '#ffffff' },
-      column: { width: '50%', backgroundColor: '#ffffff' },
-      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+      column: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff' },
+      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
       text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
       image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
       button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },
@@ -1625,11 +1651,11 @@ export class NgxEmailStudio implements OnChanges {
     return { id: this.nextId(type), type, attrs: { ...defaults[type], ...attrs } };
   }
 
-  private createColumn(children: EmailNode[] = [], width = '50%', attrs: Record<string, string | number | boolean> = {}): EmailNode {
+  private createColumn(children: EmailNode[] = [], width = '100%', attrs: Record<string, string | number | boolean> = {}): EmailNode {
     return {
       id: this.nextId('column'),
       type: 'column',
-      attrs: { width, backgroundColor: '#ffffff', ...attrs },
+      attrs: { width, widthUnit: String(width).trim().endsWith('%') ? '%' : 'px', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff', ...attrs },
       children,
     };
   }
@@ -1664,7 +1690,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private columnToMjml(column: EmailNode): string {
-    const width = column.attrs['width'] ? ` width="${this.escapeAttr(String(column.attrs['width']))}"` : '';
+    const width = column.attrs['width'] ? ` width="${this.escapeAttr(this.columnWidthCss(column))}"` : '';
     const background = this.backgroundAttr(column);
     const children = (column.children || []).map((child) => this.blockToMjml(child)).join('');
     return `<mj-column${width}${background}>${children || '<mj-text></mj-text>'}</mj-column>`;
@@ -1782,9 +1808,9 @@ export class NgxEmailStudio implements OnChanges {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
     const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
-    const emailWidth = this.dimensionCss(attrs, 'width', 600, 'px');
-    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 100, '%');
-    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 600, 'px');
+    const emailWidth = this.dimensionCss(attrs, 'width', 100, '%');
+    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 600, 'px');
+    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
     const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
     return [
       '<!doctype html>',
@@ -1851,10 +1877,13 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): string {
-    const width = String(column.attrs['width'] || fallbackWidth);
+    const fallbackValue = Number.parseFloat(fallbackWidth);
+    const fallbackUnit: EmailSizeUnit = fallbackWidth.trim().endsWith('%') ? '%' : 'px';
+    const width = this.columnWidthCss(column, Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit);
+    const maxWidth = this.columnMaxWidthCss(column);
     const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
     return [
-      this.indent(`<td width="${this.escapeAttr(width)}" valign="top" style="width:${this.escapeAttr(width)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      this.indent(`<td width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
       content,
       this.indent('</td>', depth),
     ].join('\n');
@@ -1948,7 +1977,7 @@ export class NgxEmailStudio implements OnChanges {
   private bodyMjmlAttrs(document: EmailDocument): string {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const background = attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(attrs['backgroundColor']))}"` : '';
-    const width = attrs['width'] ? ` width="${this.escapeAttr(this.dimensionCss(attrs, 'width', 640, 'px'))}"` : '';
+    const width = attrs['width'] ? ` width="${this.escapeAttr(this.dimensionCss(attrs, 'width', 100, '%'))}"` : '';
     return `${background}${width}`;
   }
 
