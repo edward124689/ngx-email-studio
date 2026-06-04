@@ -215,18 +215,6 @@ describe('NgxEmailStudio', () => {
     const styleText = fixture.nativeElement.textContent + Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
     const html = component.lastHtml;
 
-    expect(component.isMobilePreview).toBe(false);
-    expect(fixture.nativeElement.querySelector('.nes-canvas')?.classList.contains('is-mobile-preview')).toBe(false);
-
-    const mobileFixture = TestBed.createComponent(NgxEmailStudio);
-    mobileFixture.componentRef.setInput('previewSize', 400);
-    mobileFixture.detectChanges();
-    const mobileComponent = mobileFixture.componentInstance;
-
-    expect(mobileComponent.isMobilePreview).toBe(true);
-    expect(mobileFixture.nativeElement.querySelector('.nes-canvas')?.classList.contains('is-mobile-preview')).toBe(true);
-    expect(styleText).toContain('nes-canvas.is-mobile-preview');
-    expect(styleText).toContain('nes-render-row');
     expect(styleText).toContain('@media (max-width: 480px)');
     expect(styleText).toContain('flex-direction: column');
     expect(styleText).toContain('max-width: 100% !important');

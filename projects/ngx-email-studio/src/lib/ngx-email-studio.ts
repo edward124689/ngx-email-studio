@@ -197,7 +197,6 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListAutoScrollStep]="18"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
-              [class.is-mobile-preview]="isMobilePreview"
               [style.width]="emailCanvasWidthCss"
               [style.max-width]="emailCanvasMaxWidthCss"
               [style.background]="emailBackgroundColor"
@@ -851,8 +850,6 @@ function resolveTinyMceScriptSrc(): string {
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
     @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } }
-    .nes-canvas.is-mobile-preview .nes-render-row { flex-direction: column; }
-    .nes-canvas.is-mobile-preview .nes-render-column { width: 100% !important; max-width: 100% !important; }
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })
@@ -955,10 +952,6 @@ export class NgxEmailStudio implements OnChanges {
 
   get emailCanvasMaxWidthCss(): string {
     return this.containedCssSize(this.emailMaxWidthCss);
-  }
-
-  get isMobilePreview(): boolean {
-    return this.previewWidth <= 480;
   }
 
   get effectiveConfig(): EmailStudioConfig {
