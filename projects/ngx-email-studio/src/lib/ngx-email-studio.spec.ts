@@ -332,14 +332,14 @@ describe('NgxEmailStudio', () => {
     expect(component.iframeReady).toBe(true);
   });
 
-  it('should keep iframe-edit srcdoc stable across change detection reads and refresh on selection', () => {
+  it('should keep iframe-edit srcdoc stable across selection changes to avoid reload lag', () => {
     component.setCanvasMode('iframe-edit');
     const first = component.currentIframeSrcdoc;
     const second = component.currentIframeSrcdoc;
     expect(second).toBe(first);
 
     component.selectNode(component.emailDocument.body[1].id);
-    expect(component.currentIframeSrcdoc).not.toBe(first);
+    expect(component.currentIframeSrcdoc).toBe(first);
   });
 
   it('should render legacy Angular canvas when iframe canvas is explicitly disabled', () => {
@@ -404,11 +404,15 @@ describe('NgxEmailStudio', () => {
     expect(html).not.toContain(`class="nes-iframe-selected" data-nes-node-id="${other}"`);
   });
 
-  it('should render duplicate/delete iframe tools for selected nodes and hide them in readonly mode', () => {
+  it('should render duplicate/delete iframe icon tools and hide them in readonly mode', () => {
     component.selectNode(component.emailDocument.body[0].id);
     expect(component.editableIframeHtml).toContain('class="nes-iframe-tools"');
     expect(component.editableIframeHtml).toContain('data-nes-action="duplicate"');
     expect(component.editableIframeHtml).toContain('data-nes-action="delete"');
+    expect(component.editableIframeHtml).toContain('fa-copy');
+    expect(component.editableIframeHtml).toContain('fa-trash');
+    expect(component.editableIframeHtml).not.toContain('>Duplicate<');
+    expect(component.editableIframeHtml).not.toContain('>Delete<');
 
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('readonly', true);

@@ -138,7 +138,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragStartDelay]="0" [attr.title]="item.description" [attr.draggable]="effectiveConfig.iframeCanvas ? 'true' : null" (dragstart)="beginPaletteDrag($event, item)" (dragend)="endPaletteDrag()">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragDisabled]="effectiveConfig.iframeCanvas === true" [cdkDragStartDelay]="0" [attr.title]="item.description" [attr.draggable]="effectiveConfig.iframeCanvas ? 'true' : null" (dragstart)="beginPaletteDrag($event, item)" (dragend)="endPaletteDrag()">
                 <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -1153,7 +1153,9 @@ export class NgxEmailStudio implements OnChanges, OnInit {
   }
 
   endPaletteDrag(): void {
-    this.activePaletteDrag = undefined;
+    setTimeout(() => {
+      this.activePaletteDrag = undefined;
+    }, 250);
   }
 
   trackNode(_: number, node: EmailNode): string {
@@ -1279,7 +1281,6 @@ export class NgxEmailStudio implements OnChanges, OnInit {
 
   selectNode(id: string): void {
     this.selectedNodeId = id;
-    if (this.usesIframeEditCanvas) this.refreshEditableSrcdoc();
   }
 
   selectNodeFromOutline(id: string): void {
@@ -1774,13 +1775,16 @@ export class NgxEmailStudio implements OnChanges, OnInit {
     const bridgeToken = JSON.stringify(this.iframeBridgeToken);
     const style = `
     <style>
-      [data-nes-node-id] { cursor: pointer; }
+      [data-nes-node-id] { cursor: pointer; position: relative; }
       [data-nes-draggable="true"] { cursor: grab; }
+      [data-nes-draggable="true"]:active { cursor: grabbing; }
       [data-nes-drop-container-id] { min-height: 24px; }
       .nes-iframe-drop-target { outline: 2px dashed #7c3aed !important; outline-offset: -3px; }
       .nes-iframe-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; box-shadow: 0 0 0 3px rgba(37, 99, 235, .18) !important; }
-      .nes-iframe-tools { display: inline-flex; gap: 6px; margin: 0 0 8px 0; padding: 5px; background: #0f172a; border-radius: 10px; font-family: Arial, sans-serif; }
-      .nes-iframe-tools button { border: 0; border-radius: 7px; padding: 5px 8px; background: #ffffff; color: #0f172a; font: 12px/1 Arial, sans-serif; cursor: pointer; }
+      .nes-iframe-tools { display: none; position: absolute; right: 10px; top: 10px; z-index: 20; gap: 4px; padding: 4px; background: #0f172a; border-radius: 10px; font-family: Arial, sans-serif; box-shadow: 0 10px 24px rgba(15, 23, 42, .2); }
+      .nes-iframe-selected > .nes-iframe-tools { display: flex; }
+      .nes-iframe-tools button { width: 28px; height: 28px; border: 0; border-radius: 8px; padding: 0; background: transparent; color: #ffffff; font: 13px/1 Arial, sans-serif; cursor: pointer; }
+      .nes-iframe-tools button:hover { background: rgba(255, 255, 255, .14); }
     </style>`;
     const script = `
     <script>
@@ -1798,6 +1802,20 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           var raw = dataTransfer.getData('application/x-nes-palette') || dataTransfer.getData('text/plain');
           if (!raw) return null;
           try { return JSON.parse(raw); } catch (_error) { return null; }
+        }
+        function markSelected(nodeId) {
+          Array.prototype.forEach.call(document.querySelectorAll('.nes-iframe-selected'), function(node) {
+            node.classList.remove('nes-iframe-selected');
+          });
+          if (!nodeId) return;
+          var selector = '[data-nes-node-id="' + String(nodeId).replace(/"/g, '\\\"') + '"]';
+          var node = document.querySelector(selector);
+          if (node) node.classList.add('nes-iframe-selected');
+        }
+        function clearDropTargets() {
+          Array.prototype.forEach.call(document.querySelectorAll('.nes-iframe-drop-target'), function(node) {
+            node.classList.remove('nes-iframe-drop-target');
+          });
         }
         function childNodeElements(container) {
           var id = container && container.getAttribute('data-nes-drop-container-id');
@@ -1818,13 +1836,16 @@ export class NgxEmailStudio implements OnChanges, OnInit {
         }
         var draggedNodeId = null;
         document.addEventListener('dragstart', function(event) {
+          if (closestWithAttr(event.target, 'data-nes-action')) return;
           var node = closestWithAttr(event.target, 'data-nes-node-id');
           if (!node) return;
           draggedNodeId = node.getAttribute('data-nes-node-id');
+          markSelected(draggedNodeId);
           event.dataTransfer && event.dataTransfer.setData('application/x-nes-node', draggedNodeId);
+          event.dataTransfer && event.dataTransfer.setData('text/plain', draggedNodeId);
           event.dataTransfer && (event.dataTransfer.effectAllowed = 'move');
         });
-        document.addEventListener('dragend', function() { draggedNodeId = null; });
+        document.addEventListener('dragend', function() { draggedNodeId = null; clearDropTargets(); });
         document.addEventListener('dragover', function(event) {
           var palette = readPalette(event.dataTransfer);
           var container = closestWithAttr(event.target, 'data-nes-drop-container-id');
@@ -1832,6 +1853,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           if (palette && container) {
             event.preventDefault();
             event.dataTransfer && (event.dataTransfer.dropEffect = 'copy');
+            clearDropTargets();
             container.classList.add('nes-iframe-drop-target');
             return;
           }
@@ -1849,7 +1871,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           var container = closestWithAttr(event.target, 'data-nes-drop-container-id');
           if (palette && container) {
             event.preventDefault();
-            container.classList.remove('nes-iframe-drop-target');
+            clearDropTargets();
             send({ type: 'nes:drop-palette', targetContainerId: container.getAttribute('data-nes-drop-container-id'), index: dropIndex(container, event), paletteType: palette.type, preset: palette.preset });
             return;
           }
@@ -1858,6 +1880,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           if (!sourceId || !targetNode) return;
           event.preventDefault();
           var rect = targetNode.getBoundingClientRect();
+          markSelected(sourceId);
           send({ type: 'nes:reorder', sourceId: sourceId, targetId: targetNode.getAttribute('data-nes-node-id'), position: event.clientY > rect.top + rect.height / 2 ? 'after' : 'before' });
         });
         document.addEventListener('click', function(event) {
@@ -1873,6 +1896,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           var target = closestWithAttr(event.target, 'data-nes-node-id');
           if (!target) return;
           event.preventDefault();
+          markSelected(target.getAttribute('data-nes-node-id'));
           send({ type: 'nes:select', nodeId: target.getAttribute('data-nes-node-id') });
         });
         window.addEventListener('message', function(event) {
@@ -1881,6 +1905,7 @@ export class NgxEmailStudio implements OnChanges, OnInit {
           var selector = '[data-nes-node-id="' + String(data.nodeId).replace(/"/g, '\\\"') + '"]';
           var target = document.querySelector(selector);
           if (!target) return;
+          markSelected(data.nodeId);
           target.scrollIntoView({ block: 'center' });
           send({ type: 'nes:scroll-complete', nodeId: data.nodeId });
         });
@@ -2385,9 +2410,9 @@ export class NgxEmailStudio implements OnChanges, OnInit {
     return `${selectedClass} data-nes-node-id="${this.escapeAttr(node.id)}" data-nes-node-type="${this.escapeAttr(node.type)}" data-nes-draggable="true" draggable="true"${dropContainer}`;
   }
 
-  private editorTools(node: EmailNode, depth: number, options: HtmlRenderOptions): string {
-    if (!options.editorHooks || this.readonly || node.id !== this.selectedNodeId) return '';
-    return this.indent('<div class="nes-iframe-tools"><button type="button" data-nes-action="duplicate">Duplicate</button><button type="button" data-nes-action="delete">Delete</button></div>', depth);
+  private editorTools(_node: EmailNode, depth: number, options: HtmlRenderOptions): string {
+    if (!options.editorHooks || this.readonly) return '';
+    return this.indent('<div class="nes-iframe-tools" aria-label="Block tools"><button type="button" data-nes-action="duplicate" title="Duplicate" aria-label="Duplicate"><i class="fa fa-copy" aria-hidden="true"></i></button><button type="button" data-nes-action="delete" title="Delete" aria-label="Delete"><i class="fa fa-trash" aria-hidden="true"></i></button></div>', depth);
   }
 
   private dimensionCss(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {
