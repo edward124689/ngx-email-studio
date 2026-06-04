@@ -242,6 +242,50 @@ describe('NgxEmailStudio', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Add text');
   });
 
+
+  it('should keep the 600 preview contained while preserving exported email width', () => {
+    component.setPreviewSize(600);
+    component.updateDocumentAttr('width', 640);
+    component.updateDocumentAttr('widthUnit', 'px');
+
+    expect(component.previewWidth).toBe(600);
+    expect(component.emailWidthCss).toBe('640px');
+    expect(component.emailCanvasWidthCss).toBe('min(100%, 640px)');
+    expect(component.emailCanvasMaxWidthCss).toBe('min(100%, 640px)');
+    expect(component.lastHtml).toContain('width="640"');
+  });
+
+  it('should allow multiple content modules in a section and expose a section drop zone', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.nes-section-drop-zone')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Drag another module into this section');
+
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const before = section.children?.length || 0;
+
+    component.drop({
+      previousContainer: { data: component.palette } as any,
+      container: { id: component.dropListIdFor(section), data: section.children || [] } as any,
+      previousIndex: 1,
+      currentIndex: before,
+      item: { data: { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' } } as any,
+    } as any);
+
+    expect(section.children?.length).toBe(before + 1);
+    expect(section.children?.[before].type).toBe('text');
+  });
+
+  it('should show floating tools for nested section content modules', () => {
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const child = section.children?.[0]!;
+    component.selectNode(child.id);
+    fixture.detectChanges();
+
+    const nestedNode = fixture.nativeElement.querySelector(`[data-node-id="${child.id}"]`) as HTMLElement;
+    expect(nestedNode).toBeTruthy();
+    expect(nestedNode.querySelector('.nes-floating-tools')).toBeTruthy();
+  });
+
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {
     fixture.detectChanges();
 
@@ -262,6 +306,30 @@ describe('NgxEmailStudio', () => {
 
     outlineNodes[1].click();
     expect(component.selectedNodeId).toBeTruthy();
+  });
+
+
+  it('should label sections simply and scroll the stage when an outline item is clicked', async () => {
+    fixture.detectChanges();
+    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    tabs[1].click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Section');
+    expect(fixture.nativeElement.textContent).not.toContain('Hero / Section');
+
+    const stage = fixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
+    const calls: ScrollToOptions[] = [];
+    stage.scrollTo = (options?: ScrollToOptions | number, y?: number) => {
+      calls.push(typeof options === 'number' ? { top: y } : options || {});
+    };
+
+    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    outlineNodes[1].click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0].behavior).toBe('smooth');
   });
 
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {

@@ -138,7 +138,7 @@ function resolveTinyMceScriptSrc(): string {
                 role="treeitem"
                 [attr.aria-selected]="selectedNodeId === bodyNodeId"
                 [class.is-active]="selectedNodeId === bodyNodeId"
-                (click)="selectBody()"
+                (click)="selectBodyFromOutline()"
               >
                 <span class="nes-outline-rail" aria-hidden="true"></span>
                 <span class="nes-outline-icon"><i class="fa fa-envelope-o" aria-hidden="true"></i></span>
@@ -191,8 +191,8 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListConnectedTo]="connectedDropListIds"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
-              [style.width]="emailWidthCss"
-              [style.max-width]="emailMaxWidthCss"
+              [style.width]="emailCanvasWidthCss"
+              [style.max-width]="emailCanvasMaxWidthCss"
               [style.background]="emailBackgroundColor"
             >
               <article
@@ -200,6 +200,7 @@ function resolveTinyMceScriptSrc(): string {
                 tabindex="0"
                 class="nes-node"
                 [class.is-selected]="node.id === selectedNodeId"
+                [attr.data-node-id]="node.id"
                 *ngFor="let node of emailDocument.body; trackBy: trackNode"
                 cdkDrag
                 [cdkDragData]="node"
@@ -512,7 +513,7 @@ function resolveTinyMceScriptSrc(): string {
         [attr.aria-selected]="node.id === selectedNodeId"
         [class.is-active]="node.id === selectedNodeId"
         [style.padding-left.px]="12 + depth * 18"
-        (click)="selectNode(node.id)"
+        (click)="selectNodeFromOutline(node.id)"
       >
         <span class="nes-outline-rail" aria-hidden="true"></span>
         <span class="nes-outline-icon"><i class="fa" [class]="'fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
@@ -541,6 +542,7 @@ function resolveTinyMceScriptSrc(): string {
             [cdkDropListConnectedTo]="connectedDropListIds"
             (cdkDropListDropped)="drop($event)"
             [style.width]="column.attrs['width'] || autoColumnWidth(node)"
+            [attr.data-node-id]="column.id"
             [class.is-selected]="column.id === selectedNodeId"
             [class.is-empty]="childrenOf(column).length === 0"
             (click)="selectNode(column.id); $event.stopPropagation()"
@@ -551,12 +553,17 @@ function resolveTinyMceScriptSrc(): string {
               tabindex="0"
               class="nes-child-node"
               [class.is-selected]="child.id === selectedNodeId"
+              [attr.data-node-id]="child.id"
               *ngFor="let child of childrenOf(column); trackBy: trackNode"
               cdkDrag
               [cdkDragData]="child"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
+              <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId">
+                <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
+                <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+              </div>
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
             <div class="nes-column-drop-zone" [class.is-empty]="childrenOf(column).length === 0">
@@ -575,6 +582,7 @@ function resolveTinyMceScriptSrc(): string {
           [style.width]="sectionWidthCss(node)"
           [style.max-width]="sectionMaxWidthCss(node)"
           [style.padding]="sectionPaddingCss(node)"
+          [attr.data-node-id]="node.id"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
           (cdkDropListDropped)="drop($event)"
@@ -586,15 +594,23 @@ function resolveTinyMceScriptSrc(): string {
             tabindex="0"
             class="nes-child-node"
             [class.is-selected]="child.id === selectedNodeId"
+            [attr.data-node-id]="child.id"
             *ngFor="let child of childrenOf(node); trackBy: trackNode"
             cdkDrag
             [cdkDragData]="child"
             (click)="selectNode(child.id); $event.stopPropagation()"
             (keydown.enter)="selectNode(child.id)"
           >
+            <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId">
+              <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
+              <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+            </div>
             <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
           </article>
-          <div class="nes-drop-hint" *ngIf="childrenOf(node).length === 0">Drop blocks into this section</div>
+          <div class="nes-section-drop-zone" [class.is-empty]="childrenOf(node).length === 0">
+            <i class="fa fa-level-down" aria-hidden="true"></i>
+            <span>{{ childrenOf(node).length ? 'Drag another module into this section' : 'Drop Content modules here' }}</span>
+          </div>
         </section>
         <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="node.attrs['content']"></div>
         <img *ngSwitchCase="'image'" class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
@@ -687,8 +703,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-size-bar button { padding: 5px 9px; border-radius: 8px; font-size: 12px; }
     .nes-size-bar button.is-active { background: #0f172a; color: #fff; border-color: #0f172a; }
     .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-    .nes-canvas-shell { min-height: 520px; padding: 24px 0; transition: background .15s ease; }
-    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); }
+    .nes-canvas-shell { min-height: 520px; padding: 24px 12px; transition: background .15s ease; overflow: hidden; box-sizing: border-box; }
+    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
     .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
     .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
@@ -700,10 +716,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-column-label { font-size: 11px; color: var(--nes-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
     .nes-render-column-alone, .nes-render-section { padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
     .nes-render-section { background: #fff; }
-    .nes-drop-hint, .nes-column-drop-zone { display: grid; place-items: center; min-height: 58px; margin: 8px 0 0; border: 1px dashed #bfdbfe; border-radius: 12px; color: #64748b; background: linear-gradient(135deg, #f8fafc, #eff6ff); font-size: 12px; font-weight: 800; }
-    .nes-column-drop-zone { grid-auto-flow: column; justify-content: center; gap: 8px; transition: .15s ease; }
-    .nes-column-drop-zone.is-empty { min-height: 92px; border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #eff6ff); color: #15803d; }
-    .nes-render-column:hover .nes-column-drop-zone { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .10); }
+    .nes-drop-hint, .nes-column-drop-zone, .nes-section-drop-zone { display: grid; place-items: center; min-height: 58px; margin: 8px 0 0; border: 1px dashed #bfdbfe; border-radius: 12px; color: #64748b; background: linear-gradient(135deg, #f8fafc, #eff6ff); font-size: 12px; font-weight: 800; }
+    .nes-column-drop-zone, .nes-section-drop-zone { grid-auto-flow: column; justify-content: center; gap: 8px; transition: .15s ease; }
+    .nes-column-drop-zone.is-empty, .nes-section-drop-zone.is-empty { min-height: 92px; border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #eff6ff); color: #15803d; }
+    .nes-render-column:hover .nes-column-drop-zone, .nes-render-section:hover .nes-section-drop-zone { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .10); }
     .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
     .nes-render-text :first-child { margin-top: 0; }
     .nes-render-text :last-child { margin-bottom: 0; }
@@ -866,6 +882,14 @@ export class NgxEmailStudio implements OnChanges {
     return this.dimensionCss(this.documentAttrs, 'maxWidth', this.emailWidth, 'px');
   }
 
+  get emailCanvasWidthCss(): string {
+    return this.containedCssSize(this.emailWidthCss);
+  }
+
+  get emailCanvasMaxWidthCss(): string {
+    return this.containedCssSize(this.emailMaxWidthCss);
+  }
+
   get effectiveConfig(): EmailStudioConfig {
     return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
   }
@@ -947,8 +971,18 @@ export class NgxEmailStudio implements OnChanges {
     this.selectedNodeId = id;
   }
 
+  selectNodeFromOutline(id: string): void {
+    this.selectNode(id);
+    this.scrollNodeIntoStage(id);
+  }
+
   selectBody(): void {
     this.selectedNodeId = BODY_NODE_ID;
+  }
+
+  selectBodyFromOutline(): void {
+    this.selectBody();
+    this.scrollStageToTop();
   }
 
   addBlock(item: PaletteItem): void {
@@ -997,7 +1031,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   outlineLabel(node: EmailNode): string {
-    if (node.type === 'section') return 'Hero / Section';
+    if (node.type === 'section') return 'Section';
     if (node.type === 'row') return `MJML ${node.children?.length || 1} columns`;
     if (node.type === 'text') return this.plainText(String(node.attrs['content'] || 'Text')).slice(0, 28) || 'Text paragraph';
     if (node.type === 'image') return 'Image placeholder';
@@ -1313,6 +1347,38 @@ export class NgxEmailStudio implements OnChanges {
 
   private plainText(value: string): string {
     return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  private containedCssSize(value: string): string {
+    return value.endsWith('%') ? value : `min(100%, ${value})`;
+  }
+
+  private scrollNodeIntoStage(id: string): void {
+    const documentRef = globalThis.document;
+    if (!documentRef) return;
+    const selector = `[data-node-id="${this.escapeCssIdentifier(id)}"]`;
+    setTimeout(() => {
+      const stage = documentRef.querySelector('.nes-stage') as HTMLElement | null;
+      const target = documentRef.querySelector(selector) as HTMLElement | null;
+      if (!stage || !target) return;
+      const stageBox = stage.getBoundingClientRect();
+      const targetBox = target.getBoundingClientRect();
+      const top = stage.scrollTop + targetBox.top - stageBox.top - 72;
+      stage.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 0);
+  }
+
+  private scrollStageToTop(): void {
+    const stage = globalThis.document?.querySelector('.nes-stage') as HTMLElement | null;
+    setTimeout(() => {
+      if (typeof stage?.scrollTo === 'function') stage.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 0);
+  }
+
+  private escapeCssIdentifier(value: string): string {
+    const css = (globalThis as typeof globalThis & { CSS?: { escape?: (text: string) => string } }).CSS;
+    if (css?.escape) return css.escape(value);
+    return value.replace(/[^a-zA-Z0-9_-]/g, '\$&');
   }
 
   private refreshOutputs(emit: boolean): void {
