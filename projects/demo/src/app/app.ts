@@ -31,7 +31,7 @@ export class App {
       {
         id: 'hero_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'hero_text',
@@ -47,7 +47,7 @@ export class App {
       {
         id: 'image_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, paddingUnit: 'px' },
+        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, paddingUnit: 'px' },
         children: [
           {
             id: 'hero_image',
@@ -63,7 +63,7 @@ export class App {
       {
         id: 'summary_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'summary_text',
@@ -115,7 +115,7 @@ export class App {
       {
         id: 'cta_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'cta_button',
@@ -131,7 +131,7 @@ export class App {
       {
         id: 'footer_section',
         type: 'section',
-        attrs: { backgroundColor: '#f1f5f9', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { backgroundColor: '#f1f5f9', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'footer_info',

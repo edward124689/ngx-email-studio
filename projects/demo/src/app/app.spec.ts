@@ -29,5 +29,11 @@ describe('App', () => {
     expect(app.initialDocument.attrs?.['widthUnit']).toBe('px');
     expect(app.initialDocument.attrs?.['maxWidth']).toBe(100);
     expect(app.initialDocument.attrs?.['maxWidthUnit']).toBe('%');
+    for (const section of app.initialDocument.body.filter((node) => node.type === 'section')) {
+      expect(section.attrs['width']).toBe(100);
+      expect(section.attrs['widthUnit']).toBe('%');
+      expect(section.attrs['maxWidth']).toBe(100);
+      expect(section.attrs['maxWidthUnit']).toBe('%');
+    }
   });
 });

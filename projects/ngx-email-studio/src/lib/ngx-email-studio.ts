@@ -362,8 +362,8 @@ function resolveTinyMceScriptSrc(): string {
                   <label>
                     Section max width
                     <span class="nes-unit-field">
-                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 640)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
-                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', 'px')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
+                      <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'maxWidth', 100)" (ngModelChange)="updateAttr(node, 'maxWidth', +$event)" />
+                      <select [ngModel]="dimensionUnit(node.attrs, 'maxWidth', '%')" (ngModelChange)="updateAttr(node, 'maxWidthUnit', $event)">
                         <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
                       </select>
                     </span>
@@ -1217,7 +1217,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   sectionMaxWidthCss(section: EmailNode): string {
-    return this.dimensionCss(section.attrs, 'maxWidth', 640, 'px');
+    return this.dimensionCss(section.attrs, 'maxWidth', 100, '%');
   }
 
   paddingUnit(section: EmailNode): EmailSizeUnit {
@@ -1593,7 +1593,7 @@ export class NgxEmailStudio implements OnChanges {
     const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
       row: { backgroundColor: '#ffffff' },
       column: { width: '50%', backgroundColor: '#ffffff' },
-      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 640, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 100, maxWidthUnit: '%', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
       text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
       image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
       button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },

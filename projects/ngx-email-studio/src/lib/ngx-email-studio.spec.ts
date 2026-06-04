@@ -179,6 +179,19 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('style="width:100%;max-width:640px;');
   });
 
+  it('should default section width and max-width to 100%', () => {
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    (component as any).refreshOutputs(false);
+
+    expect(section.attrs['width']).toBe(100);
+    expect(section.attrs['widthUnit']).toBe('%');
+    expect(section.attrs['maxWidth']).toBe(100);
+    expect(section.attrs['maxWidthUnit']).toBe('%');
+    expect(component.sectionWidthCss(section)).toBe('100%');
+    expect(component.sectionMaxWidthCss(section)).toBe('100%');
+    expect(component.lastHtml).toContain('width:100%;max-width:100%;');
+  });
+
   it('should support section width/max-width units and all-or-side padding controls', () => {
     const section = component.emailDocument.body.find((node) => node.type === 'section')!;
     component.updateAttr(section, 'width', 100);
