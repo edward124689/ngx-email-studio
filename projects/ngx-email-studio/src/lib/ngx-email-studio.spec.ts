@@ -581,6 +581,33 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('<strong>Make me bold</strong>');
   });
 
+  it('should keep inline Tiptap clicks from opening the large editor modal', () => {
+    fixture.detectChanges();
+    const editorElement = query<HTMLElement>(fixture, '.nes-tiptap-editor .ProseMirror')!;
+
+    editorElement.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    fixture.detectChanges();
+
+    expect(component.expandedRichTextNode).toBeUndefined();
+    expect(query(fixture, '.nes-modal-backdrop')).toBeFalsy();
+  });
+
+  it('should support Tiptap table editing and preserve tables in exports', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+
+    component.runTiptapCommand('inline', 'insertTable');
+    component.runTiptapCommand('inline', 'addColumnAfter');
+    component.runTiptapCommand('inline', 'addRowAfter');
+
+    expect(textNode.attrs['content']).toContain('<table>');
+    expect(textNode.attrs['content']).toContain('<th');
+    expect(textNode.attrs['content']).toContain('<td');
+    expect(component.lastMjml).toContain('<table>');
+    expect(component.lastHtml).toContain('<table>');
+    expect(studioRoot(fixture).querySelector('.nes-tiptap-toolbar')?.textContent).toContain('Table');
+  });
+
   it('should tolerate null config bindings', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('config', null);

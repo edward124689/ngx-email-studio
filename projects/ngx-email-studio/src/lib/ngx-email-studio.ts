@@ -6,6 +6,10 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 import { Editor as TiptapEditor } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
+import { Table } from '@tiptap/extension-table';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableRow } from '@tiptap/extension-table-row';
 import TextAlign from '@tiptap/extension-text-align';
 import StarterKit from '@tiptap/starter-kit';
 
@@ -340,7 +344,7 @@ function resolveTinyMceScriptSrc(): string {
 
               <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules from the left into this container; the red insertion line shows the exact position.</p>
 
-              <label *ngIf="node.type === 'text'" class="nes-rich-text-field">
+              <div *ngIf="node.type === 'text'" class="nes-rich-text-field">
                 <span class="nes-field-heading">
                   Rich text
                   <button type="button" class="nes-expand-editor" (click)="openRichTextModal(node); $event.stopPropagation()">
@@ -363,12 +367,19 @@ function resolveTinyMceScriptSrc(): string {
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bulletList')">• List</button>
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'orderedList')">1. List</button>
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')">Link</button>
+                      <span class="nes-tiptap-separator" aria-hidden="true"></span>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'insertTable')">Table</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')">Del table</button>
                     </div>
                     <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id"></div>
                   </div>
                   <textarea *ngSwitchDefault [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
                 </ng-container>
-              </label>
+              </div>
 
               <label *ngIf="node.type === 'image'">
                 Image URL
@@ -561,6 +572,13 @@ function resolveTinyMceScriptSrc(): string {
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bulletList')">• List</button>
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'orderedList')">1. List</button>
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')">Link</button>
+                  <span class="nes-tiptap-separator" aria-hidden="true"></span>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'insertTable')">Table</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')">Del table</button>
                 </div>
                 <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id"></div>
               </div>
@@ -918,6 +936,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 7px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); }
     .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
     .nes-tiptap-toolbar button:hover { background: #eff6ff; }
+    .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
     .nes-tiptap-editor { min-height: 150px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; }
     .nes-tiptap-editor-large { min-height: 620px; }
     .nes-tiptap-editor .ProseMirror { min-height: inherit; outline: none; }
@@ -927,6 +946,11 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tiptap-editor .ProseMirror p { margin: 0 0 10px; }
     .nes-tiptap-editor .ProseMirror ul, .nes-tiptap-editor .ProseMirror ol { margin: 0 0 10px 20px; padding: 0; }
     .nes-tiptap-editor .ProseMirror a { color: var(--nes-accent); text-decoration: underline; }
+    .nes-tiptap-editor .ProseMirror table, .nes-render-text table { width: 100%; margin: 12px 0; border-collapse: collapse; table-layout: fixed; }
+    .nes-tiptap-editor .ProseMirror td, .nes-tiptap-editor .ProseMirror th, .nes-render-text td, .nes-render-text th { min-width: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; vertical-align: top; }
+    .nes-tiptap-editor .ProseMirror th, .nes-render-text th { background: #f8fafc; font-weight: 800; }
+    .nes-tiptap-editor .ProseMirror .selectedCell::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: rgba(37, 99, 235, .12); }
+    .nes-tiptap-editor .ProseMirror td, .nes-tiptap-editor .ProseMirror th { position: relative; }
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
@@ -1568,7 +1592,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.updateAttr(node, 'content', this.sanitizeRichTextContent(value));
   }
 
-  runTiptapCommand(scope: 'inline' | 'modal', command: 'bold' | 'italic' | 'heading' | 'bulletList' | 'orderedList' | 'link'): void {
+  runTiptapCommand(scope: 'inline' | 'modal', command: 'bold' | 'italic' | 'heading' | 'bulletList' | 'orderedList' | 'link' | 'insertTable' | 'addColumnAfter' | 'addRowAfter' | 'deleteColumn' | 'deleteRow' | 'deleteTable'): void {
     if (this.readonly) return;
     const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
     if (!editor) return;
@@ -1578,6 +1602,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (command === 'heading') chain.toggleHeading({ level: 2 }).run();
     if (command === 'bulletList') chain.toggleBulletList().run();
     if (command === 'orderedList') chain.toggleOrderedList().run();
+    if (command === 'insertTable') chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    if (command === 'addColumnAfter') chain.addColumnAfter().run();
+    if (command === 'addRowAfter') chain.addRowAfter().run();
+    if (command === 'deleteColumn') chain.deleteColumn().run();
+    if (command === 'deleteRow') chain.deleteRow().run();
+    if (command === 'deleteTable') chain.deleteTable().run();
     if (command === 'link') {
       const currentHref = String(editor.getAttributes('link')['href'] || '');
       const href = globalThis.prompt?.('Link URL', currentHref || 'https://') ?? null;
@@ -1857,6 +1887,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       extensions: [
         StarterKit.configure({ heading: { levels: [2] }, link: false }),
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
+        Table.configure({ resizable: false }),
+        TableRow,
+        TableHeader,
+        TableCell,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
       ],
       onUpdate: ({ editor }) => {
