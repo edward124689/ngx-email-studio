@@ -22,10 +22,10 @@ export class App {
     attrs: {
       backgroundColor: '#f3f4f6',
       contentBackgroundColor: '#ffffff',
-      width: 640,
+      width: 600,
       widthUnit: 'px',
-      maxWidth: 640,
-      maxWidthUnit: 'px',
+      maxWidth: 100,
+      maxWidthUnit: '%',
     },
     body: [
       {

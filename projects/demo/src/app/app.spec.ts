@@ -20,4 +20,14 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('ngx-email-studio');
   });
+
+  it('should seed the demo document with 600px width and 100% max-width', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    expect(app.initialDocument.attrs?.['width']).toBe(600);
+    expect(app.initialDocument.attrs?.['widthUnit']).toBe('px');
+    expect(app.initialDocument.attrs?.['maxWidth']).toBe(100);
+    expect(app.initialDocument.attrs?.['maxWidthUnit']).toBe('%');
+  });
 });
