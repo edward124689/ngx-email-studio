@@ -89,16 +89,18 @@ function resolveTinyMceScriptSrc(): string {
         </div>
         <div class="nes-actions">
           <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
+          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen">
-            <button type="button" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
-              <i class="nes-icon fa fa-download" aria-hidden="true"></i> Export <i class="nes-icon fa fa-angle-down" aria-hidden="true"></i>
+            <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
+              <i class="nes-icon fa fa-download" aria-hidden="true"></i>
+              <span>Export</span>
+              <i class="nes-icon fa fa-angle-down" aria-hidden="true"></i>
             </button>
             <div class="nes-export-menu" role="menu" *ngIf="exportMenuOpen">
-              <button type="button" role="menuitem" (click)="openOutputModal('mjml')">MJML output</button>
-              <button type="button" role="menuitem" (click)="openOutputModal('html')">HTML output</button>
+              <button type="button" role="menuitem" (click)="openOutputModal('mjml')"><i class="nes-icon fa fa-code" aria-hidden="true"></i><span>MJML output</span></button>
+              <button type="button" role="menuitem" (click)="openOutputModal('html')"><i class="nes-icon fa fa-external-link" aria-hidden="true"></i><span>HTML output</span></button>
             </div>
           </div>
-          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
         </div>
       </header>
 
@@ -709,36 +711,33 @@ function resolveTinyMceScriptSrc(): string {
       color: var(--nes-ink);
     }
     *, *::before, *::after { box-sizing: border-box; }
-    .nes-icon { display: inline-grid; place-items: center; min-width: 1em; font-style: normal; font-weight: 900; line-height: 1; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .fa-envelope-open-o::before, .fa-envelope-o::before { content: '✉'; }
-    .fa-upload::before { content: '↑'; }
-    .fa-download::before { content: '↓'; }
-    .fa-angle-down::before { content: '⌄'; }
-    .fa-floppy-o::before { content: '▣'; }
-    .fa-search::before { content: '⌕'; }
-    .fa-sitemap::before { content: '☷'; }
-    .fa-trash::before { content: '×'; }
-    .fa-clone::before { content: '⧉'; }
-    .fa-magic::before { content: '✦'; }
-    .fa-expand::before { content: '↗'; }
-    .fa-check-circle::before, .fa-check::before { content: '✓'; }
-    .fa-times::before { content: '×'; }
-    .fa-code::before { content: '</>'; font-size: .72em; letter-spacing: -.08em; }
-    .fa-exclamation-triangle::before { content: '⚠'; }
-    .fa-pencil-square-o::before { content: '✎'; }
-    .fa-external-link::before { content: '↗'; }
-    .fa-copy::before { content: '⧉'; }
-    .fa-ellipsis-v::before { content: '⋮'; }
-    .fa-header::before { content: 'H'; }
-    .fa-align-left::before, .fa-font::before { content: 'T'; }
-    .fa-mouse-pointer::before { content: '↖'; }
-    .fa-picture-o::before { content: '▧'; }
-    .fa-columns::before { content: '▥'; }
-    .fa-minus::before { content: '—'; }
-    .fa-arrows-v::before { content: '↕'; }
-    .fa-window-maximize::before { content: '▤'; }
-    .fa-object-group::before { content: '▦'; }
-    .fa-square-o::before { content: '□'; }
+    .nes-icon { --nes-icon-size: 1em; display: inline-grid; place-items: center; width: var(--nes-icon-size); height: var(--nes-icon-size); min-width: var(--nes-icon-size); font-style: normal; line-height: 1; vertical-align: -0.12em; }
+    .nes-icon::before { content: ''; display: block; width: 100%; height: 100%; background: currentColor; -webkit-mask: var(--nes-icon-mask) center / contain no-repeat; mask: var(--nes-icon-mask) center / contain no-repeat; }
+    .fa-envelope-open-o, .fa-envelope-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2v.35l8 5 8-5V8H4Zm16 2.7-7.47 4.67a1 1 0 0 1-1.06 0L4 10.7V16h16v-5.3Z'/%3E%3C/svg%3E"); }
+    .fa-upload { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 4.4 6.7 8.7 5.3 7.3 12 0.6l6.7 6.7-1.4 1.4L13 4.4V16h-2V4.4ZM4 18h16v2H4v-2Z'/%3E%3C/svg%3E"); }
+    .fa-download { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 15.6V4h2v11.6l4.3-4.3 1.4 1.4L12 19.4l-6.7-6.7 1.4-1.4 4.3 4.3ZM4 21h16v2H4v-2Z'/%3E%3C/svg%3E"); }
+    .fa-angle-down { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m12 15.5-7-7 1.4-1.4L12 12.7l5.6-5.6L19 8.5l-7 7Z'/%3E%3C/svg%3E"); }
+    .fa-floppy-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 3h13l3 3v17H4V3Zm2 2v16h12V7.2L15.8 5H15v6H7V5H6Zm3 0v4h4V5H9Zm-1 13h8v-5H8v5Z'/%3E%3C/svg%3E"); }
+    .fa-search { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10.5 3a7.5 7.5 0 0 1 5.94 12.08l4.24 4.24-1.42 1.42-4.24-4.24A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z'/%3E%3C/svg%3E"); }
+    .fa-sitemap, .fa-object-group { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 3h4v4h-4V3ZM4 15h4v4H4v-4Zm8 0h4v4h-4v-4Zm8 0h4v4h-4v-4ZM11 8h2v3h8v3h-2v-1H5v1H3v-3h8V8Z'/%3E%3C/svg%3E"); }
+    .fa-trash { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 4h10l1 2h4v2H2V6h4l1-2Zm1 6h2v10H8V10Zm6 0h2v10h-2V10Zm-5 13a2 2 0 0 1-2-2V10h12v11a2 2 0 0 1-2 2H9Z'/%3E%3C/svg%3E"); }
+    .fa-times { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z'/%3E%3C/svg%3E"); }
+    .fa-clone, .fa-copy { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 7h11v14H8V7Zm2 2v10h7V9h-7ZM5 4h11v2H7v11H5V4Z'/%3E%3C/svg%3E"); }
+    .fa-magic { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m3 19 11-11 2 2L5 21 3 19Zm12.5-16 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3ZM19 12l.7 2.3L22 15l-2.3.7L19 18l-.7-2.3L16 15l2.3-.7L19 12Z'/%3E%3C/svg%3E"); }
+    .fa-expand, .fa-external-link { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 3h7v7h-2V6.4l-7.3 7.3-1.4-1.4L17.6 5H14V3ZM5 5h7v2H7v10h10v-5h2v7H5V5Z'/%3E%3C/svg%3E"); }
+    .fa-check-circle, .fa-check { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-1.2 13.2 6-6-1.4-1.4-4.6 4.6-2.2-2.2-1.4 1.4 3.6 3.6Z'/%3E%3C/svg%3E"); }
+    .fa-code { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m8.6 16.6-1.4 1.4L1.2 12l6-6 1.4 1.4L4 12l4.6 4.6Zm6.8 0L20 12l-4.6-4.6L16.8 6l6 6-6 6-1.4-1.4ZM13.4 4l-4 16h-2l4-16h2Z'/%3E%3C/svg%3E"); }
+    .fa-exclamation-triangle { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2 23 21H1L12 2Zm0 5-6.1 11h12.2L12 7Zm-1 3h2v5h-2v-5Zm0 6h2v2h-2v-2Z'/%3E%3C/svg%3E"); }
+    .fa-pencil-square-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 4h11v2H6v12h12v-9h2v11H4V4Zm13.7-.7 3 3-10 10H7.7v-3l10-10Z'/%3E%3C/svg%3E"); }
+    .fa-ellipsis-v { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z'/%3E%3C/svg%3E"); }
+    .fa-header { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 4h3v7h10V4h3v18h-3v-8H7v8H4V4Z'/%3E%3C/svg%3E"); }
+    .fa-align-left, .fa-font { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v2H5V5Zm0 4h14v2H5V9Zm0 4h10v2H5v-2Zm0 4h12v2H5v-2Z'/%3E%3C/svg%3E"); }
+    .fa-mouse-pointer { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 2 18 16l-7 1-3 6-4-21Z'/%3E%3C/svg%3E"); }
+    .fa-picture-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5h18v14H3V5Zm2 2v10h14V7H5Zm2 9 4-5 3 4 2-2.5 2 3.5H7Zm11-7a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z'/%3E%3C/svg%3E"); }
+    .fa-columns, .fa-window-maximize { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5h18v14H3V5Zm2 2v10h6V7H5Zm8 0v10h6V7h-6Z'/%3E%3C/svg%3E"); }
+    .fa-minus { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 11h16v2H4v-2Z'/%3E%3C/svg%3E"); }
+    .fa-arrows-v { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m12 2 5 5-1.4 1.4L13 5.8v12.4l2.6-2.6L17 17l-5 5-5-5 1.4-1.4 2.6 2.6V5.8L8.4 8.4 7 7l5-5Z'/%3E%3C/svg%3E"); }
+    .fa-square-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v14H5V5Zm2 2v10h10V7H7Z'/%3E%3C/svg%3E"); }
     .nes-shell { border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; min-height: 780px; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -746,16 +745,20 @@ function resolveTinyMceScriptSrc(): string {
     h2, h3 { margin: 0; }
     h2 { font-size: 20px; letter-spacing: -.02em; }
     h3 { font-size: 14px; color: #172033; }
-    .nes-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-    button { border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; }
+    .nes-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: nowrap; margin-left: auto; }
+    button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; white-space: nowrap; }
     button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
-    .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); }
+    .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); box-shadow: 0 8px 18px rgba(22, 163, 74, .16); }
     .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
-    .nes-export { position: relative; }
-    .nes-export > button { display: inline-flex; align-items: center; gap: 6px; }
-    .nes-export-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 180px; padding: 6px; border: 1px solid var(--nes-border); border-radius: 12px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .16); }
-    .nes-export-menu button { width: 100%; justify-content: flex-start; border: 0; background: transparent; text-align: left; }
-    .nes-export-menu button:hover { background: #eff6ff; }
+    .nes-export { position: relative; flex: 0 0 auto; }
+    .nes-export-trigger { min-width: 112px; justify-content: space-between; font-weight: 800; border-color: #bfdbfe; background: #eff6ff; color: var(--nes-accent); }
+    .nes-export-trigger:hover, .nes-export.is-open .nes-export-trigger { background: var(--nes-accent); border-color: var(--nes-accent); color: #fff; box-shadow: 0 10px 22px rgba(37, 99, 235, .18); }
+    .nes-export-trigger .fa-angle-down { --nes-icon-size: .9em; transition: transform .15s ease; }
+    .nes-export.is-open .fa-angle-down { transform: rotate(180deg); }
+    .nes-export-menu { position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; min-width: 196px; padding: 8px; border: 1px solid var(--nes-border); border-radius: 14px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .16); }
+    .nes-export-menu::before { content: ''; position: absolute; right: 24px; top: -6px; width: 10px; height: 10px; transform: rotate(45deg); background: #fff; border-left: 1px solid var(--nes-border); border-top: 1px solid var(--nes-border); }
+    .nes-export-menu button { width: 100%; justify-content: flex-start; gap: 10px; border: 0; background: transparent; text-align: left; padding: 10px 11px; border-radius: 10px; color: #172033; }
+    .nes-export-menu button:hover { background: #eff6ff; color: var(--nes-accent); }
     .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; min-height: 660px; }
     .nes-panel { background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
     .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); }
@@ -915,7 +918,7 @@ function resolveTinyMceScriptSrc(): string {
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
-    @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } .nes-actions { justify-content: flex-start; flex-wrap: wrap; width: 100%; margin-left: 0; } }
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })

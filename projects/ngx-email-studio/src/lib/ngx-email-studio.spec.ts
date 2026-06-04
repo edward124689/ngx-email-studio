@@ -755,9 +755,12 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const paletteIcon = query<HTMLElement>(fixture, '.nes-block-icon .nes-icon');
+    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
     expect(paletteIcon).toBeTruthy();
     expect(paletteIcon?.className).toContain('fa-');
     expect(query(fixture, '.nes-block-icon .fa')).toBeTruthy();
+    expect(shadowStyles).toContain('mask: var(--nes-icon-mask)');
+    expect(shadowStyles).toContain('data:image/svg+xml');
   });
 
   it('should render CDK drag sources inside the shadow root for parent-container previews', () => {
@@ -840,6 +843,20 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, '.nes-output-modal')).toBeTruthy();
     expect(studioText(fixture)).toContain('MJML Output');
     expect(query(fixture, '.nes-output-modal pre')?.textContent).toContain('<mjml>');
+  });
+
+  it('should keep toolbar actions ordered as Import, Save, Export with a decorated export menu', () => {
+    fixture.detectChanges();
+
+    const actionButtons = queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions .nes-export-trigger');
+    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Save', 'Export']);
+
+    const exportButton = query<HTMLButtonElement>(fixture, '.nes-export-trigger')!;
+    exportButton.click();
+    fixture.detectChanges();
+
+    expect(query(fixture, '.nes-export-menu .fa-code')).toBeTruthy();
+    expect(query(fixture, '.nes-export-menu .fa-external-link')).toBeTruthy();
   });
 
   it('should show formatted HTML output when selected from the export menu', () => {
