@@ -722,6 +722,27 @@ describe('NgxEmailStudio', () => {
     expect(shadowStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
 
+  it('should prevent native browser text selection from showing during canvas drag', () => {
+    fixture.detectChanges();
+
+    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    let cleared = false;
+    const originalGetSelection = globalThis.getSelection;
+    Object.defineProperty(globalThis, 'getSelection', {
+      configurable: true,
+      value: () => ({ removeAllRanges: () => { cleared = true; } }),
+    });
+
+    try {
+      component.clearNativeSelection();
+    } finally {
+      Object.defineProperty(globalThis, 'getSelection', { configurable: true, value: originalGetSelection });
+    }
+
+    expect(shadowStyles).toMatch(/\.nes-canvas \*,\s*\.cdk-drag-preview,\s*\.cdk-drag-preview \* \{\s*user-select:\s*none;\s*-webkit-user-select:\s*none;\s*\}/);
+    expect(cleared).toBe(true);
+  });
+
 
   it('should render CDK drag sources inside the shadow root for parent-container previews', () => {
     fixture.detectChanges();

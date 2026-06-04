@@ -228,6 +228,7 @@ function resolveTinyMceScriptSrc(): string {
                     [cdkDragData]="node"
                     [cdkDragPreviewContainer]="'parent'"
                     [cdkDragStartDelay]="0"
+                    (cdkDragStarted)="clearNativeSelection()"
                     (click)="selectNode(node.id); $event.stopPropagation()"
                     (keydown.enter)="selectNode(node.id)"
                   >
@@ -617,6 +618,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDragData]="child"
               [cdkDragPreviewContainer]="'parent'"
               [cdkDragStartDelay]="0"
+              (cdkDragStarted)="clearNativeSelection()"
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
@@ -659,6 +661,7 @@ function resolveTinyMceScriptSrc(): string {
             cdkDrag
             [cdkDragData]="child"
             [cdkDragStartDelay]="0"
+            (cdkDragStarted)="clearNativeSelection()"
             (click)="selectNode(child.id); $event.stopPropagation()"
             (keydown.enter)="selectNode(child.id)"
           >
@@ -803,7 +806,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
     .nes-canvas-shell { min-height: 520px; padding: 24px 12px; transition: background .15s ease; overflow: hidden; box-sizing: border-box; }
     .nes-canvas-shell.is-preview { padding: 0; }
-    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; }
+    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    .nes-canvas *, .cdk-drag-preview, .cdk-drag-preview * { user-select: none; -webkit-user-select: none; }
     .nes-preview-help { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.45; }
     .nes-preview-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
@@ -1084,6 +1088,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   selectNode(id: string): void {
     this.selectedNodeId = id;
+  }
+
+  clearNativeSelection(): void {
+    globalThis.getSelection?.()?.removeAllRanges();
   }
 
   selectNodeFromOutline(id: string): void {
