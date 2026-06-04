@@ -51,6 +51,21 @@ try {
   const afterLineClick = await editor.evaluate((node) => node.textContent || '');
   if (!afterLineClick.includes('chXarlie')) throw new Error(`line click did not insert in middle: ${afterLineClick}`);
 
+  const textRect = await editor.evaluate((node) => {
+    const textNode = node.querySelector('p')?.firstChild;
+    if (!textNode) throw new Error('missing paragraph text node');
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const rect = Array.from(range.getClientRects())[0];
+    range.detach();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
+  await page.mouse.click(textRect.x + textRect.width + 40, textRect.y + textRect.height / 2);
+  await page.keyboard.type('Y');
+  const afterRightBlankClick = await editor.evaluate((node) => node.textContent || '');
+  if (!afterRightBlankClick.includes('chXYarlie')) throw new Error(`right-side whitespace click did not preserve middle cursor: ${afterRightBlankClick}`);
+  if (afterRightBlankClick.endsWith('Y')) throw new Error(`right-side whitespace click inserted at end: ${afterRightBlankClick}`);
+
   const panelBox = await page.locator('ngx-email-studio').evaluate((host) => {
     const rect = host.shadowRoot.querySelector('.nes-tiptap-editor').getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
@@ -58,7 +73,7 @@ try {
   await page.mouse.click(panelBox.x + Math.floor(panelBox.width * 0.35), panelBox.y + Math.floor(panelBox.height * 0.75));
   await page.keyboard.type('Y');
   const afterBlankClick = await editor.evaluate((node) => node.textContent || '');
-  if (!afterBlankClick.includes('chXYarlie')) throw new Error(`blank click moved cursor unexpectedly: ${afterBlankClick}`);
+  if (!afterBlankClick.includes('chXYYarlie')) throw new Error(`blank click moved cursor unexpectedly: ${afterBlankClick}`);
   if (afterBlankClick.endsWith('Y')) throw new Error(`blank click inserted at end: ${afterBlankClick}`);
   console.log('Tiptap cursor smoke passed');
   await browser.close();

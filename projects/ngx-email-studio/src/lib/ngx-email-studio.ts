@@ -1913,17 +1913,50 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
-    element.addEventListener('mousedown', (event) => {
-      if (!(event instanceof MouseEvent)) return;
+    const guardPointer = (event: MouseEvent) => {
+      if (event.button !== 0) return;
       const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
       if (!proseMirror) return;
       const contentBottom = this.tiptapContentBottom(proseMirror);
-      if (event.target === element || event.clientY > contentBottom + 4) {
+      const isBlankPanelClick = event.target === element || event.clientY > contentBottom + 4;
+      const isWhitespaceInsideEditorClick =
+        proseMirror.contains(event.target as Node) &&
+        !this.isTiptapStructuredEditorTarget(event.target) &&
+        !this.isPointInTiptapTextRect(proseMirror, event.clientX, event.clientY);
+      if (isBlankPanelClick || isWhitespaceInsideEditorClick) {
         event.preventDefault();
         event.stopPropagation();
         editor.view.focus();
       }
-    }, true);
+    };
+    element.addEventListener('pointerdown', guardPointer, true);
+    element.addEventListener('mousedown', guardPointer, true);
+  }
+
+  private isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest('table, td, th, img, hr, a'));
+  }
+
+  private isPointInTiptapTextRect(proseMirror: HTMLElement, clientX: number, clientY: number): boolean {
+    const documentRef = proseMirror.ownerDocument;
+    const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    const range = documentRef.createRange();
+    try {
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        range.selectNodeContents(node);
+        const rects = Array.from(range.getClientRects());
+        if (rects.some((rect) => clientY >= rect.top - 3 && clientY <= rect.bottom + 3 && clientX >= rect.left - 3 && clientX <= rect.right + 3)) {
+          return true;
+        }
+      }
+      return false;
+    } finally {
+      range.detach();
+    }
   }
 
   private tiptapContentBottom(proseMirror: HTMLElement): number {
