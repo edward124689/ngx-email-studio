@@ -27,6 +27,13 @@ function studioText<T>(fixture: ComponentFixture<T>): string {
 })
 class HostileCssHostComponent {}
 
+@Component({
+  standalone: true,
+  imports: [NgxEmailStudio],
+  template: `<ngx-email-studio /><ngx-email-studio />`,
+})
+class MultiStudioHostComponent {}
+
 describe('NgxEmailStudio', () => {
   let component: NgxEmailStudio;
   let fixture: ComponentFixture<NgxEmailStudio>;
@@ -50,6 +57,23 @@ describe('NgxEmailStudio', () => {
 
     expect((fixture.nativeElement as HTMLElement).shadowRoot).toBeTruthy();
     expect(query(fixture, '.nes-shell')).toBeTruthy();
+  });
+
+  it('should keep CDK drop-list ids unique across component instances', () => {
+    const hostFixture = TestBed.createComponent(MultiStudioHostComponent);
+    hostFixture.detectChanges();
+
+    const hosts = hostFixture.nativeElement.querySelectorAll('ngx-email-studio') as NodeListOf<HTMLElement>;
+    expect(hosts.length).toBe(2);
+    const firstPaletteId = hosts[0].shadowRoot?.querySelector('.nes-block-list')?.id || '';
+    const secondPaletteId = hosts[1].shadowRoot?.querySelector('.nes-block-list')?.id || '';
+    const firstCanvasId = hosts[0].shadowRoot?.querySelector('.nes-canvas')?.id || '';
+    const secondCanvasId = hosts[1].shadowRoot?.querySelector('.nes-canvas')?.id || '';
+
+    expect(firstPaletteId).toMatch(/^nes-\d+-palette-drop-list$/);
+    expect(secondPaletteId).toMatch(/^nes-\d+-palette-drop-list$/);
+    expect(firstPaletteId).not.toBe(secondPaletteId);
+    expect(firstCanvasId).not.toBe(secondCanvasId);
   });
 
   it('should default email width to 100% and max-width to 600px', () => {
@@ -415,7 +439,7 @@ describe('NgxEmailStudio', () => {
     expect(studioText(fixture)).not.toContain('Drag another module into this section');
     expect(studioText(fixture)).not.toContain('Drop Content modules here');
     expect(studioText(fixture)).not.toContain('Add text');
-    expect((component as any).paletteDropListId).toBe('nes-palette-drop-list');
+    expect((component as any).paletteDropListId).toMatch(/^nes-\d+-palette-drop-list$/);
   });
 
   it('should make drag targets easier to enter without adding visible drop-zone boxes', () => {
@@ -702,6 +726,31 @@ describe('NgxEmailStudio', () => {
     expect(skinLink?.href).toBe('https://cdn.example.test/tinymce/skins/ui/oxide/skin.min.css');
   });
 
+  it('should ignore unsafe TinyMCE base URL protocols', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentInstance.config = { tinyMceBaseUrl: 'data:text/css,body{}' };
+    localFixture.componentInstance.ngOnChanges({ config: {} as any });
+    localFixture.detectChanges();
+
+    const safeBaseUrl = localFixture.componentInstance.tinyMceInit['base_url'] as string;
+    const skinLink = query<HTMLLinkElement>(localFixture, 'link[data-nes-tinymce-skin]');
+    expect(safeBaseUrl).not.toContain('data:');
+    expect(safeBaseUrl.endsWith('/tinymce')).toBe(true);
+    expect(skinLink?.href).not.toContain('data:');
+    expect(skinLink?.href.endsWith('/tinymce/skins/ui/oxide/skin.min.css')).toBe(true);
+  });
+
+  it('should accept relative TinyMCE base URLs after normalizing them', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentInstance.config = { tinyMceBaseUrl: './assets/tinymce/' };
+    localFixture.componentInstance.ngOnChanges({ config: {} as any });
+    localFixture.detectChanges();
+
+    const baseUrl = localFixture.componentInstance.tinyMceInit['base_url'] as string;
+    expect(baseUrl).toContain('/assets/tinymce');
+    expect(baseUrl.endsWith('/')).toBe(false);
+  });
+
   it('should render internal palette icons with FA-compatible metadata', () => {
     fixture.detectChanges();
 
@@ -813,7 +862,7 @@ describe('NgxEmailStudio', () => {
     expect(output).toContain('          <table role="presentation"');
   });
 
-  it('should open the HTML export in a new preview window', () => {
+  it('should open the HTML export in a sandboxed preview frame', () => {
     const originalOpen = window.open;
     const writes: string[] = [];
     const previewWindow = {
@@ -826,14 +875,20 @@ describe('NgxEmailStudio', () => {
     };
     Object.defineProperty(window, 'open', { configurable: true, value: () => previewWindow });
 
-    component.openOutputModal('html');
-    component.previewHtmlOutput();
+    try {
+      component.openOutputModal('html');
+      component.lastHtml = '<!doctype html><html><body><script>window.evil=true</script><img src="x" onerror="window.evil=true"></body></html>';
+      component.previewHtmlOutput();
 
-    expect(writes[0]).toContain('<!doctype html>\n<html>');
-    expect(writes[0]).toContain('<body style="margin:0;background:#f3f4f6;">');
-    expect(previewWindow.opener).toBeNull();
-
-    Object.defineProperty(window, 'open', { configurable: true, value: originalOpen });
+      expect(writes[0]).toContain('<iframe title="Email preview" sandbox=""');
+      expect(writes[0]).toContain('srcdoc="');
+      expect(writes[0]).toContain('&lt;script>window.evil=true');
+      expect(writes[0]).toContain('&quot;x&quot; onerror=&quot;window.evil=true&quot;');
+      expect(writes[0]).not.toContain('<script>window.evil=true</script>');
+      expect(previewWindow.opener).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'open', { configurable: true, value: originalOpen });
+    }
   });
 
   it('should copy the active export modal output', async () => {

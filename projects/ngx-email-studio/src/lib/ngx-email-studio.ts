@@ -57,6 +57,12 @@ const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
 };
 
 const BODY_NODE_ID = 'nes-body-root';
+let nextEmailStudioInstanceId = 0;
+
+function createEmailStudioInstanceId(): string {
+  nextEmailStudioInstanceId += 1;
+  return `nes-${nextEmailStudioInstanceId}`;
+}
 
 function resolveTinyMceScriptSrc(): string {
   const base = globalThis.document?.baseURI || 'http://localhost/';
@@ -961,9 +967,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   tinyMceInit = this.createTinyMceInit();
   largeTinyMceInit = this.createTinyMceInit(620);
-  readonly rootDropListId = 'nes-root-drop-list';
-  readonly paletteDropListId = 'nes-palette-drop-list';
-  readonly outlineRootDropListId = 'nes-outline-root-drop-list';
+  private readonly dropListIdPrefix = createEmailStudioInstanceId();
+  readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
+  readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
+  readonly outlineRootDropListId = `${this.dropListIdPrefix}-outline-root-drop-list`;
   readonly bodyNodeId = BODY_NODE_ID;
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
@@ -1090,11 +1097,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   dropListIdFor(node: EmailNode): string {
-    return `nes-drop-${node.id}`;
+    return `${this.dropListIdPrefix}-drop-${node.id}`;
   }
 
   outlineDropListIdFor(node: EmailNode): string {
-    return `nes-outline-drop-${node.id}`;
+    return `${this.dropListIdPrefix}-outline-drop-${node.id}`;
   }
 
   beginOutlineDrag(event: DragEvent, id: string): void {
@@ -1506,10 +1513,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       this.error.emit({ code: 'html_preview_failed', message: 'Unable to open HTML preview window.' });
       return;
     }
+    try {
+      previewWindow.opener = null;
+    } catch {
+      // Some browsers expose opener as readonly; sandboxed iframe preview remains the primary protection.
+    }
+    const html = this.lastHtml || this.renderHtml(this.emailDocument);
     previewWindow.document.open();
-    previewWindow.document.write(this.lastHtml || this.renderHtml(this.emailDocument));
+    previewWindow.document.write(this.buildSandboxedPreviewShell(html));
     previewWindow.document.close();
-    previewWindow.opener = null;
   }
 
   copyMjml(): void {
@@ -1520,6 +1532,21 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     this.lastMjml = this.compileMjml(this.emailDocument);
     this.lastHtml = this.renderHtml(this.emailDocument);
     this.htmlExport.emit(this.lastHtml);
+  }
+
+  private buildSandboxedPreviewShell(html: string): string {
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Email preview</title>
+    <style>html,body{margin:0;width:100%;height:100%;background:#f3f4f6;}iframe{display:block;width:100%;height:100%;border:0;background:#fff;}</style>
+  </head>
+  <body>
+    <iframe title="Email preview" sandbox="" srcdoc="${this.escapeAttr(html)}"></iframe>
+  </body>
+</html>`;
   }
 
   private setCopyState(state: string): void {
@@ -1655,8 +1682,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       existing?.remove();
       return;
     }
-    const tinyMceBaseUrl = this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl();
-    const href = `${tinyMceBaseUrl.replace(/\/$/, '')}/skins/ui/oxide/skin.min.css`;
+    const tinyMceBaseUrl = this.resolveConfiguredTinyMceBaseUrl();
+    const href = `${tinyMceBaseUrl}/skins/ui/oxide/skin.min.css`;
     if (existing) {
       if (existing.href !== href) existing.href = href;
       return;
@@ -1670,7 +1697,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   private createTinyMceInit(height = 240): Record<string, unknown> {
     return {
-      base_url: this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl(),
+      base_url: this.resolveConfiguredTinyMceBaseUrl(),
       suffix: '.min',
       license_key: 'gpl',
       menubar: false,
@@ -1697,6 +1724,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
         editor.on('PostRender', reveal);
       },
     };
+  }
+
+  private resolveConfiguredTinyMceBaseUrl(): string {
+    const fallback = this.resolveTinyMceBaseUrl();
+    const configured = this.effectiveConfig.tinyMceBaseUrl;
+    if (!configured) return fallback;
+    try {
+      const base = globalThis.document?.baseURI || 'http://localhost/';
+      const resolved = new URL(configured, base);
+      if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return fallback;
+      return resolved.href.replace(/\/$/, '');
+    } catch {
+      return fallback;
+    }
   }
 
   private resolveTinyMceBaseUrl(): string {
