@@ -293,15 +293,27 @@ function resolveTinyMceScriptSrc(): string {
       <div class="nes-modal-backdrop" *ngIf="importModalOpen" (click)="closeImportModal()">
         <section class="nes-import-modal" role="dialog" aria-modal="true" aria-label="Import MJML" (click)="$event.stopPropagation()">
           <header>
-            <div>
-              <p>Import MJML</p>
-              <h3>Paste MJML to import</h3>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="fa fa-upload" aria-hidden="true"></i></span>
+              <div>
+                <p>Import MJML</p>
+                <h3>Paste MJML to import</h3>
+              </div>
             </div>
             <button type="button" aria-label="Close import modal" (click)="closeImportModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
           </header>
           <div class="nes-import-body">
-            <p class="nes-muted">Paste a supported MJML subset below. Rows, columns, text, images, buttons, dividers, and spacers will be converted into editable blocks.</p>
-            <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" spellcheck="false" placeholder="<mjml>...</mjml>"></textarea>
+            <div class="nes-modal-intro">
+              <strong>Supported import subset</strong>
+              <p class="nes-muted">Rows, columns, text, images, buttons, dividers, and spacers will be converted into editable blocks.</p>
+            </div>
+            <div class="nes-code-shell">
+              <div class="nes-code-toolbar">
+                <span><i class="fa fa-code" aria-hidden="true"></i> MJML source</span>
+                <small>Editable</small>
+              </div>
+              <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" spellcheck="false" placeholder="<mjml>...</mjml>"></textarea>
+            </div>
             <div class="nes-import-error" *ngIf="importErrorMessage"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ importErrorMessage }}</div>
           </div>
           <footer class="nes-modal-footer">
@@ -314,9 +326,12 @@ function resolveTinyMceScriptSrc(): string {
       <div class="nes-modal-backdrop" *ngIf="outputModalType" (click)="closeOutputModal()">
         <section class="nes-output-modal" role="dialog" aria-modal="true" [attr.aria-label]="outputModalTitle" (click)="$event.stopPropagation()">
           <header>
-            <div>
-              <p>Export output</p>
-              <h3>{{ outputModalTitle }}</h3>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="fa fa-download" aria-hidden="true"></i></span>
+              <div>
+                <p>Export output</p>
+                <h3>{{ outputModalTitle }}</h3>
+              </div>
             </div>
             <div class="nes-modal-actions">
               <button type="button" class="nes-preview-btn" *ngIf="outputModalType === 'html'" (click)="previewHtmlOutput()"><i class="fa fa-external-link" aria-hidden="true"></i> Preview</button>
@@ -327,7 +342,13 @@ function resolveTinyMceScriptSrc(): string {
           <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
             Unsupported MJML preserved as warning: {{ emailDocument.unsupported?.join(', ') }}
           </div>
-          <pre>{{ outputModalContent }}</pre>
+          <div class="nes-code-shell nes-output-code">
+            <div class="nes-code-toolbar">
+              <span><i class="fa fa-code" aria-hidden="true"></i> {{ outputModalType === 'html' ? 'Generated HTML' : 'Generated MJML' }}</span>
+              <small>Read-only</small>
+            </div>
+            <pre>{{ outputModalContent }}</pre>
+          </div>
         </section>
       </div>
     </section>
@@ -505,27 +526,39 @@ function resolveTinyMceScriptSrc(): string {
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .54); backdrop-filter: blur(8px); }
-    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(217, 226, 236, .9); border-radius: 18px; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
+    .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 10%, rgba(37, 99, 235, .16), transparent 32%), rgba(15, 23, 42, .58); backdrop-filter: blur(10px); }
+    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
     .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); background: #fff; }
     .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
-    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 55%, #ecfdf3 100%); }
-    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 12px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
-    .nes-output-modal header h3, .nes-import-modal header h3 { color: var(--nes-ink); }
+    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
+    .nes-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .nes-modal-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #bbf7d0; border-radius: 13px; background: linear-gradient(135deg, #ecfdf3, #eff6ff); color: var(--nes-success); box-shadow: 0 10px 22px rgba(22, 163, 74, .12); flex: 0 0 auto; }
+    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
+    .nes-output-modal header h3, .nes-import-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
     .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
-    .nes-modal-actions button, .nes-import-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); }
-    .nes-modal-actions button:hover, .nes-import-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
+    .nes-modal-actions button, .nes-import-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+    .nes-modal-actions button:hover, .nes-import-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
     .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
     .nes-preview-btn { background: #ecfdf3 !important; color: var(--nes-success) !important; border-color: #bbf7d0 !important; font-weight: 800; }
     .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
-    .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; border-top: 1px solid #1e293b; background: #0f172a; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .nes-import-body { padding: 20px; overflow: auto; background: var(--nes-soft); }
-    .nes-import-body .nes-muted { margin-top: 0; color: #475569; }
-    .nes-import-body textarea { min-height: 420px; resize: vertical; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; border-color: #1e293b; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
-    .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); border-color: var(--nes-accent); }
+    .nes-modal-intro { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+    .nes-modal-intro strong { display: block; margin-bottom: 3px; color: var(--nes-ink); font-size: 13px; }
+    .nes-modal-intro .nes-muted { margin: 0; color: #475569; }
+    .nes-code-shell { overflow: hidden; border: 1px solid #1e293b; border-radius: 16px; background: #0f172a; box-shadow: 0 18px 44px rgba(15, 23, 42, .18); }
+    .nes-output-code { min-height: 0; margin: 16px 20px 20px; }
+    .nes-code-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 10px 12px; border-bottom: 1px solid rgba(148, 163, 184, .18); background: linear-gradient(180deg, #172033, #0f172a); color: #cbd5e1; font: 11px/1.3 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: .02em; text-transform: uppercase; }
+    .nes-code-toolbar span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+    .nes-code-toolbar small { color: #94a3b8; font: inherit; text-transform: none; letter-spacing: 0; }
+    .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 566px; overflow: auto; white-space: pre-wrap; background: #0f172a; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .nes-output-modal pre::-webkit-scrollbar, .nes-import-body textarea::-webkit-scrollbar { width: 10px; height: 10px; }
+    .nes-output-modal pre::-webkit-scrollbar-thumb, .nes-import-body textarea::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; border: 2px solid #0f172a; }
+    .nes-import-body { padding: 20px; overflow: auto; background: linear-gradient(180deg, #f8fafc, #f1f5f9); }
+    .nes-import-body textarea { min-height: 386px; resize: vertical; border: 0; border-radius: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
+    .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); outline-offset: -2px; }
     .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
     .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #fff; }
     .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 10px; margin: 12px 20px; }
+    @keyframes nes-modal-pop { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
