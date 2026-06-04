@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
@@ -9,7 +9,22 @@ export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | '
 export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';
-export type CanvasMode = 'edit' | 'preview';
+export type CanvasMode = 'edit' | 'preview' | 'iframe-edit';
+
+type EmailIframeMessage =
+  | { type: 'nes:ready' }
+  | { type: 'nes:select'; nodeId: string }
+  | { type: 'nes:duplicate'; nodeId: string }
+  | { type: 'nes:delete'; nodeId: string }
+  | { type: 'nes:scroll-complete'; nodeId: string }
+  | { type: 'nes:reorder'; sourceId: string; targetId: string; position: 'before' | 'after' }
+  | { type: 'nes:drop-palette'; targetContainerId: string; index: number; paletteType: PaletteBlockType; preset?: PaletteItem['preset'] };
+
+type EmailIframeParentMessage = { type: 'nes:scroll-to-node'; nodeId: string; bridgeToken: string };
+
+interface HtmlRenderOptions {
+  editorHooks?: boolean;
+}
 
 export interface EmailStudioConfig {
   useTinyMce?: boolean;
@@ -21,6 +36,8 @@ export interface EmailStudioConfig {
   brandLabel?: string;
   statusLabel?: string;
   fromLabel?: string;
+  /** When true, edit mode renders the editable iframe canvas; false keeps the legacy Angular canvas. */
+  iframeCanvas?: boolean;
 }
 
 export interface EmailStudioError {
@@ -120,7 +137,7 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListSortingDisabled]="true"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragStartDelay]="0" [attr.title]="item.description">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragStartDelay]="0" [attr.title]="item.description" [attr.draggable]="effectiveConfig.iframeCanvas ? 'true' : null" (dragstart)="beginPaletteDrag($event, item)" (dragend)="endPaletteDrag()">
                 <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -193,8 +210,8 @@ function resolveTinyMceScriptSrc(): string {
               >{{ option }}</button>
             </div>
             <div class="nes-mail-meta"><span>From: {{ effectiveConfig.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
-            <div class="nes-canvas-shell" [class.is-preview]="canvasMode === 'preview'" [style.background]="bodyBackgroundColor">
-              <ng-container *ngIf="canvasMode === 'edit'; else iframePreview">
+            <div class="nes-canvas-shell" [class.is-preview]="canvasMode !== 'edit'" [style.background]="bodyBackgroundColor">
+              <ng-container *ngIf="canvasMode === 'edit' && !effectiveConfig.iframeCanvas; else iframeCanvas">
                 <div
                   cdkDropList
                   #canvasList="cdkDropList"
@@ -234,15 +251,30 @@ function resolveTinyMceScriptSrc(): string {
                   <div class="nes-root-drop-space" aria-hidden="true"></div>
                 </div>
               </ng-container>
-              <ng-template #iframePreview>
-                <p class="nes-preview-help">Preview mode renders the exported HTML in an isolated iframe. Switch to Edit to change content.</p>
-                <iframe
-                  class="nes-preview-frame"
-                  title="Email preview"
-                  sandbox=""
-                  [style.width.px]="previewWidth"
-                  [srcdoc]="previewSrcdoc"
-                ></iframe>
+              <ng-template #iframeCanvas>
+                <ng-container *ngIf="usesIframeEditCanvas; else previewFrame">
+                  <iframe
+                    #canvasIframe
+                    class="nes-editor-frame"
+                    title="Email editor iframe"
+                    sandbox="allow-scripts"
+                    [style.width.px]="previewWidth"
+                    [srcdoc]="currentIframeSrcdoc"
+                    (load)="handlePreviewFrameLoad($event)"
+                  ></iframe>
+                </ng-container>
+                <ng-template #previewFrame>
+                  <p class="nes-preview-help">Preview mode renders the exported HTML in an isolated iframe. Switch to Edit to change content.</p>
+                  <iframe
+                    #canvasIframe
+                    class="nes-preview-frame"
+                    title="Email preview"
+                    sandbox=""
+                    [style.width.px]="previewWidth"
+                    [srcdoc]="currentIframeSrcdoc"
+                    (load)="handlePreviewFrameLoad($event)"
+                  ></iframe>
+                </ng-template>
               </ng-template>
             </div>
           </div>
@@ -782,7 +814,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-canvas-shell.is-preview { padding: 0; }
     .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; }
     .nes-preview-help { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.45; }
-    .nes-preview-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
+    .nes-preview-frame, .nes-editor-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
     .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
     .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
@@ -884,6 +916,8 @@ export class NgxEmailStudio implements OnChanges {
   @Input() readonly = false;
   @Input() config?: EmailStudioConfig | null = DEFAULT_EMAIL_STUDIO_CONFIG;
 
+  @ViewChild('canvasIframe') private canvasIframe?: ElementRef<HTMLIFrameElement>;
+
   @Output() mjmlChange = new EventEmitter<string>();
   @Output() documentChange = new EventEmitter<EmailDocument>();
   @Output() htmlExport = new EventEmitter<string>();
@@ -916,12 +950,15 @@ export class NgxEmailStudio implements OnChanges {
   outlineDragId?: string;
   outlineDragOverId?: string;
   outlineDropPosition: 'before' | 'after' = 'before';
+  activePaletteDrag?: PaletteItem;
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
   lastMjml = '';
   lastHtml = '';
   previewSrcdoc: SafeHtml | string = '';
+  editableSrcdoc: SafeHtml | string = '';
+  iframeReady = false;
 
   tinyMceInit = this.createTinyMceInit();
   largeTinyMceInit = this.createTinyMceInit(620);
@@ -929,6 +966,7 @@ export class NgxEmailStudio implements OnChanges {
   readonly paletteDropListId = 'nes-palette-drop-list';
   readonly outlineRootDropListId = 'nes-outline-root-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
+  private readonly iframeBridgeToken = this.createIframeBridgeToken();
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
 
@@ -988,6 +1026,10 @@ export class NgxEmailStudio implements OnChanges {
     return this.effectiveConfig.useTinyMce !== false;
   }
 
+  get usesIframeEditCanvas(): boolean {
+    return this.canvasMode === 'iframe-edit' || (this.canvasMode === 'edit' && this.effectiveConfig.iframeCanvas === true);
+  }
+
   get previewWidth(): number {
     if (typeof this.previewSize === 'number') return this.previewSize;
     return { desktop: 900, tablet: 768, mobile: 375 }[this.previewSize] ?? 900;
@@ -1005,10 +1047,62 @@ export class NgxEmailStudio implements OnChanges {
     return this.outputModalType === 'html' ? this.lastHtml : this.lastMjml;
   }
 
+  get previewIframeHtml(): string {
+    return this.buildIframeDocument(this.lastHtml || this.renderHtml(this.emailDocument), { editable: false });
+  }
+
+  get editableIframeHtml(): string {
+    return this.buildIframeDocument(this.renderHtml(this.emailDocument, { editorHooks: true }), { editable: true });
+  }
+
+  get currentIframeSrcdoc(): SafeHtml | string {
+    if (this.usesIframeEditCanvas) return this.editableSrcdoc;
+    return this.previewSrcdoc;
+  }
+
+  handlePreviewFrameLoad(_event?: Event): void {
+    this.iframeReady = true;
+  }
+
+  @HostListener('window:message', ['$event'])
+  handleIframeMessage(event: MessageEvent<unknown>): void {
+    if (!this.usesIframeEditCanvas) return;
+    const frameWindow = this.canvasIframe?.nativeElement.contentWindow;
+    if (!frameWindow || event.source !== frameWindow) return;
+    const message = this.parseIframeMessage(event.data);
+    if (!message) return;
+    if (message.type === 'nes:ready') {
+      this.iframeReady = true;
+      return;
+    }
+    if (message.type === 'nes:select') {
+      this.selectNode(message.nodeId);
+      return;
+    }
+    if (message.type === 'nes:duplicate') {
+      this.selectNode(message.nodeId);
+      this.duplicateSelected();
+      return;
+    }
+    if (message.type === 'nes:delete') {
+      this.selectNode(message.nodeId);
+      this.deleteSelected();
+      return;
+    }
+    if (message.type === 'nes:reorder') {
+      this.reorderNode(message.sourceId, message.targetId, message.position);
+      return;
+    }
+    if (message.type === 'nes:drop-palette') {
+      this.dropPaletteIntoIframe(message.targetContainerId, message.index, { type: message.paletteType, preset: message.preset });
+    }
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
       this.tinyMceInit = this.createTinyMceInit();
       this.largeTinyMceInit = this.createTinyMceInit(620);
+      if (this.effectiveConfig.iframeCanvas) this.refreshEditableSrcdoc();
     }
 
     if (changes['document'] && this.document) {
@@ -1042,6 +1136,19 @@ export class NgxEmailStudio implements OnChanges {
       this.selectedNodeId = event.container.data[event.currentIndex]?.id;
     }
     this.emitDocument();
+  }
+
+  beginPaletteDrag(event: DragEvent, item: PaletteItem): void {
+    if (this.readonly) return;
+    this.activePaletteDrag = item;
+    const payload = JSON.stringify({ type: item.type, preset: item.preset });
+    event.dataTransfer?.setData('application/x-nes-palette', payload);
+    event.dataTransfer?.setData('text/plain', payload);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+  }
+
+  endPaletteDrag(): void {
+    this.activePaletteDrag = undefined;
   }
 
   trackNode(_: number, node: EmailNode): string {
@@ -1113,6 +1220,53 @@ export class NgxEmailStudio implements OnChanges {
     return !!source && !!target && source.siblings === target.siblings;
   }
 
+  private reorderNode(sourceId: string, targetId: string, position: 'before' | 'after'): boolean {
+    if (!this.canReorderOutline(sourceId, targetId)) return false;
+    const source = this.findNodeLocation(sourceId);
+    const target = this.findNodeLocation(targetId);
+    if (!source || !target || source.siblings !== target.siblings) return false;
+
+    const [node] = source.siblings.splice(source.index, 1);
+    let insertIndex = target.index;
+    if (source.index < target.index) insertIndex -= 1;
+    if (position === 'after') insertIndex += 1;
+    insertIndex = Math.max(0, Math.min(source.siblings.length, insertIndex));
+    source.siblings.splice(insertIndex, 0, node);
+    this.selectedNodeId = sourceId;
+    this.emitDocument();
+    return true;
+  }
+
+  private dropPaletteIntoIframe(targetContainerId: string, index: number, paletteMessage: Pick<PaletteItem, 'type' | 'preset'>): boolean {
+    if (this.readonly) return false;
+    const paletteItem = this.resolveIframePaletteItem(paletteMessage);
+    if (!paletteItem) return false;
+    const target = this.resolveDropTargetChildren(targetContainerId);
+    if (!target) return false;
+
+    const node = this.createNodeForDrop(paletteItem, target.containerId);
+    const insertIndex = Math.max(0, Math.min(target.children.length, Number.isFinite(index) ? Math.trunc(index) : target.children.length));
+    target.children.splice(insertIndex, 0, node);
+    this.selectedNodeId = node.id;
+    this.emitDocument();
+    return true;
+  }
+
+  private resolveIframePaletteItem(message: Pick<PaletteItem, 'type' | 'preset'>): PaletteItem | undefined {
+    if (this.activePaletteDrag && this.activePaletteDrag.type === message.type && this.activePaletteDrag.preset === message.preset) return this.activePaletteDrag;
+    return undefined;
+  }
+
+  private resolveDropTargetChildren(targetContainerId: string): { children: EmailNode[]; containerId: string } | undefined {
+    if (targetContainerId === BODY_NODE_ID || targetContainerId === this.rootDropListId) {
+      return { children: this.emailDocument.body, containerId: this.rootDropListId };
+    }
+    const target = this.findNodeLocation(targetContainerId)?.node;
+    if (!target || (target.type !== 'section' && target.type !== 'column')) return undefined;
+    target.children ??= [];
+    return { children: target.children, containerId: this.dropListIdFor(target) };
+  }
+
   childrenOf(node: EmailNode): EmailNode[] {
     node.children ??= [];
     return node.children;
@@ -1120,10 +1274,15 @@ export class NgxEmailStudio implements OnChanges {
 
   selectNode(id: string): void {
     this.selectedNodeId = id;
+    if (this.usesIframeEditCanvas) this.refreshEditableSrcdoc();
   }
 
   selectNodeFromOutline(id: string): void {
     this.selectNode(id);
+    if (this.usesIframeEditCanvas) {
+      this.scrollIframeToNode(id);
+      return;
+    }
     this.scrollNodeIntoStage(id);
   }
 
@@ -1228,6 +1387,10 @@ export class NgxEmailStudio implements OnChanges {
     if (mode === 'preview' && !this.lastHtml) {
       this.refreshOutputs(false);
     }
+    if (mode === 'iframe-edit') {
+      this.refreshEditableSrcdoc();
+    }
+    if (mode !== this.canvasMode) this.iframeReady = false;
     this.canvasMode = mode;
   }
 
@@ -1513,6 +1676,10 @@ export class NgxEmailStudio implements OnChanges {
     return !!value && typeof value === 'object' && 'type' in value && 'label' in value && 'description' in value;
   }
 
+  private isPaletteBlockType(value: string): value is PaletteBlockType {
+    return ['row', 'section', 'text', 'image', 'button', 'divider', 'spacer'].includes(value);
+  }
+
   private collectContainerDropListIds(nodes: EmailNode[]): string[] {
     return nodes.flatMap((node) => {
       const ids = node.type === 'column' || node.type === 'section' ? [this.dropListIdFor(node)] : [];
@@ -1563,11 +1730,233 @@ export class NgxEmailStudio implements OnChanges {
     return value.replace(/[^a-zA-Z0-9_-]/g, '\$&');
   }
 
+  private createIframeBridgeToken(): string {
+    const crypto = globalThis.crypto;
+    if (crypto?.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return `nes-iframe-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+    }
+    return `nes-iframe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  private scrollIframeToNode(nodeId: string): void {
+    const message: EmailIframeParentMessage = { type: 'nes:scroll-to-node', nodeId, bridgeToken: this.iframeBridgeToken };
+    setTimeout(() => this.canvasIframe?.nativeElement.contentWindow?.postMessage(message, '*'), 0);
+  }
+
+  private parseIframeMessage(data: unknown): EmailIframeMessage | undefined {
+    if (!data || typeof data !== 'object') return undefined;
+    const message = data as Record<string, unknown>;
+    if (message['bridgeToken'] !== this.iframeBridgeToken) return undefined;
+    if (message['type'] === 'nes:ready') return { type: 'nes:ready' };
+    if ((message['type'] === 'nes:select' || message['type'] === 'nes:duplicate' || message['type'] === 'nes:delete' || message['type'] === 'nes:scroll-complete') && typeof message['nodeId'] === 'string') {
+      return { type: message['type'], nodeId: message['nodeId'] } as EmailIframeMessage;
+    }
+    if (message['type'] === 'nes:reorder' && typeof message['sourceId'] === 'string' && typeof message['targetId'] === 'string' && (message['position'] === 'before' || message['position'] === 'after')) {
+      return { type: 'nes:reorder', sourceId: message['sourceId'], targetId: message['targetId'], position: message['position'] };
+    }
+    if (message['type'] === 'nes:drop-palette' && typeof message['targetContainerId'] === 'string' && typeof message['paletteType'] === 'string') {
+      if (!this.isPaletteBlockType(message['paletteType'])) return undefined;
+      return { type: 'nes:drop-palette', targetContainerId: message['targetContainerId'], index: typeof message['index'] === 'number' ? message['index'] : Number(message['index'] || 0), paletteType: message['paletteType'], preset: message['preset'] === 'hero' || message['preset'] === 'footer' ? message['preset'] : undefined };
+    }
+    return undefined;
+  }
+
+  private buildIframeDocument(bodyHtml: string, options: { editable: boolean }): string {
+    if (!options.editable) return bodyHtml;
+    const bridgeToken = JSON.stringify(this.iframeBridgeToken);
+    const style = `
+    <style>
+      [data-nes-node-id] { cursor: pointer; }
+      [data-nes-draggable="true"] { cursor: grab; }
+      [data-nes-drop-container-id] { min-height: 24px; }
+      .nes-iframe-drop-target { outline: 2px dashed #7c3aed !important; outline-offset: -3px; }
+      .nes-iframe-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; box-shadow: 0 0 0 3px rgba(37, 99, 235, .18) !important; }
+      .nes-iframe-tools { display: inline-flex; gap: 6px; margin: 0 0 8px 0; padding: 5px; background: #0f172a; border-radius: 10px; font-family: Arial, sans-serif; }
+      .nes-iframe-tools button { border: 0; border-radius: 7px; padding: 5px 8px; background: #ffffff; color: #0f172a; font: 12px/1 Arial, sans-serif; cursor: pointer; }
+    </style>`;
+    const script = `
+    <script>
+      (function() {
+        var bridgeToken = ${bridgeToken};
+        function send(message) {
+          message.bridgeToken = bridgeToken;
+          parent.postMessage(message, '*');
+        }
+        function closestWithAttr(target, attr) {
+          return target && target.closest ? target.closest('[' + attr + ']') : null;
+        }
+        function readPalette(dataTransfer) {
+          if (!dataTransfer) return null;
+          var raw = dataTransfer.getData('application/x-nes-palette') || dataTransfer.getData('text/plain');
+          if (!raw) return null;
+          try { return JSON.parse(raw); } catch (_error) { return null; }
+        }
+        function childNodeElements(container) {
+          var id = container && container.getAttribute('data-nes-drop-container-id');
+          if (!id) return [];
+          return Array.prototype.filter.call(document.querySelectorAll('[data-nes-node-id]'), function(node) {
+            if (node === container) return false;
+            var parent = closestWithAttr(node.parentElement, 'data-nes-drop-container-id');
+            return parent === container;
+          });
+        }
+        function dropIndex(container, event) {
+          var nodes = childNodeElements(container);
+          for (var i = 0; i < nodes.length; i += 1) {
+            var rect = nodes[i].getBoundingClientRect();
+            if (event.clientY < rect.top + rect.height / 2) return i;
+          }
+          return nodes.length;
+        }
+        var draggedNodeId = null;
+        document.addEventListener('dragstart', function(event) {
+          var node = closestWithAttr(event.target, 'data-nes-node-id');
+          if (!node) return;
+          draggedNodeId = node.getAttribute('data-nes-node-id');
+          event.dataTransfer && event.dataTransfer.setData('application/x-nes-node', draggedNodeId);
+          event.dataTransfer && (event.dataTransfer.effectAllowed = 'move');
+        });
+        document.addEventListener('dragend', function() { draggedNodeId = null; });
+        document.addEventListener('dragover', function(event) {
+          var palette = readPalette(event.dataTransfer);
+          var container = closestWithAttr(event.target, 'data-nes-drop-container-id');
+          var targetNode = closestWithAttr(event.target, 'data-nes-node-id');
+          if (palette && container) {
+            event.preventDefault();
+            event.dataTransfer && (event.dataTransfer.dropEffect = 'copy');
+            container.classList.add('nes-iframe-drop-target');
+            return;
+          }
+          if ((draggedNodeId || (event.dataTransfer && event.dataTransfer.getData('application/x-nes-node'))) && targetNode) {
+            event.preventDefault();
+            event.dataTransfer && (event.dataTransfer.dropEffect = 'move');
+          }
+        });
+        document.addEventListener('dragleave', function(event) {
+          var container = closestWithAttr(event.target, 'data-nes-drop-container-id');
+          if (container) container.classList.remove('nes-iframe-drop-target');
+        });
+        document.addEventListener('drop', function(event) {
+          var palette = readPalette(event.dataTransfer);
+          var container = closestWithAttr(event.target, 'data-nes-drop-container-id');
+          if (palette && container) {
+            event.preventDefault();
+            container.classList.remove('nes-iframe-drop-target');
+            send({ type: 'nes:drop-palette', targetContainerId: container.getAttribute('data-nes-drop-container-id'), index: dropIndex(container, event), paletteType: palette.type, preset: palette.preset });
+            return;
+          }
+          var sourceId = draggedNodeId || (event.dataTransfer && event.dataTransfer.getData('application/x-nes-node'));
+          var targetNode = closestWithAttr(event.target, 'data-nes-node-id');
+          if (!sourceId || !targetNode) return;
+          event.preventDefault();
+          var rect = targetNode.getBoundingClientRect();
+          send({ type: 'nes:reorder', sourceId: sourceId, targetId: targetNode.getAttribute('data-nes-node-id'), position: event.clientY > rect.top + rect.height / 2 ? 'after' : 'before' });
+        });
+        document.addEventListener('click', function(event) {
+          var action = closestWithAttr(event.target, 'data-nes-action');
+          if (action) {
+            event.preventDefault();
+            event.stopPropagation();
+            var selected = document.querySelector('.nes-iframe-selected');
+            if (!selected) return;
+            send({ type: 'nes:' + action.getAttribute('data-nes-action'), nodeId: selected.getAttribute('data-nes-node-id') });
+            return;
+          }
+          var target = closestWithAttr(event.target, 'data-nes-node-id');
+          if (!target) return;
+          event.preventDefault();
+          send({ type: 'nes:select', nodeId: target.getAttribute('data-nes-node-id') });
+        });
+        window.addEventListener('message', function(event) {
+          var data = event.data;
+          if (!data || data.bridgeToken !== bridgeToken || data.type !== 'nes:scroll-to-node' || typeof data.nodeId !== 'string') return;
+          var selector = '[data-nes-node-id="' + String(data.nodeId).replace(/"/g, '\\\"') + '"]';
+          var target = document.querySelector(selector);
+          if (!target) return;
+          target.scrollIntoView({ block: 'center' });
+          send({ type: 'nes:scroll-complete', nodeId: data.nodeId });
+        });
+        send({ type: 'nes:ready' });
+      })();
+    </script>`;
+    const withStyle = bodyHtml.includes('</head>') ? bodyHtml.replace('</head>', `${style}\n  </head>`) : `${style}\n${bodyHtml}`;
+    return withStyle.includes('</body>') ? withStyle.replace('</body>', `${script}\n  </body>`) : `${withStyle}\n${script}`;
+  }
+
+  private sanitizeEditableUserHtml(html: string): string {
+    const doc = globalThis.document;
+    if (!doc) return this.escapeHtml(this.plainText(html));
+
+    const template = doc.createElement('template');
+    template.innerHTML = html;
+    const allowedTags = new Set(['a', 'b', 'br', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'img', 'i', 'li', 'ol', 'p', 'span', 'strong', 'u', 'ul']);
+    const removeWholeTags = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'meta', 'link']);
+
+    for (const element of Array.from(template.content.querySelectorAll('*'))) {
+      const tag = element.tagName.toLowerCase();
+      if (removeWholeTags.has(tag)) {
+        element.remove();
+        continue;
+      }
+      if (!allowedTags.has(tag)) {
+        while (element.firstChild) element.parentNode?.insertBefore(element.firstChild, element);
+        element.remove();
+        continue;
+      }
+
+      for (const attr of Array.from(element.attributes)) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value;
+        if (name.startsWith('on') || name.startsWith('data-nes-') || name === 'draggable') {
+          element.removeAttribute(attr.name);
+          continue;
+        }
+        const keep =
+          (tag === 'a' && (name === 'href' || name === 'title' || name === 'target')) ||
+          (tag === 'img' && (name === 'src' || name === 'alt' || name === 'width' || name === 'height'));
+        if (!keep || !this.isSafeEditableAttr(tag, name, value)) {
+          element.removeAttribute(attr.name);
+        }
+      }
+
+      if (tag === 'a' && element.getAttribute('target') === '_blank') {
+        element.setAttribute('rel', 'noopener noreferrer');
+      }
+    }
+
+    return template.innerHTML;
+  }
+
+  private isSafeEditableAttr(tag: string, name: string, value: string): boolean {
+    if ((tag === 'a' && name === 'href') || (tag === 'img' && name === 'src')) {
+      return this.isSafeEditableUrl(value, tag === 'img');
+    }
+    if ((name === 'width' || name === 'height') && !/^\d{1,4}$/.test(value.trim())) return false;
+    if (name === 'target') return value === '_blank';
+    return true;
+  }
+
+  private isSafeEditableUrl(value: string, imageOnly: boolean): boolean {
+    const cleaned = value.replace(/[\u0000-\u001f\u007f\s]+/g, '').toLowerCase();
+    if (!cleaned || cleaned.startsWith('#')) return !imageOnly;
+    if (cleaned.startsWith('javascript:') || cleaned.startsWith('vbscript:') || cleaned.startsWith('data:text/html')) return false;
+    if (cleaned.startsWith('data:')) return imageOnly && /^data:image\/(png|gif|jpe?g|webp);base64,/i.test(cleaned);
+    if (cleaned.startsWith('http://') || cleaned.startsWith('https://') || cleaned.startsWith('mailto:')) return !imageOnly || cleaned.startsWith('http');
+    return !cleaned.includes(':');
+  }
+
+  private refreshEditableSrcdoc(): void {
+    this.editableSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.editableIframeHtml);
+  }
+
   private refreshOutputs(emit: boolean): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
     if (this.effectiveConfig.showHtmlPreview !== false) {
       this.lastHtml = this.renderHtml(this.emailDocument);
-      this.previewSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.lastHtml);
+      this.previewSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.previewIframeHtml);
+      this.refreshEditableSrcdoc();
     }
     if (emit) {
       this.documentChange.emit(this.emailDocument);
@@ -1851,14 +2240,14 @@ export class NgxEmailStudio implements OnChanges {
     }
   }
 
-  private renderHtml(document: EmailDocument): string {
+  private renderHtml(document: EmailDocument, options: HtmlRenderOptions = {}): string {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
     const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
     const emailWidth = this.dimensionCss(attrs, 'width', 100, '%');
     const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 600, 'px');
     const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
-    const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
+    const rows = document.body.map((node) => this.nodeToHtml(node, 6, options)).join('\n');
     return [
       '<!doctype html>',
       '<html>',
@@ -1876,7 +2265,7 @@ export class NgxEmailStudio implements OnChanges {
       `    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;">`,
       '      <tr>',
       '        <td align="center">',
-      `          <table role="presentation" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
+      `          <table role="presentation" width="${emailWidthAttr}" cellspacing="0" cellpadding="0"${options.editorHooks ? ` data-nes-drop-container-id="${BODY_NODE_ID}"` : ''} style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
       rows,
       '          </table>',
       '        </td>',
@@ -1887,20 +2276,21 @@ export class NgxEmailStudio implements OnChanges {
     ].join('\n');
   }
 
-  private nodeToHtml(node: EmailNode, depth = 0): string {
-    if (node.type === 'row') return this.rowToHtml(node, depth);
-    if (node.type === 'column') return [this.indent('<tr>', depth), this.columnToHtml(node, this.autoColumnWidth(node), depth + 1), this.indent('</tr>', depth)].join('\n');
-    if (node.type === 'section') return this.sectionToHtml(node, depth);
-    return this.blockToHtmlRow(node, depth);
+  private nodeToHtml(node: EmailNode, depth = 0, options: HtmlRenderOptions = {}): string {
+    if (node.type === 'row') return this.rowToHtml(node, depth, options);
+    if (node.type === 'column') return [this.indent('<tr>', depth), this.columnToHtml(node, this.autoColumnWidth(node), depth + 1, options), this.indent('</tr>', depth)].join('\n');
+    if (node.type === 'section') return this.sectionToHtml(node, depth, options);
+    return this.blockToHtmlRow(node, depth, options);
   }
 
-  private rowToHtml(row: EmailNode, depth = 0): string {
+  private rowToHtml(row: EmailNode, depth = 0, options: HtmlRenderOptions = {}): string {
     const columns = (row.children || []).filter((child) => child.type === 'column');
     const width = this.autoColumnWidth(row);
-    const cells = columns.map((column) => this.columnToHtml(column, width, depth + 4)).join('\n');
+    const cells = columns.map((column) => this.columnToHtml(column, width, depth + 4, options)).join('\n');
     return [
       this.indent('<tr>', depth),
-      this.indent(`<td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      this.indent(`<td${this.editorAttrs(row, options)} style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      this.editorTools(row, depth + 2, options),
       this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth + 2),
       this.indent('<tr>', depth + 3),
       cells,
@@ -1911,14 +2301,15 @@ export class NgxEmailStudio implements OnChanges {
     ].join('\n');
   }
 
-  private sectionToHtml(section: EmailNode, depth = 0): string {
-    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 2)).join('\n');
+  private sectionToHtml(section: EmailNode, depth = 0, options: HtmlRenderOptions = {}): string {
+    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 2, options)).join('\n');
     return [
       this.indent('<tr>', depth),
       this.indent(`<td align="center" style="padding:0;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent(`<table role="presentation" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
+      this.indent(`<table${this.editorAttrs(section, options)} role="presentation" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
       this.indent('<tr>', depth + 3),
       this.indent(`<td style="padding:${this.escapeAttr(this.sectionPaddingCss(section))};">`, depth + 4),
+      this.editorTools(section, depth + 5, options),
       content,
       this.indent('</td>', depth + 4),
       this.indent('</tr>', depth + 3),
@@ -1928,53 +2319,69 @@ export class NgxEmailStudio implements OnChanges {
     ].join('\n');
   }
 
-  private columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): string {
+  private columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0, options: HtmlRenderOptions = {}): string {
     const fallbackValue = Number.parseFloat(fallbackWidth);
     const fallbackUnit: EmailSizeUnit = fallbackWidth.trim().endsWith('%') ? '%' : 'px';
     const width = this.columnWidthCss(column, Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit);
     const maxWidth = this.columnMaxWidthCss(column);
-    const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
+    const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1, options)).join('\n');
+    const classAttr = options.editorHooks && column.id === this.selectedNodeId ? 'class="nes-email-column nes-iframe-selected"' : 'class="nes-email-column"';
     return [
-      this.indent(`<td class="nes-email-column" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      this.indent(`<td ${classAttr}${this.editorAttrs(column, options, false)} width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      this.editorTools(column, depth + 1, options),
       content,
       this.indent('</td>', depth),
     ].join('\n');
   }
 
-  private blockToHtmlRow(node: EmailNode, depth = 0): string {
+  private blockToHtmlRow(node: EmailNode, depth = 0, options: HtmlRenderOptions = {}): string {
     switch (node.type) {
       case 'row':
-        return this.rowToHtml(node, depth);
+        return this.rowToHtml(node, depth, options);
       case 'column':
-        return [this.indent('<tr>', depth), this.columnToHtml(node, '100%', depth + 1), this.indent('</tr>', depth)].join('\n');
+        return [this.indent('<tr>', depth), this.columnToHtml(node, '100%', depth + 1, options), this.indent('</tr>', depth)].join('\n');
       default:
-        return [this.indent('<tr>', depth), this.indent('<td>', depth + 1), this.blockToHtmlCellContent(node, depth + 2), this.indent('</td>', depth + 1), this.indent('</tr>', depth)].join('\n');
+        return [this.indent('<tr>', depth), this.indent('<td>', depth + 1), this.blockToHtmlCellContent(node, depth + 2, options), this.indent('</td>', depth + 1), this.indent('</tr>', depth)].join('\n');
     }
   }
 
-  private blockToHtmlCellContent(node: EmailNode, depth = 0): string {
+  private blockToHtmlCellContent(node: EmailNode, depth = 0, options: HtmlRenderOptions = {}): string {
     switch (node.type) {
       case 'row':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.rowToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.rowToHtml(node, depth + 1, options), this.indent('</table>', depth)].join('\n');
       case 'column':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2, options), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
       case 'section':
-        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
-      case 'text':
-        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${node.attrs['content'] || ''}</div>`, depth);
+        return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1, options), this.indent('</table>', depth)].join('\n');
+      case 'text': {
+        const content = options.editorHooks ? this.sanitizeEditableUserHtml(String(node.attrs['content'] || '')) : (node.attrs['content'] || '');
+        return this.indent(`<div${this.editorAttrs(node, options)} style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${this.editorTools(node, 0, options)}${content}</div>`, depth);
+      }
       case 'image':
-        return this.indent(`<img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`, depth);
+        return this.indent(`<img${this.editorAttrs(node, options)} src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`, depth);
       case 'button':
-        return this.indent(`<div style="padding:24px;text-align:center;"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+        return this.indent(`<div${this.editorAttrs(node, options)} style="padding:24px;text-align:center;">${this.editorTools(node, 0, options)}<a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
       case 'divider':
-        return this.indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
+        return this.indent(`<div${this.editorAttrs(node, options)} style="padding:12px 24px;">${this.editorTools(node, 0, options)}<hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
       case 'spacer': {
         const height = Number(node.attrs['height'] || 24);
-        return this.indent(`<div style="height:${height}px;line-height:${height}px;font-size:0;">&nbsp;</div>`, depth);
+        return this.indent(`<div${this.editorAttrs(node, options)} style="height:${height}px;line-height:${height}px;font-size:0;">${this.editorTools(node, 0, options)}&nbsp;</div>`, depth);
       }
       default:
         return '';
     }
+  }
+
+  private editorAttrs(node: EmailNode, options: HtmlRenderOptions, includeSelectedClass = true): string {
+    if (!options.editorHooks) return '';
+    const selectedClass = includeSelectedClass && node.id === this.selectedNodeId ? ' class="nes-iframe-selected"' : '';
+    const dropContainer = node.type === 'section' || node.type === 'column' ? ` data-nes-drop-container-id="${this.escapeAttr(node.id)}"` : '';
+    return `${selectedClass} data-nes-node-id="${this.escapeAttr(node.id)}" data-nes-node-type="${this.escapeAttr(node.type)}" data-nes-draggable="true" draggable="true"${dropContainer}`;
+  }
+
+  private editorTools(node: EmailNode, depth: number, options: HtmlRenderOptions): string {
+    if (!options.editorHooks || this.readonly || node.id !== this.selectedNodeId) return '';
+    return this.indent('<div class="nes-iframe-tools"><button type="button" data-nes-action="duplicate">Duplicate</button><button type="button" data-nes-action="delete">Delete</button></div>', depth);
   }
 
   private dimensionCss(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {

@@ -21,6 +21,13 @@ describe('App', () => {
     expect(compiled.querySelector('h1')?.textContent).toContain('ngx-email-studio');
   });
 
+  it('should opt in to the iframe edit canvas demo flag', () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance;
+
+    expect(app.studioConfig.iframeCanvas).toBe(true);
+  });
+
   it('should seed the demo document with 100% width and 600px max-width defaults', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;

@@ -16,6 +16,17 @@ describe('NgxEmailStudio', () => {
     await fixture.whenStable();
   });
 
+  function connectIframeForMessages(target: NgxEmailStudio = component): Window {
+    target.setCanvasMode('iframe-edit');
+    const frameWindow = {} as Window;
+    (target as any).canvasIframe = { nativeElement: { contentWindow: frameWindow } };
+    return frameWindow;
+  }
+
+  function bridgeMessage(target: NgxEmailStudio, source: Window, data: Record<string, unknown>): MessageEvent {
+    return { source, data: { ...data, bridgeToken: (target as any).iframeBridgeToken } } as MessageEvent;
+  }
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -299,6 +310,233 @@ describe('NgxEmailStudio', () => {
     modeButtons[1].click();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain(helperText);
+  });
+
+  it('should build preview iframe HTML without changing exported lastHtml or adding editor hooks', () => {
+    (component as any).refreshOutputs(false);
+    const exported = component.lastHtml;
+    const built = component.previewIframeHtml;
+
+    expect(built).toContain(exported);
+    expect(component.lastHtml).toBe(exported);
+    expect(component.lastHtml).not.toContain('data-nes-node-id');
+    expect(built).not.toContain('data-nes-node-id');
+  });
+
+  it('should track iframe readiness from the frame load event', () => {
+    expect(component.iframeReady).toBe(false);
+    component.handlePreviewFrameLoad(new Event('load'));
+    expect(component.iframeReady).toBe(true);
+  });
+
+  it('should keep iframe-edit srcdoc stable across change detection reads and refresh on selection', () => {
+    component.setCanvasMode('iframe-edit');
+    const first = component.currentIframeSrcdoc;
+    const second = component.currentIframeSrcdoc;
+    expect(second).toBe(first);
+
+    component.selectNode(component.emailDocument.body[1].id);
+    expect(component.currentIframeSrcdoc).not.toBe(first);
+  });
+
+  it('should render an internal iframe-edit mode with node hooks while keeping edit mode as Angular canvas', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    localComponent.setCanvasMode('iframe-edit');
+    localFixture.detectChanges();
+
+    const iframe = localFixture.nativeElement.querySelector('.nes-editor-frame') as HTMLIFrameElement;
+    expect(iframe).toBeTruthy();
+    expect(localFixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts');
+    const html = localComponent.editableIframeHtml;
+    expect(html).toContain('data-nes-node-id');
+    expect(html).toContain('data-nes-node-type');
+    expect(localComponent.lastHtml).not.toContain('data-nes-node-id');
+  });
+
+  it('should handle iframe selection messages and ignore unknown messages', () => {
+    const source = connectIframeForMessages();
+    const target = component.emailDocument.body[0].id;
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:select', nodeId: target }));
+    expect(component.selectedNodeId).toBe(target);
+
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:unknown', nodeId: component.emailDocument.body[1].id }));
+    expect(component.selectedNodeId).toBe(target);
+  });
+
+  it('should reject iframe messages outside iframe edit mode, from foreign sources, or without the bridge token', () => {
+    const target = component.emailDocument.body[1].id;
+    const original = component.selectedNodeId;
+
+    component.handleIframeMessage({ source: {} as Window, data: { type: 'nes:select', nodeId: target, bridgeToken: (component as any).iframeBridgeToken } } as MessageEvent);
+    expect(component.selectedNodeId).toBe(original);
+
+    const source = connectIframeForMessages();
+    component.handleIframeMessage({ source: {} as Window, data: { type: 'nes:select', nodeId: target, bridgeToken: (component as any).iframeBridgeToken } } as MessageEvent);
+    expect(component.selectedNodeId).toBe(original);
+
+    component.handleIframeMessage({ source, data: { type: 'nes:select', nodeId: target } } as MessageEvent);
+    expect(component.selectedNodeId).toBe(original);
+  });
+
+  it('should include the selected iframe class for the selected node only', () => {
+    const selected = component.emailDocument.body[0].id;
+    const other = component.emailDocument.body[1].id;
+    component.selectNode(selected);
+
+    const html = component.editableIframeHtml;
+    expect(html).toContain(`class="nes-iframe-selected" data-nes-node-id="${selected}"`);
+    expect(html).toContain(`data-nes-node-id="${other}" data-nes-node-type`);
+    expect(html).not.toContain(`class="nes-iframe-selected" data-nes-node-id="${other}"`);
+  });
+
+  it('should render duplicate/delete iframe tools for selected nodes and hide them in readonly mode', () => {
+    component.selectNode(component.emailDocument.body[0].id);
+    expect(component.editableIframeHtml).toContain('class="nes-iframe-tools"');
+    expect(component.editableIframeHtml).toContain('data-nes-action="duplicate"');
+    expect(component.editableIframeHtml).toContain('data-nes-action="delete"');
+
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('readonly', true);
+    const localComponent = localFixture.componentInstance;
+    localComponent.selectNode(localComponent.emailDocument.body[0].id);
+    expect(localComponent.editableIframeHtml).not.toContain('data-nes-action="duplicate"');
+    expect(localComponent.editableIframeHtml).not.toContain('data-nes-action="delete"');
+  });
+
+  it('should apply duplicate and delete effects from iframe messages', () => {
+    const source = connectIframeForMessages();
+    const first = component.emailDocument.body[0].id;
+    const beforeDuplicate = component.emailDocument.body.length;
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:duplicate', nodeId: first }));
+
+    expect(component.emailDocument.body.length).toBe(beforeDuplicate + 1);
+    expect(component.selectedNodeId).not.toBe(first);
+
+    const duplicatedId = component.selectedNodeId!;
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:delete', nodeId: duplicatedId }));
+    expect(component.emailDocument.body.length).toBe(beforeDuplicate);
+    expect(component.emailDocument.body.some((node) => node.id === duplicatedId)).toBe(false);
+  });
+
+  it('should post outline scroll messages to the iframe in iframe-edit mode', async () => {
+    const posts: unknown[] = [];
+    (component as any).canvasIframe = { nativeElement: { contentWindow: { postMessage: (message: unknown) => posts.push(message) } } };
+    component.setCanvasMode('iframe-edit');
+    const target = component.emailDocument.body[1].id;
+
+    component.selectNodeFromOutline(target);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(posts).toEqual([{ type: 'nes:scroll-to-node', nodeId: target, bridgeToken: (component as any).iframeBridgeToken }]);
+    expect(component.selectedNodeId).toBe(target);
+  });
+
+  it('should include the iframe scroll-to-node bridge script in editable iframe HTML only', () => {
+    expect(component.editableIframeHtml).toContain('nes:scroll-to-node');
+    expect(component.previewIframeHtml).not.toContain('nes:scroll-to-node');
+  });
+
+  it('should keep legacy Angular canvas in edit mode by default and render iframe edit canvas when opted in', () => {
+    fixture.detectChanges();
+    expect(component.effectiveConfig.iframeCanvas).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeFalsy();
+
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('config', { iframeCanvas: true });
+    localFixture.detectChanges();
+
+    expect(localFixture.componentInstance.canvasMode).toBe('edit');
+    expect(localFixture.componentInstance.currentIframeSrcdoc).toBeTruthy();
+    expect(localFixture.componentInstance.currentIframeSrcdoc).not.toBe('');
+    expect(localFixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
+    expect(localFixture.nativeElement.querySelector('.nes-editor-frame')).toBeTruthy();
+  });
+
+  it('should apply same-parent iframe reorder messages and reject cross-parent reorder messages', () => {
+    const source = connectIframeForMessages();
+    const first = component.emailDocument.body[0].id;
+    const second = component.emailDocument.body[1].id;
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:reorder', sourceId: first, targetId: second, position: 'after' }));
+
+    expect(component.emailDocument.body.map((node) => node.id).slice(0, 2)).toEqual([second, first]);
+
+    const sectionChild = component.emailDocument.body.find((node) => node.type === 'section')?.children?.[0]?.id;
+    expect(sectionChild).toBeTruthy();
+    const before = component.emailDocument.body.map((node) => node.id);
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:reorder', sourceId: sectionChild, targetId: component.emailDocument.body[0].id, position: 'before' }));
+
+    expect(component.emailDocument.body.map((node) => node.id)).toEqual(before);
+    expect((component as any).compileMjml(component.emailDocument)).toContain('<mj-body');
+  });
+
+  it('should bridge palette drops into iframe containers and reject invalid targets', () => {
+    const source = connectIframeForMessages();
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const beforeSectionChildren = section.children?.length || 0;
+    component.beginPaletteDrag({ dataTransfer: { setData: () => undefined, effectAllowed: '' } } as unknown as DragEvent, component.palette.find((item) => item.type === 'text' && !item.preset)!);
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:drop-palette', targetContainerId: section.id, index: beforeSectionChildren, paletteType: 'text' }));
+
+    expect(section.children?.length).toBe(beforeSectionChildren + 1);
+    expect(section.children?.[beforeSectionChildren].type).toBe('text');
+
+    const beforeRoot = component.emailDocument.body.length;
+    component.beginPaletteDrag({ dataTransfer: { setData: () => undefined, effectAllowed: '' } } as unknown as DragEvent, component.palette.find((item) => item.type === 'row')!);
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:drop-palette', targetContainerId: (component as any).bodyNodeId, index: beforeRoot, paletteType: 'row' }));
+
+    expect(component.emailDocument.body.length).toBe(beforeRoot + 1);
+    expect(component.emailDocument.body[beforeRoot].type).toBe('row');
+
+    const invalidTarget = section.children?.find((node) => node.type === 'text')!.id;
+    const beforeInvalid = section.children?.length;
+    component.beginPaletteDrag({ dataTransfer: { setData: () => undefined, effectAllowed: '' } } as unknown as DragEvent, component.palette.find((item) => item.type === 'button')!);
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:drop-palette', targetContainerId: invalidTarget, index: 0, paletteType: 'button' }));
+    expect(section.children?.length).toBe(beforeInvalid);
+  });
+
+  it('should reject iframe palette drop messages without an active matching palette drag', () => {
+    const source = connectIframeForMessages();
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const before = section.children?.length || 0;
+
+    component.handleIframeMessage(bridgeMessage(component, source, { type: 'nes:drop-palette', targetContainerId: section.id, index: before, paletteType: 'text' }));
+    expect(section.children?.length || 0).toBe(before);
+  });
+
+  it('should include iframe reorder and palette drop bridge hooks only in editable iframe HTML', () => {
+    const editable = component.editableIframeHtml;
+    expect(editable).toContain('nes:reorder');
+    expect(editable).toContain('nes:drop-palette');
+    expect(editable).toContain('data-nes-drop-container-id');
+    expect(component.previewIframeHtml).not.toContain('nes:drop-palette');
+  });
+
+  it('should strip executable user content from editable iframe while keeping bridge script', () => {
+    const section = component.emailDocument.body[0];
+    const child = section.children![0];
+    component.updateAttr(child, 'content', '<p onclick="alert(1)" data-nes-action="evil-delete" data-nes-node-id="fake" data-nes-drop-container-id="fake-drop" data-nes-draggable="fake" draggable="true">Safe text</p><a href="java&#x73;cript:alert(5)" data-nes-action>Bad link</a><svg/onload=alert(6)><img src="javascript:alert(1)" onerror="alert(2)"><script>alert(3)</script><iframe srcdoc="<script>alert(4)</script>"></iframe>');
+
+    const editable = component.editableIframeHtml;
+    expect(editable).toContain('Safe text');
+    expect(editable).toContain('Bad link');
+    expect(editable).not.toContain('onclick=');
+    expect(editable).not.toContain('onerror=');
+    expect(editable).not.toContain('onload=');
+    expect(editable).not.toContain('javascript:alert');
+    expect(editable).not.toContain('java&#x73;cript');
+    expect(editable).not.toContain('<svg');
+    expect(editable).not.toContain('data-nes-action="evil-delete"');
+    expect(editable).not.toContain('data-nes-node-id="fake"');
+    expect(editable).not.toContain('data-nes-drop-container-id="fake-drop"');
+    expect(editable).not.toContain('draggable="true">Safe text');
+    expect(editable).not.toContain('<iframe');
+    expect(editable).not.toContain('<script>alert(3)</script>');
+    expect(editable).toContain('parent.postMessage');
   });
 
   it('should support section width/max-width units and all-or-side padding controls', () => {
