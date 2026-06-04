@@ -1574,7 +1574,7 @@ export class NgxEmailStudio implements OnChanges {
       case 'column':
         return this.columnToMjml(node);
       case 'section':
-        return `<mj-text${this.backgroundAttr(node)}>Section container</mj-text>`;
+        return (node.children || []).map((child) => this.blockToMjml(child)).join('') || '<mj-text></mj-text>';
       case 'text':
         return `<mj-text${this.backgroundAttr(node)}>${node.attrs['content'] || ''}</mj-text>`;
       case 'image':

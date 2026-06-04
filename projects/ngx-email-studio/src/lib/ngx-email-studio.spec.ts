@@ -306,6 +306,17 @@ describe('NgxEmailStudio', () => {
     expect(component.lastMjml).not.toContain('Section container');
   });
 
+
+  it('should preserve nested section children if a document provides them programmatically', () => {
+    const nestedSection = (component as any).createSectionWithChildren([
+      { id: 'text_nested', type: 'text', attrs: { content: '<p>Nested content</p>' } },
+    ]);
+    const mjml = (component as any).blockToMjml(nestedSection) as string;
+
+    expect(mjml).toContain('Nested content');
+    expect(mjml).not.toContain('Section container');
+  });
+
   it('should keep duplicate and delete disabled in readonly mode', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const localComponent = localFixture.componentInstance;
