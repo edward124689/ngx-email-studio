@@ -2,12 +2,14 @@ import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transfer
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 
 export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'divider' | 'spacer';
 export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';
+export type CanvasMode = 'edit' | 'preview';
 
 export interface EmailStudioConfig {
   useTinyMce?: boolean;
@@ -178,6 +180,10 @@ function resolveTinyMceScriptSrc(): string {
 
           <div class="nes-device" [style.width.px]="previewWidth">
             <div class="nes-size-bar">
+              <div class="nes-mode-toggle" role="group" aria-label="Canvas mode">
+                <button type="button" [class.is-active]="canvasMode === 'edit'" (click)="setCanvasMode('edit')">Edit</button>
+                <button type="button" [class.is-active]="canvasMode === 'preview'" (click)="setCanvasMode('preview')">Preview</button>
+              </div>
               <span>Size</span>
               <button
                 type="button"
@@ -187,45 +193,57 @@ function resolveTinyMceScriptSrc(): string {
               >{{ option }}</button>
             </div>
             <div class="nes-mail-meta"><span>From: {{ effectiveConfig.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
-            <div class="nes-canvas-shell" [style.background]="bodyBackgroundColor">
-            <div
-              cdkDropList
-              #canvasList="cdkDropList"
-              [id]="rootDropListId"
-              [cdkDropListData]="emailDocument.body"
-              [cdkDropListConnectedTo]="connectedDropListIds"
-              [cdkDropListAutoScrollStep]="18"
-              (cdkDropListDropped)="drop($event)"
-              class="nes-canvas"
-              [style.width]="emailCanvasWidthCss"
-              [style.max-width]="emailCanvasMaxWidthCss"
-              [style.background]="emailBackgroundColor"
-            >
-              <article
-                role="button"
-                tabindex="0"
-                class="nes-node"
-                [class.is-selected]="node.id === selectedNodeId"
-                [attr.data-node-id]="node.id"
-                *ngFor="let node of emailDocument.body; trackBy: trackNode"
-                cdkDrag
-                [cdkDragData]="node"
-                [cdkDragStartDelay]="0"
-                (click)="selectNode(node.id); $event.stopPropagation()"
-                (keydown.enter)="selectNode(node.id)"
-              >
-                <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId && !readonly">
-                  <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
-                  <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+            <div class="nes-canvas-shell" [class.is-preview]="canvasMode === 'preview'" [style.background]="bodyBackgroundColor">
+              <ng-container *ngIf="canvasMode === 'edit'; else iframePreview">
+                <div
+                  cdkDropList
+                  #canvasList="cdkDropList"
+                  [id]="rootDropListId"
+                  [cdkDropListData]="emailDocument.body"
+                  [cdkDropListConnectedTo]="connectedDropListIds"
+                  [cdkDropListAutoScrollStep]="18"
+                  (cdkDropListDropped)="drop($event)"
+                  class="nes-canvas"
+                  [style.width]="emailCanvasWidthCss"
+                  [style.max-width]="emailCanvasMaxWidthCss"
+                  [style.background]="emailBackgroundColor"
+                >
+                  <article
+                    role="button"
+                    tabindex="0"
+                    class="nes-node"
+                    [class.is-selected]="node.id === selectedNodeId"
+                    [attr.data-node-id]="node.id"
+                    *ngFor="let node of emailDocument.body; trackBy: trackNode"
+                    cdkDrag
+                    [cdkDragData]="node"
+                    [cdkDragStartDelay]="0"
+                    (click)="selectNode(node.id); $event.stopPropagation()"
+                    (keydown.enter)="selectNode(node.id)"
+                  >
+                    <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId && !readonly">
+                      <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
+                      <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
+                    </div>
+                    <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: node, nested: false }"></ng-container>
+                  </article>
+                  <div class="nes-empty" *ngIf="emailDocument.body.length === 0">
+                    <i class="fa fa-magic" aria-hidden="true"></i>
+                    Drag blocks here to start building your email.
+                  </div>
+                  <div class="nes-root-drop-space" aria-hidden="true"></div>
                 </div>
-                <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: node, nested: false }"></ng-container>
-              </article>
-              <div class="nes-empty" *ngIf="emailDocument.body.length === 0">
-                <i class="fa fa-magic" aria-hidden="true"></i>
-                Drag blocks here to start building your email.
-              </div>
-              <div class="nes-root-drop-space" aria-hidden="true"></div>
-            </div>
+              </ng-container>
+              <ng-template #iframePreview>
+                <p class="nes-preview-help">Preview mode renders the exported HTML in an isolated iframe. Switch to Edit to change content.</p>
+                <iframe
+                  class="nes-preview-frame"
+                  title="Email preview"
+                  sandbox=""
+                  [style.width.px]="previewWidth"
+                  [srcdoc]="previewSrcdoc"
+                ></iframe>
+              </ng-template>
             </div>
           </div>
         </section>
@@ -753,12 +771,18 @@ function resolveTinyMceScriptSrc(): string {
     .danger { color: #b42318; }
     .nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: hidden; border: 1px solid #e2e8f0; }
     .nes-size-bar { display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; background: #fff; }
-    .nes-size-bar span { margin-right: auto; color: var(--nes-muted); font-size: 12px; font-weight: 800; }
+    .nes-mode-toggle { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+    .nes-mode-toggle button { border: 0; background: transparent; color: var(--nes-muted); }
+    .nes-mode-toggle button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+    .nes-size-bar span { margin-left: auto; color: var(--nes-muted); font-size: 12px; font-weight: 800; }
     .nes-size-bar button { padding: 5px 9px; border-radius: 8px; font-size: 12px; }
     .nes-size-bar button.is-active { background: #0f172a; color: #fff; border-color: #0f172a; }
     .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
     .nes-canvas-shell { min-height: 520px; padding: 24px 12px; transition: background .15s ease; overflow: hidden; box-sizing: border-box; }
+    .nes-canvas-shell.is-preview { padding: 0; }
     .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; }
+    .nes-preview-help { margin: 0; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 12px; line-height: 1.45; }
+    .nes-preview-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
     .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
     .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
@@ -882,6 +906,7 @@ export class NgxEmailStudio implements OnChanges {
   paletteSearch = '';
   activeLeftTab: 'modules' | 'outline' = 'modules';
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
+  canvasMode: CanvasMode = 'edit';
   exportMenuOpen = false;
   importModalOpen = false;
   importErrorMessage = '';
@@ -896,6 +921,7 @@ export class NgxEmailStudio implements OnChanges {
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
   lastMjml = '';
   lastHtml = '';
+  previewSrcdoc: SafeHtml | string = '';
 
   tinyMceInit = this.createTinyMceInit();
   largeTinyMceInit = this.createTinyMceInit(620);
@@ -904,7 +930,7 @@ export class NgxEmailStudio implements OnChanges {
   readonly outlineRootDropListId = 'nes-outline-root-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
 
-  constructor(private readonly hostRef: ElementRef<HTMLElement>) {}
+  constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
 
   get connectedDropListIds(): string[] {
     return [this.paletteDropListId, this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
@@ -1196,6 +1222,13 @@ export class NgxEmailStudio implements OnChanges {
 
   setPreviewSize(size: EmailPreviewSize): void {
     this.previewSize = size;
+  }
+
+  setCanvasMode(mode: CanvasMode): void {
+    if (mode === 'preview' && !this.lastHtml) {
+      this.refreshOutputs(false);
+    }
+    this.canvasMode = mode;
   }
 
   updateAttr(node: EmailNode, key: string, value: string | number | boolean): void {
@@ -1532,7 +1565,10 @@ export class NgxEmailStudio implements OnChanges {
 
   private refreshOutputs(emit: boolean): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
-    if (this.effectiveConfig.showHtmlPreview !== false) this.lastHtml = this.renderHtml(this.emailDocument);
+    if (this.effectiveConfig.showHtmlPreview !== false) {
+      this.lastHtml = this.renderHtml(this.emailDocument);
+      this.previewSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.lastHtml);
+    }
     if (emit) {
       this.documentChange.emit(this.emailDocument);
       this.mjmlChange.emit(this.lastMjml);

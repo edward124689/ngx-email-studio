@@ -222,6 +222,85 @@ describe('NgxEmailStudio', () => {
     expect(html).toContain('.nes-email-column { display:block !important; width:100% !important; max-width:100% !important; }');
   });
 
+  it('should default canvas mode to edit', () => {
+    expect(component.canvasMode).toBe('edit');
+  });
+
+  it('should toggle between Preview and Edit canvas modes from the header controls', () => {
+    fixture.detectChanges();
+    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+
+    modeButtons[1].click();
+    fixture.detectChanges();
+    expect(component.canvasMode).toBe('preview');
+
+    modeButtons[0].click();
+    fixture.detectChanges();
+    expect(component.canvasMode).toBe('edit');
+  });
+
+  it('should render the editable canvas only in edit mode', () => {
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-preview-frame')).toBeFalsy();
+  });
+
+  it('should render an isolated iframe preview instead of the editable canvas in preview mode', () => {
+    fixture.detectChanges();
+    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    modeButtons[1].click();
+    fixture.detectChanges();
+
+    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    expect(iframe).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
+    expect(iframe.getAttribute('title')).toBe('Email preview');
+    expect(iframe.hasAttribute('sandbox')).toBe(true);
+    expect(iframe.getAttribute('sandbox')).not.toContain('allow-scripts');
+    expect(iframe.getAttribute('sandbox')).not.toContain('allow-same-origin');
+  });
+
+  it('should bind exported HTML with the real 480px media query into the preview iframe srcdoc', () => {
+    fixture.detectChanges();
+    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    modeButtons[1].click();
+    fixture.detectChanges();
+
+    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    const srcdoc = iframe.getAttribute('srcdoc') || '';
+
+    expect(srcdoc).toContain(component.lastHtml);
+    expect(srcdoc).toContain('@media only screen and (max-width:480px)');
+  });
+
+  it('should use the shared 400px preview size for the preview iframe width', () => {
+    fixture.detectChanges();
+    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    modeButtons[1].click();
+    fixture.detectChanges();
+    const sizeButtons = fixture.nativeElement.querySelectorAll('.nes-size-bar > button') as NodeListOf<HTMLButtonElement>;
+    Array.from(sizeButtons).find((button) => button.textContent?.trim() === '400')?.click();
+    fixture.detectChanges();
+
+    const iframe = fixture.nativeElement.querySelector('.nes-preview-frame') as HTMLIFrameElement;
+    expect(component.previewWidth).toBe(400);
+    expect(iframe).toBeTruthy();
+    expect(iframe.style.width).toBe('400px');
+  });
+
+  it('should show the preview mode helper text only in Preview mode', () => {
+    const helperText = 'Preview mode renders the exported HTML in an isolated iframe. Switch to Edit to change content.';
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain(helperText);
+
+    const modeButtons = fixture.nativeElement.querySelectorAll('.nes-mode-toggle button') as NodeListOf<HTMLButtonElement>;
+    modeButtons[1].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(helperText);
+  });
+
   it('should support section width/max-width units and all-or-side padding controls', () => {
     const section = component.emailDocument.body.find((node) => node.type === 'section')!;
     component.updateAttr(section, 'width', 100);
