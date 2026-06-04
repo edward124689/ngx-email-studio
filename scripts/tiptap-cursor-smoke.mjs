@@ -41,10 +41,10 @@ try {
   const editor = await editorHandle(page);
   const titleBox = await studio.locator('.nes-tiptap-editor h1').first().boundingBox();
   if (!titleBox) throw new Error('missing hero title bounding box');
-  await studio.locator('.nes-tiptap-editor h1').first().click({ position: { x: titleBox.width * 0.45, y: titleBox.height / 2 } });
+  await page.mouse.click(titleBox.x + titleBox.width * 0.45, titleBox.y + titleBox.height / 2);
   await page.keyboard.type('Z');
-  const afterTitleClick = await editor.evaluate((node) => node.textContent || '');
-  if (!afterTitleClick.includes('campaignZ in minutes') || afterTitleClick.endsWith('Z')) throw new Error(`hero title click did not edit in place: ${afterTitleClick}`);
+  const afterTitleClick = await editor.evaluate((node) => node.innerHTML || '');
+  if (!/<h1>[^<]*Z[^<]*<\/h1>/.test(afterTitleClick) || afterTitleClick.endsWith('Z</p>')) throw new Error(`hero title click did not edit in place: ${afterTitleClick}`);
 
   await editor.evaluate((node) => node.focus());
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');

@@ -939,7 +939,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
     .nes-tiptap-editor { min-height: 88px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; cursor: text; }
     .nes-tiptap-editor-large { min-height: 620px; }
-    .nes-tiptap-editor .ProseMirror { min-height: 0; outline: none; }
+    .nes-tiptap-editor .ProseMirror { min-height: 0; outline: none; white-space: pre-wrap; }
     .nes-tiptap-editor-large .ProseMirror { min-height: 0; }
     .nes-tiptap-editor .ProseMirror > :first-child { margin-top: 0; }
     .nes-tiptap-editor .ProseMirror > :last-child { margin-bottom: 0; }
@@ -1913,10 +1913,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
+    let pendingTextClick: { x: number; y: number; pos: number } | undefined;
     const guardPointer = (event: MouseEvent) => {
       if (event.button !== 0) return;
       const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
       if (!proseMirror) return;
+      pendingTextClick = this.tiptapTextSelectionFromPoint(proseMirror, editor, event.clientX, event.clientY);
       const contentBottom = this.tiptapContentBottom(proseMirror);
       const isBlankPanelClick = event.target === element || event.clientY > contentBottom + 4;
       const isWhitespaceInsideEditorClick =
@@ -1924,13 +1926,30 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         !this.isTiptapStructuredEditorTarget(event.target) &&
         !this.isPointInTiptapTextRect(proseMirror, event.clientX, event.clientY);
       if (isBlankPanelClick || isWhitespaceInsideEditorClick) {
+        pendingTextClick = undefined;
         event.preventDefault();
         event.stopPropagation();
         editor.view.focus();
       }
     };
+    const restoreShadowTextClick = (event: MouseEvent) => {
+      if (!pendingTextClick) return;
+      const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
+      if (movement <= 4) {
+        const pos = pendingTextClick.pos;
+        const restore = () => {
+          editor.view.focus();
+          editor.commands.setTextSelection(pos);
+        };
+        restore();
+        globalThis.requestAnimationFrame?.(restore);
+        setTimeout(restore, 0);
+      }
+      pendingTextClick = undefined;
+    };
     element.addEventListener('pointerdown', guardPointer, true);
     element.addEventListener('mousedown', guardPointer, true);
+    element.addEventListener('click', restoreShadowTextClick, false);
   }
 
   private isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {
@@ -1956,6 +1975,44 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       return false;
     } finally {
       range.detach();
+    }
+  }
+
+  private tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number } | undefined {
+    const documentRef = proseMirror.ownerDocument;
+    const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
+    });
+    const range = documentRef.createRange();
+    try {
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const text = node.textContent || '';
+        let lastOffsetOnLine: number | undefined;
+        for (let index = 0; index < text.length; index += 1) {
+          range.setStart(node, index);
+          range.setEnd(node, index + 1);
+          const rects = Array.from(range.getClientRects());
+          for (const rect of rects) {
+            if (clientY < rect.top - 3 || clientY > rect.bottom + 3) continue;
+            lastOffsetOnLine = index + 1;
+            if (clientX <= rect.left + rect.width / 2) return this.tiptapSelectionAtDomOffset(editor, node, index, clientX, clientY);
+            if (clientX <= rect.right + 3) return this.tiptapSelectionAtDomOffset(editor, node, index + 1, clientX, clientY);
+          }
+        }
+        if (lastOffsetOnLine !== undefined) return this.tiptapSelectionAtDomOffset(editor, node, lastOffsetOnLine, clientX, clientY);
+      }
+      return undefined;
+    } finally {
+      range.detach();
+    }
+  }
+
+  private tiptapSelectionAtDomOffset(editor: TiptapEditor, node: Node, offset: number, x: number, y: number): { x: number; y: number; pos: number } | undefined {
+    try {
+      return { x, y, pos: editor.view.posAtDOM(node, offset) };
+    } catch {
+      return undefined;
     }
   }
 
