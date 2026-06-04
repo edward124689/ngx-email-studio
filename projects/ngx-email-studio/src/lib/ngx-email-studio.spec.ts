@@ -126,7 +126,7 @@ describe('NgxEmailStudio', () => {
     expect(localFixture.componentInstance.effectiveConfig.showHtmlPreview).toBe(true);
   });
 
-  it('should create distinct click-to-add nodes for hero and footer palette presets', () => {
+  it('should create distinct palette preset nodes for hero and footer modules', () => {
     const hero = component.palette.find((item) => item.preset === 'hero');
     const footer = component.palette.find((item) => item.preset === 'footer');
 
@@ -142,6 +142,32 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body[0].attrs['content']).toContain('今週精選內容');
     expect(component.emailDocument.body[1].type).toBe('text');
     expect(component.emailDocument.body[1].attrs['content']).toContain('取消訂閱');
+  });
+
+  it('should keep Content modules as drag-only two-column cards with hover descriptions', () => {
+    fixture.detectChanges();
+    const before = component.emailDocument.body.length;
+    const cards = fixture.nativeElement.querySelectorAll('.nes-block') as NodeListOf<HTMLElement>;
+
+    expect(cards.length).toBeGreaterThan(1);
+    expect(fixture.nativeElement.querySelector('.nes-block-description')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Drag modules into the canvas or into a column drop zone');
+
+    cards[0].click();
+    fixture.detectChanges();
+
+    expect(component.emailDocument.body.length).toBe(before);
+  });
+
+  it('should expose canvas column drop zones instead of inspector add-content buttons', () => {
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Add content inside this column');
+    expect(fixture.nativeElement.querySelector('.nes-add-grid')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-add-column-block')).toBeFalsy();
+    expect(fixture.nativeElement.querySelectorAll('.nes-column-drop-zone').length).toBeGreaterThan(0);
+    expect(fixture.nativeElement.textContent).toContain('Drag another module into this column');
+    expect(fixture.nativeElement.textContent).not.toContain('Add text');
   });
 
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {

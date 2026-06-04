@@ -98,7 +98,7 @@ function resolveTinyMceScriptSrc(): string {
           <ng-container *ngIf="activeLeftTab === 'modules'; else outlinePanel">
             <div class="nes-panel-head">
               <h3>Content modules</h3>
-              <p>Drag into the canvas or click to add</p>
+              <p>Drag modules into the canvas or into a column drop zone</p>
             </div>
             <label class="nes-search">
               <i class="fa fa-search" aria-hidden="true"></i>
@@ -111,11 +111,11 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListConnectedTo]="connectedDropListIds"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" (click)="addBlock(item)">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [attr.title]="item.description">
                 <span class="nes-block-icon"><i class="fa" [class]="'fa ' + item.icon" aria-hidden="true"></i></span>
-                <span>
+                <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
-                  <small>{{ item.description }}</small>
+                  <small class="nes-block-description">{{ item.description }}</small>
                 </span>
               </article>
             </div>
@@ -147,7 +147,6 @@ function resolveTinyMceScriptSrc(): string {
               <p>{{ previewWidth }}px preview · {{ emailDocument.body.length }} blocks</p>
             </div>
             <div class="nes-stage-actions">
-              <button type="button" (click)="addBlockByType('text')"><i class="fa fa-font" aria-hidden="true"></i> Add text</button>
               <button type="button" class="danger" (click)="clearDocument()"><i class="fa fa-trash" aria-hidden="true"></i> Clear</button>
             </div>
           </div>
@@ -223,15 +222,7 @@ function resolveTinyMceScriptSrc(): string {
                 <input type="number" min="1" max="4" [ngModel]="node.children?.length || 1" (ngModelChange)="setRowColumns(node, +$event)" />
               </label>
 
-              <ng-container *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'">
-                <p class="nes-muted">Add content inside this {{ node.type }}:</p>
-                <div class="nes-add-grid">
-                  <button type="button" (click)="addChildBlock(node, 'text')"><i class="fa fa-font"></i> Text</button>
-                  <button type="button" (click)="addChildBlock(node, 'image')"><i class="fa fa-picture-o"></i> Image</button>
-                  <button type="button" (click)="addChildBlock(node, 'button')"><i class="fa fa-hand-pointer-o"></i> Button</button>
-                  <button type="button" (click)="addChildBlock(node, 'divider')"><i class="fa fa-minus"></i> Divider</button>
-                </div>
-              </ng-container>
+              <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules into the canvas drop zones to add nested content.</p>
 
               <label *ngIf="node.type === 'text'">
                 Rich text
@@ -419,10 +410,10 @@ function resolveTinyMceScriptSrc(): string {
             >
               <ng-container [ngTemplateOutlet]="nodePreview" [ngTemplateOutletContext]="{ node: child, nested: true }"></ng-container>
             </article>
-            <div class="nes-drop-hint" *ngIf="childrenOf(column).length === 0">Drop blocks here</div>
-            <button type="button" class="nes-add-column-block" (click)="addChildBlock(column, 'text'); $event.stopPropagation()">
-              <i class="fa fa-plus"></i> Add text
-            </button>
+            <div class="nes-column-drop-zone" [class.is-empty]="childrenOf(column).length === 0">
+              <i class="fa fa-level-down" aria-hidden="true"></i>
+              <span>{{ childrenOf(column).length ? 'Drag another module into this column' : 'Drop Content modules here' }}</span>
+            </div>
           </div>
         </section>
         <div *ngSwitchCase="'column'" class="nes-render-column-alone">Column</div>
@@ -501,12 +492,16 @@ function resolveTinyMceScriptSrc(): string {
     .nes-search { position: relative; display: block; margin: 16px 0; }
     .nes-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
     .nes-search input { padding-left: 34px; background: #f8fafc; }
-    .nes-block-list { display: grid; gap: 10px; max-height: 430px; overflow: auto; padding-right: 2px; }
-    .nes-block { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; }
-    .nes-block:hover { border-color: #bfdbfe; box-shadow: 0 8px 20px rgba(37, 99, 235, .09); }
-    .nes-block-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
+    .nes-block-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 430px; overflow: auto; padding-right: 2px; }
+    .nes-block { position: relative; display: grid; grid-template-rows: auto minmax(30px, auto); place-items: center; gap: 8px; min-height: 92px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 8px; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: grab; text-align: center; }
+    .nes-block:hover { z-index: 2; border-color: #bfdbfe; background: #fff; box-shadow: 0 14px 30px rgba(37, 99, 235, .14); transform: translateY(-1px); }
+    .nes-block:active { cursor: grabbing; }
+    .nes-block-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
+    .nes-block-copy { display: block; min-width: 0; }
     .nes-block strong, .nes-block small { display: block; }
-    .nes-block small { color: var(--nes-muted); margin-top: 2px; font-size: 11px; line-height: 1.3; }
+    .nes-block strong { font-size: 12px; line-height: 1.2; text-wrap: balance; }
+    .nes-block-description { position: absolute; left: 8px; right: 8px; bottom: 8px; opacity: 0; pointer-events: none; transform: translateY(4px); padding: 6px 7px; border: 1px solid #dbeafe; border-radius: 10px; background: rgba(255,255,255,.97); color: #475569; box-shadow: 0 10px 24px rgba(15, 23, 42, .12); font-size: 10px; line-height: 1.25; transition: .15s ease; }
+    .nes-block:hover .nes-block-description { opacity: 1; transform: translateY(0); }
     .nes-left-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 18px; border: 1px solid #e2e8f0; border-radius: 14px; background: linear-gradient(180deg, #f8fafc, #eef2f7); box-shadow: inset 0 1px 0 rgba(255,255,255,.75); }
     .nes-left-tabs button { min-width: 0; border: 0; border-radius: 10px; background: transparent; color: var(--nes-muted); padding: 9px 8px; font-size: 12px; font-weight: 900; letter-spacing: -.01em; }
     .nes-left-tabs button.is-active { background: #fff; color: var(--nes-ink); box-shadow: 0 8px 18px rgba(15, 23, 42, .08), inset 0 0 0 1px rgba(226, 232, 240, .8); }
@@ -552,8 +547,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-column-label { font-size: 11px; color: var(--nes-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
     .nes-render-column-alone, .nes-render-section { padding: 24px; border: 1px dashed #cbd5e1; color: var(--nes-muted); }
     .nes-render-section { background: #fff; }
-    .nes-drop-hint { display: grid; place-items: center; min-height: 64px; margin: 8px 0; border: 1px dashed #cbd5e1; border-radius: 10px; color: #94a3b8; font-size: 12px; }
-    .nes-add-column-block { width: 100%; padding: 7px 9px; color: var(--nes-muted); border-style: dashed; }
+    .nes-drop-hint, .nes-column-drop-zone { display: grid; place-items: center; min-height: 58px; margin: 8px 0 0; border: 1px dashed #bfdbfe; border-radius: 12px; color: #64748b; background: linear-gradient(135deg, #f8fafc, #eff6ff); font-size: 12px; font-weight: 800; }
+    .nes-column-drop-zone { grid-auto-flow: column; justify-content: center; gap: 8px; transition: .15s ease; }
+    .nes-column-drop-zone.is-empty { min-height: 92px; border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #eff6ff); color: #15803d; }
+    .nes-render-column:hover .nes-column-drop-zone { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .10); }
     .nes-render-text { padding: 28px 32px; line-height: 1.6; color: #172033; }
     .nes-render-text :first-child { margin-top: 0; }
     .nes-render-text :last-child { margin-bottom: 0; }
@@ -569,8 +566,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tabs button { border: 0; background: transparent; padding: 8px; font-size: 13px; color: var(--nes-muted); }
     .nes-tabs button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
     .nes-tab-panel { margin-top: 14px; }
-    .nes-inline-tools, .nes-add-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
-    .nes-add-grid button { padding: 8px; }
+    .nes-inline-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
     label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
     input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
     textarea { min-height: 120px; }
