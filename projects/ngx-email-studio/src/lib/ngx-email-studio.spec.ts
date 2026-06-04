@@ -126,6 +126,51 @@ describe('NgxEmailStudio', () => {
     expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed">Right</mj-button>');
   });
 
+  it('should compile, render, and import left/center/right content alignment', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [
+        {
+          id: 'section_1',
+          type: 'section',
+          attrs: { backgroundColor: '#ffffff' },
+          children: [
+            { id: 'text_1', type: 'text', attrs: { content: '<p>Centered copy</p>', align: 'center' } },
+            { id: 'image_1', type: 'image', attrs: { src: 'https://example.com/hero.jpg', alt: 'Hero', align: 'right' } },
+            { id: 'button_1', type: 'button', attrs: { label: 'CTA', href: '#', backgroundColor: '#7c3aed', align: 'left' } },
+          ],
+        },
+      ],
+    };
+
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text align="right"><p>Right text</p></mj-text><mj-image align="center" src="https://example.com/a.jpg" alt="A" /><mj-button align="left" href="#">Go</mj-button></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+
+    expect(mjml).toContain('<mj-text align="center"><p>Centered copy</p></mj-text>');
+    expect(mjml).toContain('<mj-image src="https://example.com/hero.jpg" alt="Hero" align="right" />');
+    expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed" align="left">CTA</mj-button>');
+    expect(html).toContain('text-align:center;');
+    expect(html).toContain('text-align:right;');
+    expect(html).toContain('text-align:left;');
+    const importedColumn = imported.body[0].children?.[0];
+    expect(importedColumn?.type).toBe('column');
+    expect(importedColumn?.children?.[0].attrs['align']).toBe('right');
+    expect(importedColumn?.children?.[1].attrs['align']).toBe('center');
+    expect(importedColumn?.children?.[2].attrs['align']).toBe('left');
+  });
+
+  it('should expose content alignment controls and update alignable content modules', () => {
+    const textNode = component.emailDocument.body[0].children?.[0];
+    expect(textNode?.type).toBe('text');
+    expect(component.isAlignableContent(textNode!)).toBe(true);
+    expect(component.contentAlign(textNode!)).toBe('left');
+    component.updateAttr(textNode!, 'align', 'center');
+    expect(textNode!.attrs['align']).toBe('center');
+    expect(component.contentAlign(textNode!)).toBe('center');
+    expect(component.isAlignableContent({ id: 'divider_1', type: 'divider', attrs: {} })).toBe(false);
+  });
+
   it('should import MJML sections with multiple columns as row nodes', () => {
     const mjml = `<mjml><mj-body><mj-section background-color="#f8fafc"><mj-column width="40%"><mj-text><p>Left</p></mj-text></mj-column><mj-column width="60%"><mj-image src="https://example.com/image.jpg" alt="Hero" /></mj-column></mj-section></mj-body></mjml>`;
 

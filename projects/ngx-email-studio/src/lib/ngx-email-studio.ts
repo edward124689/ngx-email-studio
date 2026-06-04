@@ -440,6 +440,14 @@ function resolveTinyMceScriptSrc(): string {
                   </div>
                 </div>
               </ng-container>
+              <div class="nes-field-block" *ngIf="isAlignableContent(node)">
+                <div class="nes-control-heading">Content alignment</div>
+                <div class="nes-align-group" role="group" aria-label="Content alignment">
+                  <button type="button" [class.is-active]="contentAlign(node) === 'left'" (click)="updateAttr(node, 'align', 'left')">Left</button>
+                  <button type="button" [class.is-active]="contentAlign(node) === 'center'" (click)="updateAttr(node, 'align', 'center')">Center</button>
+                  <button type="button" [class.is-active]="contentAlign(node) === 'right'" (click)="updateAttr(node, 'align', 'right')">Right</button>
+                </div>
+              </div>
               <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
                 Background color
                 <span class="nes-color-control">
@@ -681,9 +689,13 @@ function resolveTinyMceScriptSrc(): string {
           <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
-        <div *ngSwitchCase="'text'" class="nes-render-text" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
-        <img *ngSwitchCase="'image'" class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
-        <a *ngSwitchCase="'button'" class="nes-render-button">{{ node.attrs['label'] }}</a>
+        <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
+        <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)">
+          <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
+        </div>
+        <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)">
+          <a class="nes-render-button">{{ node.attrs['label'] }}</a>
+        </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
       </ng-container>
@@ -840,8 +852,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-render-text h1 { font-size: 32px; line-height: 1.12; margin: 8px 0 14px; letter-spacing: -.03em; }
     .nes-render-text h2 { font-size: 22px; margin: 0 0 10px; }
     .nes-render-text .kicker { color: var(--nes-accent); font-size: 13px; font-weight: 900; letter-spacing: .04em; }
-    .nes-render-image { display: block; width: 100%; max-height: 260px; object-fit: cover; background: #ecfeff; }
-    .nes-render-button { display: inline-block; margin: 22px 32px 30px; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
+    .nes-render-image-wrap { padding: 0; }
+    .nes-render-image { display: inline-block; width: 100%; max-width: 100%; max-height: 260px; object-fit: cover; background: #ecfeff; vertical-align: top; }
+    .nes-render-button-wrap { padding: 22px 32px 30px; }
+    .nes-render-button { display: inline-block; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
     .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
     .nes-empty { min-height: 380px; display: grid; place-items: center; color: var(--nes-muted); border: 2px dashed #d0d5dd; text-align: center; }
     .nes-root-drop-space { min-height: 24px; }
@@ -859,6 +873,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-unit-field { grid-template-columns: minmax(0, 1fr) 76px; }
     .nes-control-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .nes-control-heading { margin: 14px 0 8px; color: #475467; font-size: 13px; font-weight: 800; }
+    .nes-field-block { margin: 14px 0; }
+    .nes-align-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid #dbe3ef; border-radius: 12px; background: #f8fafc; }
+    .nes-align-group button { border: 0; background: transparent; padding: 8px; border-radius: 9px; color: #64748b; font-size: 12px; font-weight: 800; }
+    .nes-align-group button.is-active { background: #fff; color: var(--nes-accent); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
     .nes-padding-control { margin-top: 6px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
     .nes-padding-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .nes-padding-grid label { margin: 0; gap: 5px; font-size: 12px; }
@@ -1343,6 +1361,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     const bottom = this.paddingValue(section, 'paddingBottom');
     const left = this.paddingValue(section, 'paddingLeft');
     return `${top}${unit} ${right}${unit} ${bottom}${unit} ${left}${unit}`;
+  }
+
+  isAlignableContent(node: EmailNode): boolean {
+    return node.type === 'text' || node.type === 'image' || node.type === 'button';
+  }
+
+  contentAlign(node: EmailNode): 'left' | 'center' | 'right' {
+    const align = String(node.attrs['align'] || 'left').toLowerCase();
+    return align === 'center' || align === 'right' ? align : 'left';
   }
 
   setRowColumns(row: EmailNode, count: number): void {
@@ -1872,11 +1899,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       case 'section':
         return (node.children || []).map((child) => this.blockToMjml(child)).join('') || '<mj-text></mj-text>';
       case 'text':
-        return `<mj-text${this.backgroundAttr(node)}>${this.sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
+        return `<mj-text${this.backgroundAttr(node)}${this.alignAttr(node)}>${this.sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
       case 'image':
-        return `<mj-image src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" />`;
+        return `<mj-image src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}"${this.alignAttr(node)} />`;
       case 'button':
-        return `<mj-button href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+        return `<mj-button href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}"${this.alignAttr(node)}>${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
       case 'divider':
         return `<mj-divider border-color="${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
       case 'spacer':
@@ -1952,14 +1979,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   private parseMjmlBlock(element: Element, unsupported: string[]): EmailNode | undefined {
     switch (element.tagName.toLowerCase()) {
       case 'mj-text':
-        return this.createNode('text', { content: this.sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>') });
+        return this.createNode('text', { content: this.sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: this.safeAlign(element.getAttribute('align')) });
       case 'mj-image':
-        return this.createNode('image', { src: element.getAttribute('src') || '', alt: element.getAttribute('alt') || '' });
+        return this.createNode('image', { src: element.getAttribute('src') || '', alt: element.getAttribute('alt') || '', align: this.safeAlign(element.getAttribute('align')) });
       case 'mj-button':
         return this.createNode('button', {
           label: element.textContent || 'Button',
           href: element.getAttribute('href') || '#',
           backgroundColor: element.getAttribute('background-color') || '#7c3aed',
+          align: this.safeAlign(element.getAttribute('align')),
         });
       case 'mj-divider':
         return this.createNode('divider', { borderColor: element.getAttribute('border-color') || '#d0d5dd' });
@@ -2081,11 +2109,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       case 'section':
         return [this.indent('<table role="presentation" width="100%" cellspacing="0" cellpadding="0">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
       case 'text':
-        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;">${this.sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
+        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;text-align:${this.escapeAttr(this.contentAlign(node))};">${this.sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
       case 'image':
-        return this.indent(`<img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:block;width:100%;height:auto;border:0;" />`, depth);
+        return this.indent(`<div style="text-align:${this.escapeAttr(this.contentAlign(node))};"><img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:inline-block;max-width:100%;width:100%;height:auto;border:0;" /></div>`, depth);
       case 'button':
-        return this.indent(`<div style="padding:24px;text-align:center;"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+        return this.indent(`<div style="padding:24px;text-align:${this.escapeAttr(this.contentAlign(node))};"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
       case 'divider':
         return this.indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
       case 'spacer': {
@@ -2139,6 +2167,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   private backgroundAttr(node: EmailNode): string {
     return node.attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(node.attrs['backgroundColor']))}"` : '';
+  }
+
+  private alignAttr(node: EmailNode): string {
+    return this.isAlignableContent(node) && node.attrs['align'] ? ` align="${this.escapeAttr(this.contentAlign(node))}"` : '';
+  }
+
+  private safeAlign(value: string | null): 'left' | 'center' | 'right' {
+    const align = String(value || 'left').toLowerCase();
+    return align === 'center' || align === 'right' ? align : 'left';
   }
 
   private sectionMjmlAttrs(section: EmailNode): string {
