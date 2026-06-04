@@ -205,7 +205,21 @@ describe('NgxEmailStudio', () => {
     expect(component.columnWidthCss(column)).toBe('45%');
     expect(component.columnMaxWidthCss(column)).toBe('600px');
     expect(component.lastMjml).toContain('<mj-column width="45%"');
+    expect(component.lastHtml).toContain('class="nes-email-column" width="45%"');
     expect(component.lastHtml).toContain('width:45%;max-width:600px;');
+  });
+
+  it('should stack columns vertically at 480px and below in preview and exported HTML', () => {
+    fixture.detectChanges();
+    (component as any).refreshOutputs(false);
+    const styleText = fixture.nativeElement.textContent + Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const html = component.lastHtml;
+
+    expect(styleText).toContain('@media (max-width: 480px)');
+    expect(styleText).toContain('flex-direction: column');
+    expect(styleText).toContain('max-width: 100% !important');
+    expect(html).toContain('@media only screen and (max-width:480px)');
+    expect(html).toContain('.nes-email-column { display:block !important; width:100% !important; max-width:100% !important; }');
   });
 
   it('should support section width/max-width units and all-or-side padding controls', () => {

@@ -584,7 +584,8 @@ function resolveTinyMceScriptSrc(): string {
             [cdkDropListConnectedTo]="connectedDropListIds"
             [cdkDropListAutoScrollStep]="18"
             (cdkDropListDropped)="drop($event)"
-            [style.width]="column.attrs['width'] || autoColumnWidth(node)"
+            [style.width]="columnWidthCss(column, dimensionValueFromCss(autoColumnWidth(node)), dimensionUnitFromCss(autoColumnWidth(node)))"
+            [style.max-width]="columnMaxWidthCss(column)"
             [attr.data-node-id]="column.id"
             [class.is-selected]="column.id === selectedNodeId"
             [class.is-empty]="childrenOf(column).length === 0"
@@ -848,7 +849,8 @@ function resolveTinyMceScriptSrc(): string {
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
-    @media (max-width: 520px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; } .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })
 export class NgxEmailStudio implements OnChanges {
@@ -1244,6 +1246,15 @@ export class NgxEmailStudio implements OnChanges {
 
   columnMaxWidthCss(column: EmailNode): string {
     return this.dimensionCss(column.attrs, 'maxWidth', 600, 'px');
+  }
+
+  dimensionValueFromCss(value: string): number {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 100;
+  }
+
+  dimensionUnitFromCss(value: string): EmailSizeUnit {
+    return value.trim().endsWith('%') ? '%' : 'px';
   }
 
   paddingUnit(section: EmailNode): EmailSizeUnit {
@@ -1819,6 +1830,11 @@ export class NgxEmailStudio implements OnChanges {
       '    <meta charset="utf-8">',
       '    <meta name="viewport" content="width=device-width, initial-scale=1">',
       '    <title>Email Export</title>',
+      '    <style>',
+      '      @media only screen and (max-width:480px) {',
+      '        .nes-email-column { display:block !important; width:100% !important; max-width:100% !important; }',
+      '      }',
+      '    </style>',
       '  </head>',
       `  <body style="margin:0;background:${bodyBackground};">`,
       `    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;">`,
@@ -1883,7 +1899,7 @@ export class NgxEmailStudio implements OnChanges {
     const maxWidth = this.columnMaxWidthCss(column);
     const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
     return [
-      this.indent(`<td width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
+      this.indent(`<td class="nes-email-column" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};">`, depth),
       content,
       this.indent('</td>', depth),
     ].join('\n');
