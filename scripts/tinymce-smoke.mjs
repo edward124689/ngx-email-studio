@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const port = Number(process.env.NES_SMOKE_PORT || 4311);
-const url = `http://127.0.0.1:${port}/`;
+const url = `http://127.0.0.1:${port}/?editor=tinymce`;
 const timeoutMs = 90_000;
 
 function delay(ms) {

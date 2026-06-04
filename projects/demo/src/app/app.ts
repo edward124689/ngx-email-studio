@@ -15,7 +15,13 @@ export class App {
   studioConfig: EmailStudioConfig = {
     title: 'Email Studio',
     fromLabel: 'hello@brand.test',
+    richTextEditor: this.resolveRichTextEditor(),
   };
+
+  private resolveRichTextEditor(): EmailStudioConfig['richTextEditor'] {
+    const editor = new URL(globalThis.location?.href || 'http://localhost/').searchParams.get('editor');
+    return editor === 'tinymce' || editor === 'plain' || editor === 'tiptap' ? editor : 'tiptap';
+  }
 
   initialDocument: EmailDocument = {
     version: '0.0.1',

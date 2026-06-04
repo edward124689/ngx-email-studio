@@ -10,6 +10,7 @@
     "watch": "ng build ngx-email-studio --watch --configuration development",
     "test": "ng test",
     "smoke:tinymce": "node scripts/tinymce-smoke.mjs",
+    "smoke:tiptap": "node scripts/tiptap-smoke.mjs",
     "pack:lib": "npm pack ./dist/ngx-email-studio",
     "build:pages": "ng build ngx-email-studio && ng build demo --base-href /ngx-email-studio/",
     "deploy:pages": "bash scripts/deploy-demo-pages.sh"
@@ -25,6 +26,10 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@tinymce/tinymce-angular": "^9.1.1",
+    "@tiptap/core": "^3.25.0",
+    "@tiptap/extension-link": "^3.25.0",
+    "@tiptap/extension-text-align": "^3.25.0",
+    "@tiptap/starter-kit": "^3.25.0",
     "rxjs": "~7.8.0",
     "tinymce": "^8.5.1",
     "tslib": "^2.3.0"

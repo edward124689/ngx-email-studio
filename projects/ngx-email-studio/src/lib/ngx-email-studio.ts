@@ -1,17 +1,25 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
+import { Editor as TiptapEditor } from '@tiptap/core';
+import Link from '@tiptap/extension-link';
+import TextAlign from '@tiptap/extension-text-align';
+import StarterKit from '@tiptap/starter-kit';
 
 export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'divider' | 'spacer';
 export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';
 export type CanvasMode = 'edit' | 'preview';
+export type RichTextEditorMode = 'tiptap' | 'tinymce' | 'plain';
 
 export interface EmailStudioConfig {
+  /** Rich text editor provider. Defaults to Tiptap; set to 'tinymce' to use TinyMCE or 'plain' for textarea-only editing. */
+  richTextEditor?: RichTextEditorMode;
+  /** @deprecated Use richTextEditor: 'tinymce' or 'plain'. true maps to TinyMCE, false maps to plain textarea. */
   useTinyMce?: boolean;
   showHtmlPreview?: boolean;
   /** Optional path where TinyMCE assets are hosted. Defaults to `${document.baseURI}/tinymce`. */
@@ -52,7 +60,7 @@ interface PaletteItem {
 }
 
 const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
-  useTinyMce: true,
+  richTextEditor: 'tiptap',
   showHtmlPreview: true,
 };
 
@@ -339,16 +347,27 @@ function resolveTinyMceScriptSrc(): string {
                     <i class="nes-icon fa fa-expand" aria-hidden="true"></i> Open editor
                   </button>
                 </span>
-                <editor
-                  *ngIf="resolvedUseTinyMce; else plainTextEditor"
-                  [ngModel]="node.attrs['content']"
-                  (ngModelChange)="updateAttr(node, 'content', $event)"
-                  [init]="tinyMceInit"
-                  [licenseKey]="'gpl'"
-                ></editor>
-                <ng-template #plainTextEditor>
-                  <textarea [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
-                </ng-template>
+                <ng-container [ngSwitch]="resolvedRichTextEditor">
+                  <editor
+                    *ngSwitchCase="'tinymce'"
+                    [ngModel]="node.attrs['content']"
+                    (ngModelChange)="updateAttr(node, 'content', $event)"
+                    [init]="tinyMceInit"
+                    [licenseKey]="'gpl'"
+                  ></editor>
+                  <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell" [attr.data-tiptap-host]="node.id">
+                    <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bold')"><strong>B</strong></button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'italic')"><em>I</em></button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'heading')">H2</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bulletList')">• List</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'orderedList')">1. List</button>
+                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')">Link</button>
+                    </div>
+                    <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id"></div>
+                  </div>
+                  <textarea *ngSwitchDefault [ngModel]="node.attrs['content']" (ngModelChange)="updateAttr(node, 'content', $event)"></textarea>
+                </ng-container>
               </label>
 
               <label *ngIf="node.type === 'image'">
@@ -526,16 +545,27 @@ function resolveTinyMceScriptSrc(): string {
             <button type="button" aria-label="Close rich text editor" (click)="closeRichTextModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
           </header>
           <div class="nes-rich-text-modal-body" *ngIf="expandedRichTextNode as richTextNode">
-            <editor
-              *ngIf="resolvedUseTinyMce; else expandedPlainTextEditor"
-              [ngModel]="richTextNode.attrs['content']"
-              (ngModelChange)="updateExpandedRichText($event)"
-              [init]="largeTinyMceInit"
-              [licenseKey]="'gpl'"
-            ></editor>
-            <ng-template #expandedPlainTextEditor>
-              <textarea [ngModel]="richTextNode.attrs['content']" (ngModelChange)="updateExpandedRichText($event)"></textarea>
-            </ng-template>
+            <ng-container [ngSwitch]="resolvedRichTextEditor">
+              <editor
+                *ngSwitchCase="'tinymce'"
+                [ngModel]="richTextNode.attrs['content']"
+                (ngModelChange)="updateExpandedRichText($event)"
+                [init]="largeTinyMceInit"
+                [licenseKey]="'gpl'"
+              ></editor>
+              <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell nes-tiptap-shell-large" [attr.data-tiptap-modal-host]="richTextNode.id">
+                <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bold')"><strong>B</strong></button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'italic')"><em>I</em></button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'heading')">H2</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bulletList')">• List</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'orderedList')">1. List</button>
+                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')">Link</button>
+                </div>
+                <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id"></div>
+              </div>
+              <textarea *ngSwitchDefault [ngModel]="richTextNode.attrs['content']" (ngModelChange)="updateExpandedRichText($event)"></textarea>
+            </ng-container>
           </div>
         </section>
       </div>
@@ -884,6 +914,19 @@ function resolveTinyMceScriptSrc(): string {
     .nes-padding-grid label { margin: 0; gap: 5px; font-size: 12px; }
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
+    .nes-tiptap-shell { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 7px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); }
+    .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
+    .nes-tiptap-toolbar button:hover { background: #eff6ff; }
+    .nes-tiptap-editor { min-height: 150px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; }
+    .nes-tiptap-editor-large { min-height: 620px; }
+    .nes-tiptap-editor .ProseMirror { min-height: inherit; outline: none; }
+    .nes-tiptap-editor .ProseMirror > :first-child { margin-top: 0; }
+    .nes-tiptap-editor .ProseMirror > :last-child { margin-bottom: 0; }
+    .nes-tiptap-editor .ProseMirror h2 { margin: 0 0 10px; font-size: 22px; line-height: 1.2; }
+    .nes-tiptap-editor .ProseMirror p { margin: 0 0 10px; }
+    .nes-tiptap-editor .ProseMirror ul, .nes-tiptap-editor .ProseMirror ol { margin: 0 0 10px 20px; padding: 0; }
+    .nes-tiptap-editor .ProseMirror a { color: var(--nes-accent); text-decoration: underline; }
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
@@ -932,7 +975,7 @@ function resolveTinyMceScriptSrc(): string {
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })
-export class NgxEmailStudio implements OnChanges, AfterViewInit {
+export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() mjml?: string;
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
@@ -969,6 +1012,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
   copyState = '';
+  private tiptapInlineEditor?: TiptapEditor;
+  private tiptapInlineNodeId?: string;
+  private tiptapModalEditor?: TiptapEditor;
+  private tiptapModalNodeId?: string;
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
@@ -1003,6 +1050,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.ensureTinyMceSkinInShadowRoot();
+    this.syncTiptapEditors();
+  }
+
+  ngAfterViewChecked(): void {
+    this.syncTiptapEditors();
+  }
+
+  ngOnDestroy(): void {
+    this.destroyTiptapEditors();
+    if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
   }
 
   get connectedDropListIds(): string[] {
@@ -1057,8 +1114,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
   }
 
+  get resolvedRichTextEditor(): RichTextEditorMode {
+    const config = this.effectiveConfig;
+    if (config.richTextEditor) return config.richTextEditor;
+    if (config.useTinyMce === true) return 'tinymce';
+    if (config.useTinyMce === false) return 'plain';
+    return 'tiptap';
+  }
+
   get resolvedUseTinyMce(): boolean {
-    return this.effectiveConfig.useTinyMce !== false;
+    return this.resolvedRichTextEditor === 'tinymce';
+  }
+
+  get resolvedUseTiptap(): boolean {
+    return this.resolvedRichTextEditor === 'tiptap';
   }
 
   get previewWidth(): number {
@@ -1083,6 +1152,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       this.tinyMceInit = this.createTinyMceInit();
       this.largeTinyMceInit = this.createTinyMceInit(620);
       this.ensureTinyMceSkinInShadowRoot();
+      this.destroyTiptapEditors();
     }
 
     if (changes['document'] && this.document) {
@@ -1488,6 +1558,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   closeRichTextModal(): void {
     this.expandedRichTextNode = undefined;
+    this.destroyTiptapModalEditor();
   }
 
   updateExpandedRichText(value: string): void {
@@ -1495,6 +1566,28 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
     const node = this.expandedRichTextNode;
     if (!node) return;
     this.updateAttr(node, 'content', this.sanitizeRichTextContent(value));
+  }
+
+  runTiptapCommand(scope: 'inline' | 'modal', command: 'bold' | 'italic' | 'heading' | 'bulletList' | 'orderedList' | 'link'): void {
+    if (this.readonly) return;
+    const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (command === 'bold') chain.toggleBold().run();
+    if (command === 'italic') chain.toggleItalic().run();
+    if (command === 'heading') chain.toggleHeading({ level: 2 }).run();
+    if (command === 'bulletList') chain.toggleBulletList().run();
+    if (command === 'orderedList') chain.toggleOrderedList().run();
+    if (command === 'link') {
+      const currentHref = String(editor.getAttributes('link')['href'] || '');
+      const href = globalThis.prompt?.('Link URL', currentHref || 'https://') ?? null;
+      if (href === null) return;
+      if (!href.trim()) {
+        chain.extendMarkRange('link').unsetLink().run();
+      } else {
+        chain.extendMarkRange('link').setLink({ href: href.trim() }).run();
+      }
+    }
   }
 
   async copyOutputToClipboard(): Promise<void> {
@@ -1710,6 +1803,91 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
       maxWidth: 600,
       maxWidthUnit: 'px',
     };
+  }
+
+
+  private syncTiptapEditors(): void {
+    if (!this.resolvedUseTiptap) {
+      this.destroyTiptapEditors();
+      return;
+    }
+    this.syncInlineTiptapEditor();
+    this.syncModalTiptapEditor();
+  }
+
+  private syncInlineTiptapEditor(): void {
+    const node = this.selectedNode;
+    const root = this.componentRoot();
+    const host = node?.type === 'text' ? root.querySelector(`[data-tiptap-editor="${this.escapeCssIdentifier(node.id)}"]`) as HTMLElement | null : null;
+    if (!node || node.type !== 'text' || !host) {
+      this.destroyTiptapInlineEditor();
+      return;
+    }
+    if (!this.tiptapInlineEditor || this.tiptapInlineNodeId !== node.id || !host.contains(this.tiptapInlineEditor.view.dom)) {
+      this.destroyTiptapInlineEditor();
+      this.tiptapInlineNodeId = node.id;
+      this.tiptapInlineEditor = this.createTiptapEditor(host, node, 'inline');
+      return;
+    }
+    this.syncTiptapContent(this.tiptapInlineEditor, node);
+  }
+
+  private syncModalTiptapEditor(): void {
+    const node = this.expandedRichTextNode;
+    const root = this.componentRoot();
+    const host = node?.type === 'text' ? root.querySelector(`[data-tiptap-modal-editor="${this.escapeCssIdentifier(node.id)}"]`) as HTMLElement | null : null;
+    if (!node || node.type !== 'text' || !host) {
+      this.destroyTiptapModalEditor();
+      return;
+    }
+    if (!this.tiptapModalEditor || this.tiptapModalNodeId !== node.id || !host.contains(this.tiptapModalEditor.view.dom)) {
+      this.destroyTiptapModalEditor();
+      this.tiptapModalNodeId = node.id;
+      this.tiptapModalEditor = this.createTiptapEditor(host, node, 'modal');
+      return;
+    }
+    this.syncTiptapContent(this.tiptapModalEditor, node);
+  }
+
+  private createTiptapEditor(element: HTMLElement, node: EmailNode, scope: 'inline' | 'modal'): TiptapEditor {
+    return new TiptapEditor({
+      element,
+      content: this.sanitizeRichTextContent(node.attrs['content']),
+      editable: !this.readonly,
+      extensions: [
+        StarterKit.configure({ heading: { levels: [2] }, link: false }),
+        Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      ],
+      onUpdate: ({ editor }) => {
+        const currentNode = scope === 'modal' ? this.expandedRichTextNode : this.findNode(this.tiptapInlineNodeId);
+        if (!currentNode || currentNode.type !== 'text') return;
+        this.updateAttr(currentNode, 'content', editor.getHTML());
+      },
+    });
+  }
+
+  private syncTiptapContent(editor: TiptapEditor, node: EmailNode): void {
+    const nextContent = this.sanitizeRichTextContent(node.attrs['content']);
+    if (editor.getHTML() !== nextContent) editor.commands.setContent(nextContent, { emitUpdate: false });
+    editor.setEditable(!this.readonly, false);
+  }
+
+  private destroyTiptapEditors(): void {
+    this.destroyTiptapInlineEditor();
+    this.destroyTiptapModalEditor();
+  }
+
+  private destroyTiptapInlineEditor(): void {
+    this.tiptapInlineEditor?.destroy();
+    this.tiptapInlineEditor = undefined;
+    this.tiptapInlineNodeId = undefined;
+  }
+
+  private destroyTiptapModalEditor(): void {
+    this.tiptapModalEditor?.destroy();
+    this.tiptapModalEditor = undefined;
+    this.tiptapModalNodeId = undefined;
   }
 
 
