@@ -1903,7 +1903,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private syncTiptapContent(editor: TiptapEditor, node: EmailNode): void {
     const nextContent = this.sanitizeRichTextContent(node.attrs['content']);
-    if (editor.getHTML() !== nextContent) editor.commands.setContent(nextContent, { emitUpdate: false });
+    const currentContent = this.sanitizeRichTextContent(editor.getHTML());
+    if (currentContent !== nextContent) editor.commands.setContent(nextContent, { emitUpdate: false });
     editor.setEditable(!this.readonly, false);
   }
 

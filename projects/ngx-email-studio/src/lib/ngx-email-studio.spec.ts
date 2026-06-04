@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
 import { EmailDocument, NgxEmailStudio } from './ngx-email-studio';
 
@@ -606,6 +607,20 @@ describe('NgxEmailStudio', () => {
     expect(component.lastMjml).toContain('<table>');
     expect(component.lastHtml).toContain('<table>');
     expect(studioRoot(fixture).querySelector('.nes-tiptap-toolbar')?.textContent).toContain('Table');
+  });
+
+  it('should not reset active Tiptap content during sanitizer-equivalent sync', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    component.runTiptapCommand('inline', 'insertTable');
+    const setContentSpy = vi.spyOn(editor.commands, 'setContent');
+
+    (component as any).syncTiptapContent(editor, textNode);
+
+    expect(setContentSpy).not.toHaveBeenCalled();
   });
 
   it('should tolerate null config bindings', () => {
