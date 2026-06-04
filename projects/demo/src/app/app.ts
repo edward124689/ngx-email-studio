@@ -15,7 +15,6 @@ export class App {
   studioConfig: EmailStudioConfig = {
     title: 'Email Studio',
     fromLabel: 'hello@brand.test',
-    iframeCanvas: true,
   };
 
   initialDocument: EmailDocument = {

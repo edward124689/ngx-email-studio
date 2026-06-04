@@ -250,10 +250,12 @@ describe('NgxEmailStudio', () => {
     expect(component.canvasMode).toBe('edit');
   });
 
-  it('should render the editable canvas only in edit mode', () => {
+  it('should render the iframe editable canvas by default in edit mode', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+    expect(component.effectiveConfig.iframeCanvas).toBe(true);
+    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
     expect(fixture.nativeElement.querySelector('.nes-preview-frame')).toBeFalsy();
   });
 
@@ -324,6 +326,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should track iframe readiness from the frame load event', () => {
+    component.iframeReady = false;
     expect(component.iframeReady).toBe(false);
     component.handlePreviewFrameLoad(new Event('load'));
     expect(component.iframeReady).toBe(true);
@@ -339,9 +342,16 @@ describe('NgxEmailStudio', () => {
     expect(component.currentIframeSrcdoc).not.toBe(first);
   });
 
-  it('should render an internal iframe-edit mode with node hooks while keeping edit mode as Angular canvas', () => {
+  it('should render legacy Angular canvas when iframe canvas is explicitly disabled', () => {
+    fixture.componentRef.setInput('config', { iframeCanvas: false });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeFalsy();
+  });
+
+  it('should render an internal iframe-edit mode with node hooks', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeTruthy();
 
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const localComponent = localFixture.componentInstance;
@@ -441,21 +451,22 @@ describe('NgxEmailStudio', () => {
     expect(component.previewIframeHtml).not.toContain('nes:scroll-to-node');
   });
 
-  it('should keep legacy Angular canvas in edit mode by default and render iframe edit canvas when opted in', () => {
+  it('should use iframe edit canvas by default and allow legacy Angular canvas opt-out', () => {
     fixture.detectChanges();
-    expect(component.effectiveConfig.iframeCanvas).toBeFalsy();
-    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeFalsy();
+    expect(component.effectiveConfig.iframeCanvas).toBe(true);
+    expect(component.currentIframeSrcdoc).toBeTruthy();
+    expect(component.currentIframeSrcdoc).not.toBe('');
+    expect(fixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-editor-frame')).toBeTruthy();
 
     const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentRef.setInput('config', { iframeCanvas: true });
+    localFixture.componentRef.setInput('config', { iframeCanvas: false });
     localFixture.detectChanges();
 
     expect(localFixture.componentInstance.canvasMode).toBe('edit');
-    expect(localFixture.componentInstance.currentIframeSrcdoc).toBeTruthy();
-    expect(localFixture.componentInstance.currentIframeSrcdoc).not.toBe('');
-    expect(localFixture.nativeElement.querySelector('.nes-canvas')).toBeFalsy();
-    expect(localFixture.nativeElement.querySelector('.nes-editor-frame')).toBeTruthy();
+    expect(localFixture.componentInstance.effectiveConfig.iframeCanvas).toBe(false);
+    expect(localFixture.nativeElement.querySelector('.nes-canvas')).toBeTruthy();
+    expect(localFixture.nativeElement.querySelector('.nes-editor-frame')).toBeFalsy();
   });
 
   it('should apply same-parent iframe reorder messages and reject cross-parent reorder messages', () => {
@@ -625,6 +636,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should make drag targets easier to enter without adding visible drop-zone boxes', () => {
+    fixture.componentRef.setInput('config', { iframeCanvas: false });
     fixture.detectChanges();
 
     const hitPads = fixture.nativeElement.querySelectorAll('.nes-drop-hit-pad') as NodeListOf<HTMLElement>;
@@ -677,6 +689,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should show floating tools for nested section content modules', () => {
+    fixture.componentRef.setInput('config', { iframeCanvas: false });
     const section = component.emailDocument.body.find((node) => node.type === 'section')!;
     const child = section.children?.[0]!;
     component.selectNode(child.id);
@@ -759,6 +772,7 @@ describe('NgxEmailStudio', () => {
 
 
   it('should label sections simply and scroll the stage when an outline item is clicked', async () => {
+    fixture.componentRef.setInput('config', { iframeCanvas: false });
     fixture.detectChanges();
     const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
     tabs[1].click();
@@ -785,6 +799,8 @@ describe('NgxEmailStudio', () => {
   it('should scope outline scrolling to the clicked component instance', async () => {
     const firstFixture = TestBed.createComponent(NgxEmailStudio);
     const secondFixture = TestBed.createComponent(NgxEmailStudio);
+    firstFixture.componentRef.setInput('config', { iframeCanvas: false });
+    secondFixture.componentRef.setInput('config', { iframeCanvas: false });
     firstFixture.detectChanges();
     secondFixture.detectChanges();
 

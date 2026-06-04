@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
@@ -71,6 +71,7 @@ interface PaletteItem {
 const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
   useTinyMce: true,
   showHtmlPreview: true,
+  iframeCanvas: true,
 };
 
 const BODY_NODE_ID = 'nes-body-root';
@@ -909,7 +910,7 @@ function resolveTinyMceScriptSrc(): string {
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
 })
-export class NgxEmailStudio implements OnChanges {
+export class NgxEmailStudio implements OnChanges, OnInit {
   @Input() mjml?: string;
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
@@ -969,6 +970,10 @@ export class NgxEmailStudio implements OnChanges {
   private readonly iframeBridgeToken = this.createIframeBridgeToken();
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
+
+  ngOnInit(): void {
+    this.refreshOutputs(false);
+  }
 
   get connectedDropListIds(): string[] {
     return [this.paletteDropListId, this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
@@ -1742,7 +1747,8 @@ export class NgxEmailStudio implements OnChanges {
 
   private scrollIframeToNode(nodeId: string): void {
     const message: EmailIframeParentMessage = { type: 'nes:scroll-to-node', nodeId, bridgeToken: this.iframeBridgeToken };
-    setTimeout(() => this.canvasIframe?.nativeElement.contentWindow?.postMessage(message, '*'), 0);
+    const frameWindow = this.canvasIframe?.nativeElement.contentWindow;
+    setTimeout(() => frameWindow?.postMessage(message, '*'), 0);
   }
 
   private parseIframeMessage(data: unknown): EmailIframeMessage | undefined {
