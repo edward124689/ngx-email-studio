@@ -88,7 +88,7 @@ function resolveTinyMceScriptSrc(): string {
           </div>
         </div>
         <div class="nes-actions">
-          <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
+          <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
@@ -127,9 +127,10 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListData]="palette"
               [cdkDropListConnectedTo]="connectedDropListIds"
               [cdkDropListSortingDisabled]="true"
+              [cdkDropListEnterPredicate]="rejectPaletteDrop"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" [attr.title]="item.description">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="clearNativeSelection()" [attr.title]="item.description">
                 <span class="nes-block-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -210,6 +211,7 @@ function resolveTinyMceScriptSrc(): string {
                   [id]="rootDropListId"
                   [cdkDropListData]="emailDocument.body"
                   [cdkDropListConnectedTo]="connectedDropListIds"
+                  [cdkDropListEnterPredicate]="canEnterContainerDropList"
                   [cdkDropListAutoScrollStep]="18"
                   (cdkDropListDropped)="drop($event)"
                   class="nes-canvas"
@@ -596,6 +598,7 @@ function resolveTinyMceScriptSrc(): string {
             [id]="dropListIdFor(column)"
             [cdkDropListData]="childrenOf(column)"
             [cdkDropListConnectedTo]="connectedDropListIds"
+            [cdkDropListEnterPredicate]="canEnterContainerDropList"
             [cdkDropListAutoScrollStep]="18"
             (cdkDropListDropped)="drop($event)"
             [style.width]="columnWidthCss(column, dimensionValueFromCss(autoColumnWidth(node)), dimensionUnitFromCss(autoColumnWidth(node)))"
@@ -645,6 +648,7 @@ function resolveTinyMceScriptSrc(): string {
           [attr.data-node-id]="node.id"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
+          [cdkDropListEnterPredicate]="canEnterContainerDropList"
           [cdkDropListAutoScrollStep]="18"
           (cdkDropListDropped)="drop($event)"
           [class.is-empty]="childrenOf(node).length === 0"
@@ -953,6 +957,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
   readonly bodyNodeId = BODY_NODE_ID;
+  readonly rejectPaletteDrop = (): boolean => false;
+  readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => this.canDropIntoContainer(drag.data, drop.id);
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
 
@@ -1056,6 +1062,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   drop(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): void {
     if (this.readonly) return;
+    if ((event.container as { id?: string }).id === this.paletteDropListId) return;
+    if (!this.canDropIntoContainer(event.item.data, (event.container as { id?: string }).id)) return;
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
       this.emitDocument();
@@ -1204,11 +1212,13 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   updateAttr(node: EmailNode, key: string, value: string | number | boolean): void {
+    if (this.readonly) return;
     node.attrs = { ...node.attrs, [key]: value };
     this.emitDocument();
   }
 
   updateDocumentAttr(key: string, value: string | number | boolean): void {
+    if (this.readonly) return;
     this.emailDocument = {
       ...this.emailDocument,
       attrs: { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}), [key]: value },
@@ -1271,6 +1281,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   updateSectionPaddingAll(section: EmailNode, value: number): void {
+    if (this.readonly) return;
     section.attrs = {
       ...section.attrs,
       padding: value,
@@ -1283,6 +1294,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   updateSectionPaddingSide(section: EmailNode, key: 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft', value: number): void {
+    if (this.readonly) return;
     section.attrs = { ...section.attrs, [key]: value };
     this.emitDocument();
   }
@@ -1297,6 +1309,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   setRowColumns(row: EmailNode, count: number): void {
+    if (this.readonly) return;
     if (row.type !== 'row') return;
     const safeCount = Math.max(1, Math.min(4, Number.isFinite(count) ? Math.floor(count) : 1));
     const columns = [...(row.children || [])];
@@ -1309,6 +1322,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   addChildBlock(parent: EmailNode, type: PaletteBlockType): void {
+    if (this.readonly) return;
     if (parent.type === 'row') {
       const firstColumn = parent.children?.[0] || this.createColumn();
       parent.children = parent.children?.length ? parent.children : [firstColumn];
@@ -1349,6 +1363,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   openImportModal(): void {
+    if (this.readonly) return;
     this.mjmlDraft = this.lastMjml || this.compileMjml(this.emailDocument);
     this.importErrorMessage = '';
     this.importModalOpen = true;
@@ -1360,6 +1375,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   importMjml(): void {
+    if (this.readonly) return;
     try {
       this.emailDocument = this.parseMjml(this.mjmlDraft);
       this.selectedNodeId = this.emailDocument.body[0]?.id;
@@ -1394,6 +1410,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   openRichTextModal(node: EmailNode): void {
+    if (this.readonly) return;
     if (node.type !== 'text') return;
     this.expandedRichTextNode = node;
   }
@@ -1403,6 +1420,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   }
 
   updateExpandedRichText(value: string): void {
+    if (this.readonly) return;
     const node = this.expandedRichTextNode;
     if (!node) return;
     this.updateAttr(node, 'content', value);
@@ -1503,6 +1521,37 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
 
   private isPaletteItem(value: unknown): value is PaletteItem {
     return !!value && typeof value === 'object' && 'type' in value && 'label' in value && 'description' in value;
+  }
+
+  private isEmailNode(value: unknown): value is EmailNode {
+    return !!value && typeof value === 'object' && 'id' in value && 'type' in value && 'attrs' in value;
+  }
+
+  private canDropIntoContainer(data: unknown, containerId?: string): boolean {
+    if (containerId === this.paletteDropListId) return false;
+    if (!containerId) return true;
+    if (this.isPaletteItem(data)) return true;
+    if (!this.isEmailNode(data)) return false;
+    if (containerId === this.rootDropListId) return true;
+
+    const targetContainer = this.findNodeByDropListId(containerId);
+    if (!targetContainer || (targetContainer.type !== 'section' && targetContainer.type !== 'column')) return false;
+    if (data.id === targetContainer.id || this.nodeContainsId(data, targetContainer.id)) return false;
+    return this.isContentModule(data);
+  }
+
+  private findNodeByDropListId(dropListId: string): EmailNode | undefined {
+    const prefix = `${this.dropListIdPrefix}-drop-`;
+    if (!dropListId.startsWith(prefix)) return undefined;
+    return this.findNode(dropListId.slice(prefix.length));
+  }
+
+  private nodeContainsId(node: EmailNode, id: string): boolean {
+    return (node.children || []).some((child) => child.id === id || this.nodeContainsId(child, id));
+  }
+
+  private isContentModule(node: EmailNode): boolean {
+    return node.type === 'text' || node.type === 'image' || node.type === 'button' || node.type === 'divider' || node.type === 'spacer';
   }
 
   private collectContainerDropListIds(nodes: EmailNode[]): string[] {

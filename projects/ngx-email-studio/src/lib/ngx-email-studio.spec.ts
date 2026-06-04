@@ -165,6 +165,57 @@ describe('NgxEmailStudio', () => {
     expect(component.connectedDropListIds).toContain(component.paletteDropListId);
   });
 
+  it('should reject drops into the palette so canvas nodes cannot corrupt module cards', () => {
+    fixture.detectChanges();
+    const paletteBefore = [...component.palette];
+    const bodyBefore = [...component.emailDocument.body];
+    const firstNode = component.emailDocument.body[0];
+
+    expect(component.rejectPaletteDrop()).toBe(false);
+    expect(query(fixture, '.nes-block-list')).toBeTruthy();
+
+    component.drop({
+      previousContainer: { data: component.emailDocument.body } as any,
+      container: { id: component.paletteDropListId, data: component.palette } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: firstNode } as any,
+    } as any);
+
+    expect(component.palette).toEqual(paletteBefore);
+    expect(component.emailDocument.body).toEqual(bodyBefore);
+  });
+
+  it('should reject cyclic or structural existing-node drops into nested containers', () => {
+    const nested = (component as any).createSectionWithChildren([{ id: 'text_nested', type: 'text', attrs: { content: '<p>Nested</p>' } }]);
+    const parent = (component as any).createSectionWithChildren([nested]);
+    component.emailDocument = { ...component.emailDocument, body: [parent] };
+    const bodyBefore = structuredClone(component.emailDocument.body);
+
+    expect(component.canEnterContainerDropList({ data: parent }, { id: component.dropListIdFor(nested) })).toBe(false);
+    component.drop({
+      previousContainer: { data: component.emailDocument.body } as any,
+      container: { id: component.dropListIdFor(nested), data: nested.children || [] } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: parent } as any,
+    } as any);
+    expect(component.emailDocument.body).toEqual(bodyBefore);
+
+    const row = (component as any).createNode('row');
+    component.emailDocument = { ...component.emailDocument, body: [parent, row] };
+    const rowBodyBefore = structuredClone(component.emailDocument.body);
+    expect(component.canEnterContainerDropList({ data: row }, { id: component.dropListIdFor(parent) })).toBe(false);
+    component.drop({
+      previousContainer: { data: component.emailDocument.body } as any,
+      container: { id: component.dropListIdFor(parent), data: parent.children || [] } as any,
+      previousIndex: 1,
+      currentIndex: 0,
+      item: { data: row } as any,
+    } as any);
+    expect(component.emailDocument.body).toEqual(rowBodyBefore);
+  });
+
   it('should compile section children instead of placeholder text', () => {
     const document: EmailDocument = {
       version: '0.0.1',
@@ -536,21 +587,34 @@ describe('NgxEmailStudio', () => {
     expect(mjml).not.toContain('Section container');
   });
 
-  it('should keep duplicate and delete disabled in readonly mode', () => {
+  it('should guard readonly mode against direct mutation methods', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const localComponent = localFixture.componentInstance;
-    const originalLength = localComponent.emailDocument.body.length;
-    const selected = localComponent.emailDocument.body[0].id;
-    localFixture.componentRef.setInput('readonly', true);
-    localComponent.selectNode(selected);
+    const original = structuredClone(localComponent.emailDocument);
+    const textNode = localComponent.emailDocument.body[0].children?.[0] || localComponent.emailDocument.body[0];
+    const row = localComponent.emailDocument.body.find((node) => node.type === 'row');
 
-    localComponent.duplicateSelected();
-    localComponent.deleteSelected();
+    localFixture.componentRef.setInput('readonly', true);
     localFixture.detectChanges();
 
-    expect(localComponent.emailDocument.body.length).toBe(originalLength);
-    expect(localComponent.emailDocument.body[0].id).toBe(selected);
-    expect(query(localFixture, '.nes-floating-tools')).toBeFalsy();
+    localComponent.updateAttr(textNode, 'content', '<p>Mutated</p>');
+    localComponent.updateDocumentAttr('backgroundColor', '#000000');
+    localComponent.updateSectionPaddingAll(localComponent.emailDocument.body[0], 99);
+    localComponent.updateSectionPaddingSide(localComponent.emailDocument.body[0], 'paddingTop', 88);
+    if (row) localComponent.setRowColumns(row, 4);
+    localComponent.addChildBlock(localComponent.emailDocument.body[0], 'text');
+    localComponent.openImportModal();
+    localComponent.mjmlDraft = '<mjml><mj-body><mj-section><mj-column><mj-text>Readonly import</mj-text></mj-column></mj-section></mj-body></mjml>';
+    localComponent.importMjml();
+    localComponent.openRichTextModal(textNode);
+    localComponent.updateExpandedRichText('<p>Rich mutation</p>');
+    localComponent.selectNode(localComponent.emailDocument.body[0].id);
+    localComponent.duplicateSelected();
+    localComponent.deleteSelected();
+
+    expect(localComponent.emailDocument).toEqual(original);
+    expect(localComponent.importModalOpen).toBe(false);
+    expect(localComponent.expandedRichTextNode).toBeUndefined();
   });
 
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {
