@@ -319,6 +319,7 @@ function resolveTinyMceScriptSrc(): string {
               <h3>{{ outputModalTitle }}</h3>
             </div>
             <div class="nes-modal-actions">
+              <button type="button" class="nes-preview-btn" *ngIf="outputModalType === 'html'" (click)="previewHtmlOutput()"><i class="fa fa-external-link" aria-hidden="true"></i> Preview</button>
               <button type="button" class="nes-copy-btn" (click)="copyOutputToClipboard()"><i class="fa fa-copy" aria-hidden="true"></i> {{ copyState || 'Copy' }}</button>
               <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
             </div>
@@ -505,9 +506,9 @@ function resolveTinyMceScriptSrc(): string {
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, .54); backdrop-filter: blur(8px); }
-    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(217, 226, 236, .9); border-radius: 18px; background: var(--nes-soft); box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
-    .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); }
-    .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; }
+    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(217, 226, 236, .9); border-radius: 18px; box-shadow: 0 28px 100px rgba(15, 23, 42, .32); }
+    .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); background: #fff; }
+    .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
     .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 55%, #ecfdf3 100%); }
     .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 12px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     .nes-output-modal header h3, .nes-import-modal header h3 { color: var(--nes-ink); }
@@ -515,6 +516,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-modal-actions button, .nes-import-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); }
     .nes-modal-actions button:hover, .nes-import-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
     .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
+    .nes-preview-btn { background: #ecfdf3 !important; color: var(--nes-success) !important; border-color: #bbf7d0 !important; font-weight: 800; }
     .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
     .nes-output-modal pre { margin: 0; min-height: 360px; max-height: 620px; overflow: auto; white-space: pre-wrap; border-top: 1px solid #1e293b; background: #0f172a; color: #e5e7eb; padding: 18px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .nes-import-body { padding: 20px; overflow: auto; background: var(--nes-soft); }
@@ -843,6 +845,19 @@ export class NgxEmailStudio implements OnChanges {
       }
     }
     this.setCopyState('Copy failed');
+  }
+
+  previewHtmlOutput(): void {
+    if (this.outputModalType !== 'html') return;
+    const previewWindow = globalThis.window?.open?.('', '_blank');
+    if (!previewWindow) {
+      this.error.emit({ code: 'html_preview_failed', message: 'Unable to open HTML preview window.' });
+      return;
+    }
+    previewWindow.document.open();
+    previewWindow.document.write(this.lastHtml || this.renderHtml(this.emailDocument));
+    previewWindow.document.close();
+    previewWindow.opener = null;
   }
 
   copyMjml(): void {

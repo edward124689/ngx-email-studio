@@ -184,9 +184,33 @@ describe('NgxEmailStudio', () => {
     const output = fixture.nativeElement.querySelector('.nes-output-modal pre').textContent;
     expect(component.outputModalType).toBe('html');
     expect(component.outputModalTitle).toBe('HTML Output');
+    expect(fixture.nativeElement.querySelector('.nes-preview-btn')).toBeTruthy();
     expect(output).toContain('<!doctype html>\n<html>');
     expect(output).toContain('  <head>');
     expect(output).toContain('          <table role="presentation"');
+  });
+
+  it('should open the HTML export in a new preview window', () => {
+    const originalOpen = window.open;
+    const writes: string[] = [];
+    const previewWindow = {
+      document: {
+        open: () => undefined,
+        write: (value: string) => writes.push(value),
+        close: () => undefined,
+      },
+      opener: window,
+    };
+    Object.defineProperty(window, 'open', { configurable: true, value: () => previewWindow });
+
+    component.openOutputModal('html');
+    component.previewHtmlOutput();
+
+    expect(writes[0]).toContain('<!doctype html>\n<html>');
+    expect(writes[0]).toContain('<body style="margin:0;background:#f3f4f6;">');
+    expect(previewWindow.opener).toBeNull();
+
+    Object.defineProperty(window, 'open', { configurable: true, value: originalOpen });
   });
 
   it('should copy the active export modal output', async () => {
