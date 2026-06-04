@@ -1894,7 +1894,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       content: this.sanitizeRichTextContent(node.attrs['content']),
       editable: !this.readonly,
       extensions: [
-        StarterKit.configure({ heading: { levels: [2] }, link: false }),
+        StarterKit.configure({ heading: { levels: [1, 2] }, link: false }),
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
         Table.configure({ resizable: false }),
         TableRow,
@@ -2031,7 +2031,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       skin: 'oxide',
       content_css: 'default',
       content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#1f2937;margin:12px;} a{color:#7c3aed;}',
-      setup: (editor: { on: (event: string, callback: () => void) => void; getContainer?: () => HTMLElement | null }) => {
+      setup: (editor: {
+        on: (event: string, callback: (event?: KeyboardEvent) => void) => void;
+        getContainer?: () => HTMLElement | null;
+        getDoc?: () => Document;
+        getWin?: () => Window;
+      }) => {
         this.ensureTinyMceSkinInShadowRoot();
         const reveal = () => {
           const run = () => editor.getContainer?.()?.style.removeProperty('visibility');
@@ -2041,9 +2046,30 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
             setTimeout(run, 0);
           }
         };
+        const restoreScrollAfterEnter = (event?: KeyboardEvent) => {
+          if (event?.key !== 'Enter') return;
+          const doc = editor.getDoc?.();
+          const win = editor.getWin?.();
+          const scrollingElement = doc?.scrollingElement as HTMLElement | null | undefined;
+          const scrollTop = scrollingElement?.scrollTop ?? doc?.documentElement?.scrollTop ?? doc?.body?.scrollTop ?? 0;
+          const restore = () => {
+            if (scrollingElement) scrollingElement.scrollTop = scrollTop;
+            if (doc?.documentElement) doc.documentElement.scrollTop = scrollTop;
+            if (doc?.body) doc.body.scrollTop = scrollTop;
+            win?.scrollTo?.(0, scrollTop);
+          };
+          if (typeof globalThis.requestAnimationFrame === 'function') {
+            globalThis.requestAnimationFrame(() => {
+              restore();
+              globalThis.requestAnimationFrame(restore);
+            });
+          }
+          setTimeout(restore, 60);
+        };
         editor.on('init', reveal);
         editor.on('SkinLoaded', reveal);
         editor.on('PostRender', reveal);
+        editor.on('keydown', restoreScrollAfterEnter);
       },
     };
   }

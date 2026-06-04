@@ -36,8 +36,16 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(`http://127.0.0.1:${port}/?editor=tiptap`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.querySelector('ngx-email-studio')?.shadowRoot?.querySelector('.nes-render-text'));
-  await page.locator('ngx-email-studio').evaluate((host) => host.shadowRoot.querySelector('.nes-render-text').click());
+  const studio = page.locator('ngx-email-studio');
+  await studio.evaluate((host) => host.shadowRoot.querySelector('.nes-render-text')?.closest('article')?.click());
   const editor = await editorHandle(page);
+  const titleBox = await studio.locator('.nes-tiptap-editor h1').first().boundingBox();
+  if (!titleBox) throw new Error('missing hero title bounding box');
+  await studio.locator('.nes-tiptap-editor h1').first().click({ position: { x: titleBox.width * 0.45, y: titleBox.height / 2 } });
+  await page.keyboard.type('Z');
+  const afterTitleClick = await editor.evaluate((node) => node.textContent || '');
+  if (!afterTitleClick.includes('campaignZ in minutes') || afterTitleClick.endsWith('Z')) throw new Error(`hero title click did not edit in place: ${afterTitleClick}`);
+
   await editor.evaluate((node) => node.focus());
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
   await page.keyboard.type('Alpha bravo charlie delta echo');
