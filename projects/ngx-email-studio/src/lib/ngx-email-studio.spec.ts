@@ -20,9 +20,10 @@ describe('NgxEmailStudio', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should compile a row with multiple columns to MJML columns', () => {
+  it('should compile body width/background and row columns to MJML columns', () => {
     const document: EmailDocument = {
       version: '0.0.1',
+      attrs: { backgroundColor: '#eef2ff', contentBackgroundColor: '#ffffff', width: 720 },
       body: [
         {
           id: 'row_1',
@@ -48,6 +49,7 @@ describe('NgxEmailStudio', () => {
 
     const mjml = (component as any).compileMjml(document) as string;
 
+    expect(mjml).toContain('<mj-body background-color="#eef2ff" width="720px">');
     expect(mjml).toContain('<mj-section background-color="#ffffff">');
     expect(mjml).toContain('<mj-column width="50%"');
     expect(mjml).toContain('<mj-text><p>Left</p></mj-text>');
@@ -108,6 +110,40 @@ describe('NgxEmailStudio', () => {
     expect(mjml).toContain('<mj-section background-color="#ffffff"><mj-column><mj-text><p>Inside section</p></mj-text></mj-column></mj-section>');
   });
 
+  it('should use document body settings for HTML wrapper width and backgrounds', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      attrs: { backgroundColor: '#111827', contentBackgroundColor: '#fefce8', width: 720 },
+      body: [{ id: 'text_1', type: 'text', attrs: { content: '<p>Body settings</p>', backgroundColor: '#ffffff' } }],
+    };
+
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(html).toContain('<body style="margin:0;background:#111827;">');
+    expect(html).toContain('style="background:#111827;padding:24px 0;"');
+    expect(html).toContain('<table role="presentation" width="720" cellspacing="0" cellpadding="0" style="max-width:720px;background:#fefce8;');
+  });
+
+  it('should expose Body as the outline root and edit exported body settings', () => {
+    fixture.detectChanges();
+    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    tabs[1].click();
+    fixture.detectChanges();
+
+    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    expect(outlineNodes.length).toBe(component.totalOutlineNodes);
+    expect(outlineNodes[0].textContent).toContain('Body');
+
+    outlineNodes[0].click();
+    fixture.detectChanges();
+
+    expect(component.selectedNodeId).toBe((component as any).bodyNodeId);
+    expect(fixture.nativeElement.textContent).toContain('Body / Email canvas');
+    component.updateDocumentAttr('width', 700);
+    expect(component.emailWidth).toBe(700);
+    expect(component.lastHtml).toContain('width="700"');
+  });
+
   it('should keep default config behavior when a host passes only shell labels', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('config', { title: 'Custom Builder' });
@@ -138,10 +174,11 @@ describe('NgxEmailStudio', () => {
     component.addBlock(footer!);
 
     expect(component.emailDocument.body.length).toBe(2);
-    expect(component.emailDocument.body[0].type).toBe('text');
-    expect(component.emailDocument.body[0].attrs['content']).toContain('今週精選內容');
-    expect(component.emailDocument.body[1].type).toBe('text');
-    expect(component.emailDocument.body[1].attrs['content']).toContain('取消訂閱');
+    expect(component.emailDocument.body[0].type).toBe('section');
+    expect(component.emailDocument.body[0].children?.[0].type).toBe('text');
+    expect(component.emailDocument.body[0].children?.[0].attrs['content']).toContain('今週精選內容');
+    expect(component.emailDocument.body[1].type).toBe('section');
+    expect(component.emailDocument.body[1].children?.[0].attrs['content']).toContain('取消訂閱');
   });
 
   it('should keep Content modules as drag-only two-column cards with hover descriptions', () => {
@@ -323,7 +360,8 @@ describe('NgxEmailStudio', () => {
     component.importMjml();
 
     expect(component.importModalOpen).toBe(false);
-    expect(component.emailDocument.body[0].type).toBe('text');
-    expect(component.emailDocument.body[0].attrs['content']).toContain('Hello import');
+    expect(component.emailDocument.body[0].type).toBe('section');
+    expect(component.emailDocument.body[0].children?.[0].type).toBe('text');
+    expect(component.emailDocument.body[0].children?.[0].attrs['content']).toContain('Hello import');
   });
 });

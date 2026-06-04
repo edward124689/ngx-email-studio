@@ -35,6 +35,7 @@ export interface EmailNode {
 
 export interface EmailDocument {
   version: string;
+  attrs?: Record<string, string | number | boolean>;
   body: EmailNode[];
   unsupported?: string[];
 }
@@ -51,6 +52,8 @@ const DEFAULT_EMAIL_STUDIO_CONFIG: EmailStudioConfig = {
   useTinyMce: true,
   showHtmlPreview: true,
 };
+
+const BODY_NODE_ID = 'nes-body-root';
 
 function resolveTinyMceScriptSrc(): string {
   const base = globalThis.document?.baseURI || '/';
@@ -130,9 +133,27 @@ function resolveTinyMceScriptSrc(): string {
               <span>{{ totalOutlineNodes }}</span>
             </div>
             <div class="nes-outline-tree" role="tree" *ngIf="emailDocument.body.length; else emptyOutline">
-              <ng-container *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode">
-                <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: node, depth: 0, indexPath: (i + 1).toString().padStart(2, '0') }"></ng-container>
-              </ng-container>
+              <button
+                type="button"
+                class="nes-outline-node nes-outline-body"
+                role="treeitem"
+                [attr.aria-selected]="selectedNodeId === bodyNodeId"
+                [class.is-active]="selectedNodeId === bodyNodeId"
+                (click)="selectBody()"
+              >
+                <span class="nes-outline-rail" aria-hidden="true"></span>
+                <span class="nes-outline-icon"><i class="fa fa-envelope-o" aria-hidden="true"></i></span>
+                <span class="nes-outline-copy">
+                  <strong>Body</strong>
+                  <small>{{ emailWidth }}px email canvas</small>
+                </span>
+                <span class="nes-outline-index">BODY</span>
+              </button>
+              <div class="nes-outline-children" role="group">
+                <ng-container *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode">
+                  <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: node, depth: 1, indexPath: (i + 1).toString().padStart(2, '0') }"></ng-container>
+                </ng-container>
+              </div>
             </div>
             <ng-template #emptyOutline>
               <div class="nes-outline-empty"><i class="fa fa-sitemap" aria-hidden="true"></i>No blocks yet. Add a module to build the tree.</div>
@@ -144,7 +165,7 @@ function resolveTinyMceScriptSrc(): string {
           <div class="nes-stage-head">
             <div>
               <h3>Email canvas</h3>
-              <p>{{ previewWidth }}px preview · {{ emailDocument.body.length }} blocks</p>
+              <p>{{ previewWidth }}px viewport · {{ emailWidth }}px email width · {{ emailDocument.body.length }} blocks</p>
             </div>
             <div class="nes-stage-actions">
               <button type="button" class="danger" (click)="clearDocument()"><i class="fa fa-trash" aria-hidden="true"></i> Clear</button>
@@ -162,6 +183,7 @@ function resolveTinyMceScriptSrc(): string {
               >{{ option }}</button>
             </div>
             <div class="nes-mail-meta"><span>From: {{ effectiveConfig.fromLabel || 'cms@brand.test' }}</span><span>Preview</span></div>
+            <div class="nes-canvas-shell" [style.background]="bodyBackgroundColor">
             <div
               cdkDropList
               #canvasList="cdkDropList"
@@ -170,6 +192,8 @@ function resolveTinyMceScriptSrc(): string {
               [cdkDropListConnectedTo]="connectedDropListIds"
               (cdkDropListDropped)="drop($event)"
               class="nes-canvas"
+              [style.width.px]="emailWidth"
+              [style.background]="emailBackgroundColor"
             >
               <article
                 role="button"
@@ -194,14 +218,36 @@ function resolveTinyMceScriptSrc(): string {
               </div>
               <div class="nes-bottom-drop">Drop here to append to the end</div>
             </div>
+            </div>
           </div>
         </section>
 
         <aside class="nes-panel nes-properties">
           <div class="nes-panel-head">
             <h3>Properties Inspector</h3>
-            <p>{{ selectedNode ? outlineLabel(selectedNode) : 'No block selected' }}</p>
+            <p>{{ selectedNodeId === bodyNodeId ? 'Body / Email canvas' : selectedNode ? outlineLabel(selectedNode) : 'No block selected' }}</p>
           </div>
+          <ng-container *ngIf="selectedNodeId === bodyNodeId; else blockSelection">
+            <div class="nes-tabs">
+              <button type="button" class="is-active">Style</button>
+            </div>
+            <div class="nes-tab-panel">
+              <label>
+                Body background
+                <input [ngModel]="bodyBackgroundColor" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" placeholder="#f3f4f6" />
+              </label>
+              <label>
+                Email background
+                <input [ngModel]="emailBackgroundColor" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" placeholder="#ffffff" />
+              </label>
+              <label>
+                Email width
+                <input type="number" min="320" max="1200" [ngModel]="emailWidth" (ngModelChange)="updateDocumentAttr('width', +$event)" />
+              </label>
+              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code> and the HTML wrapper table width/max-width.</p>
+            </div>
+          </ng-container>
+          <ng-template #blockSelection>
           <ng-container *ngIf="selectedNode as node; else noSelection">
             <div class="nes-tabs">
               <button type="button" [class.is-active]="activeInspectorTab === 'content'" (click)="activeInspectorTab = 'content'">Content</button>
@@ -267,6 +313,18 @@ function resolveTinyMceScriptSrc(): string {
                 Column width
                 <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="50%" />
               </label>
+              <label *ngIf="node.type === 'section'">
+                Section width
+                <input [ngModel]="node.attrs['width']" (ngModelChange)="updateAttr(node, 'width', $event)" placeholder="100%" />
+              </label>
+              <label *ngIf="node.type === 'section'">
+                Section max width
+                <input [ngModel]="node.attrs['maxWidth']" (ngModelChange)="updateAttr(node, 'maxWidth', $event)" placeholder="640px" />
+              </label>
+              <label *ngIf="node.type === 'section'">
+                Section padding
+                <input [ngModel]="node.attrs['padding']" (ngModelChange)="updateAttr(node, 'padding', $event)" placeholder="16px" />
+              </label>
               <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
                 Background color
                 <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
@@ -286,6 +344,7 @@ function resolveTinyMceScriptSrc(): string {
               </ng-template>
             </div>
           </ng-container>
+          </ng-template>
           <ng-template #noSelection>
             <p class="nes-muted">Select a block to edit its properties.</p>
           </ng-template>
@@ -422,6 +481,10 @@ function resolveTinyMceScriptSrc(): string {
           cdkDropList
           class="nes-render-section"
           [id]="dropListIdFor(node)"
+          [style.background]="node.attrs['backgroundColor'] || '#ffffff'"
+          [style.width]="node.attrs['width'] || '100%'"
+          [style.max-width]="node.attrs['maxWidth'] || null"
+          [style.padding]="node.attrs['padding'] || null"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
           (cdkDropListDropped)="drop($event)"
@@ -509,6 +572,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-head span { flex: 0 0 auto; background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; border-radius: 999px; padding: 3px 9px; font-size: 12px; font-weight: 900; }
     .nes-outline-tree { position: relative; display: grid; gap: 4px; margin-top: 16px; max-height: 548px; overflow: auto; padding: 6px 4px 8px 0; }
     .nes-outline-tree::before { content: ''; position: absolute; top: 10px; bottom: 12px; left: 22px; width: 1px; background: linear-gradient(#dbeafe, #bbf7d0); }
+    .nes-outline-body { margin-bottom: 4px; }
     .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
     .nes-outline-node:hover { border-color: #bfdbfe; background: #f8fafc; color: var(--nes-accent); }
     .nes-outline-node.is-active { border-color: #bfdbfe; background: linear-gradient(135deg, #eff6ff, #f0fdf4); color: #1d4ed8; box-shadow: 0 10px 22px rgba(37, 99, 235, .08); }
@@ -535,7 +599,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-size-bar button { padding: 5px 9px; border-radius: 8px; font-size: 12px; }
     .nes-size-bar button.is-active { background: #0f172a; color: #fff; border-color: #0f172a; }
     .nes-mail-meta { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-    .nes-canvas { min-height: 520px; background: #fff; padding: 0; }
+    .nes-canvas-shell { min-height: 520px; padding: 24px 0; transition: background .15s ease; }
+    .nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); }
     .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
     .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
     .nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
@@ -653,6 +718,7 @@ export class NgxEmailStudio implements OnChanges {
 
   tinyMceInit = this.createTinyMceInit();
   readonly rootDropListId = 'nes-root-drop-list';
+  readonly bodyNodeId = BODY_NODE_ID;
 
   get connectedDropListIds(): string[] {
     return [this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
@@ -665,7 +731,26 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   get selectedNode(): EmailNode | undefined {
+    if (this.selectedNodeId === BODY_NODE_ID) return undefined;
     return this.findNode(this.selectedNodeId);
+  }
+
+  get documentAttrs(): Record<string, string | number | boolean> {
+    this.emailDocument.attrs ??= this.defaultDocumentAttrs();
+    return this.emailDocument.attrs;
+  }
+
+  get bodyBackgroundColor(): string {
+    return String(this.documentAttrs['backgroundColor'] || '#f3f4f6');
+  }
+
+  get emailBackgroundColor(): string {
+    return String(this.documentAttrs['contentBackgroundColor'] || '#ffffff');
+  }
+
+  get emailWidth(): number {
+    const width = Number(this.documentAttrs['width'] || 640);
+    return Number.isFinite(width) ? Math.max(320, Math.min(1200, Math.floor(width))) : 640;
   }
 
   get effectiveConfig(): EmailStudioConfig {
@@ -721,7 +806,7 @@ export class NgxEmailStudio implements OnChanges {
     }
 
     if (this.isPaletteItem(event.item.data)) {
-      const node = this.createNodeFromPalette(event.item.data);
+      const node = this.wrapForRootDrop(this.createNodeFromPalette(event.item.data), (event.container as { id?: string }).id);
       event.container.data.splice(event.currentIndex, 0, node);
       this.selectedNodeId = node.id;
     } else {
@@ -748,9 +833,13 @@ export class NgxEmailStudio implements OnChanges {
     this.selectedNodeId = id;
   }
 
+  selectBody(): void {
+    this.selectedNodeId = BODY_NODE_ID;
+  }
+
   addBlock(item: PaletteItem): void {
     if (this.readonly) return;
-    const node = this.createNodeFromPalette(item);
+    const node = this.wrapForRootDrop(this.createNodeFromPalette(item), this.rootDropListId);
     this.emailDocument.body = [...this.emailDocument.body, node];
     this.selectedNodeId = node.id;
     this.emitDocument();
@@ -758,7 +847,7 @@ export class NgxEmailStudio implements OnChanges {
 
   addBlockByType(type: PaletteBlockType): void {
     if (this.readonly) return;
-    const node = this.createNode(type);
+    const node = this.wrapForRootDrop(this.createNode(type), this.rootDropListId);
     this.emailDocument.body = [...this.emailDocument.body, node];
     this.selectedNodeId = node.id;
     this.emitDocument();
@@ -766,17 +855,21 @@ export class NgxEmailStudio implements OnChanges {
 
   private createNodeFromPalette(item: PaletteItem): EmailNode {
     if (item.preset === 'hero') {
-      return this.createNode('text', {
-        content: '<p class="kicker">會員專屬更新</p><h1>今週精選內容已為你整理好</h1><p>用一封清晰、可編輯的 EDM，將 CMS 最新文章、商品與優惠同步發送給會員。</p>',
-        backgroundColor: '#ffffff',
-      });
+      return this.createSectionWithChildren([
+        this.createNode('text', {
+          content: '<p class="kicker">會員專屬更新</p><h1>今週精選內容已為你整理好</h1><p>用一封清晰、可編輯的 EDM，將 CMS 最新文章、商品與優惠同步發送給會員。</p>',
+          backgroundColor: '#ffffff',
+        }),
+      ]);
     }
 
     if (item.preset === 'footer') {
-      return this.createNode('text', {
-        content: '<p>你收到此電郵是因為你訂閱了 CMS 會員更新。可於會員中心調整通知偏好或取消訂閱。</p>',
-        backgroundColor: '#f1f5f9',
-      });
+      return this.createSectionWithChildren([
+        this.createNode('text', {
+          content: '<p>你收到此電郵是因為你訂閱了 CMS 會員更新。可於會員中心調整通知偏好或取消訂閱。</p>',
+          backgroundColor: '#f1f5f9',
+        }),
+      ], { backgroundColor: '#f1f5f9' });
     }
 
     return this.createNode(item.type);
@@ -821,7 +914,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   get totalOutlineNodes(): number {
-    return this.countOutlineNodes(this.emailDocument.body);
+    return 1 + this.countOutlineNodes(this.emailDocument.body);
   }
 
   private countOutlineNodes(nodes: EmailNode[]): number {
@@ -834,6 +927,14 @@ export class NgxEmailStudio implements OnChanges {
 
   updateAttr(node: EmailNode, key: string, value: string | number | boolean): void {
     node.attrs = { ...node.attrs, [key]: value };
+    this.emitDocument();
+  }
+
+  updateDocumentAttr(key: string, value: string | number | boolean): void {
+    this.emailDocument = {
+      ...this.emailDocument,
+      attrs: { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}), [key]: value },
+    };
     this.emitDocument();
   }
 
@@ -1034,13 +1135,22 @@ export class NgxEmailStudio implements OnChanges {
   private createStarterDocument(): EmailDocument {
     return {
       version: '0.0.1',
+      attrs: this.defaultDocumentAttrs(),
       body: [
-        this.createNode('text', { content: '<h1>Welcome to ngx-email-studio</h1><p>Drag, edit, preview, and export MJML from Angular.</p>' }),
+        this.createSectionWithChildren([this.createNode('text', { content: '<h1>Welcome to ngx-email-studio</h1><p>Drag, edit, preview, and export MJML from Angular.</p>' })]),
         this.createNode('row', {
           backgroundColor: '#f8fafc',
         }),
-        this.createNode('button', { label: 'Get started', href: 'https://www.npmjs.com/package/ngx-email-studio' }),
+        this.createSectionWithChildren([this.createNode('button', { label: 'Get started', href: 'https://www.npmjs.com/package/ngx-email-studio' })]),
       ],
+    };
+  }
+
+  private defaultDocumentAttrs(): Record<string, string | number | boolean> {
+    return {
+      backgroundColor: '#f3f4f6',
+      contentBackgroundColor: '#ffffff',
+      width: 640,
     };
   }
 
@@ -1079,11 +1189,23 @@ export class NgxEmailStudio implements OnChanges {
     return new URL('tinymce', base).href.replace(/\/$/, '');
   }
 
+  private wrapForRootDrop(node: EmailNode, containerId?: string): EmailNode {
+    if (containerId !== this.rootDropListId) return node;
+    if (node.type === 'row' || node.type === 'section') return node;
+    return this.createSectionWithChildren([node]);
+  }
+
+  private createSectionWithChildren(children: EmailNode[], attrs: Record<string, string | number | boolean> = {}): EmailNode {
+    const section = this.createNode('section', attrs);
+    section.children = children;
+    return section;
+  }
+
   private createNode(type: EmailBlockType, attrs: Record<string, string | number | boolean> = {}): EmailNode {
     const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
       row: { backgroundColor: '#ffffff' },
       column: { width: '50%', backgroundColor: '#ffffff' },
-      section: { backgroundColor: '#ffffff' },
+      section: { backgroundColor: '#ffffff', width: '100%', maxWidth: '640px', padding: '16px' },
       text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
       image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
       button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },
@@ -1130,7 +1252,7 @@ export class NgxEmailStudio implements OnChanges {
 
   private compileMjml(document: EmailDocument): string {
     const body = document.body.map((node) => this.nodeToMjml(node)).join('\n');
-    return `<mjml>\n  <mj-body>\n${body}\n  </mj-body>\n</mjml>`;
+    return `<mjml>\n  <mj-body${this.bodyMjmlAttrs(document)}>\n${body}\n  </mj-body>\n</mjml>`;
   }
 
   private nodeToMjml(node: EmailNode): string {
@@ -1192,6 +1314,9 @@ export class NgxEmailStudio implements OnChanges {
     }
     const unsupported: string[] = [];
     const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
+    const documentAttrs = this.defaultDocumentAttrs();
+    if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = body.getAttribute('background-color') || '#f3f4f6';
+    if (body.getAttribute('width')) documentAttrs['width'] = Number.parseInt(body.getAttribute('width') || '640', 10);
     const nodes: EmailNode[] = [];
 
     this.elementChildren(body)
@@ -1204,10 +1329,11 @@ export class NgxEmailStudio implements OnChanges {
         if (parsedColumns.length === 1 && (parsedColumns[0].children?.length || 0) === 1) {
           const onlyChild = parsedColumns[0].children?.[0];
           if (onlyChild) {
-            if (section.getAttribute('background-color') && !onlyChild.attrs['backgroundColor']) {
-              onlyChild.attrs['backgroundColor'] = section.getAttribute('background-color') || '#ffffff';
-            }
-            nodes.push(onlyChild);
+            nodes.push(
+              this.createSectionWithChildren([onlyChild], {
+                backgroundColor: section.getAttribute('background-color') || '#ffffff',
+              }),
+            );
           }
         } else {
           nodes.push(
@@ -1225,7 +1351,7 @@ export class NgxEmailStudio implements OnChanges {
       if (tag.startsWith('mj-') && !this.supportedMjmlTags.has(tag) && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
     });
 
-    return { version: '0.0.1', body: nodes.length ? nodes : [this.createNode('text')], unsupported };
+    return { version: '0.0.1', attrs: documentAttrs, body: nodes.length ? nodes : [this.createNode('text')], unsupported };
   }
 
   private parseColumn(column: Element, unsupported: string[]): EmailNode | undefined {
@@ -1261,6 +1387,10 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private renderHtml(document: EmailDocument): string {
+    const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
+    const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
+    const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
+    const emailWidth = Math.max(320, Math.min(1200, Number(attrs['width'] || 640) || 640));
     const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
     return [
       '<!doctype html>',
@@ -1270,11 +1400,11 @@ export class NgxEmailStudio implements OnChanges {
       '    <meta name="viewport" content="width=device-width, initial-scale=1">',
       '    <title>Email Export</title>',
       '  </head>',
-      '  <body style="margin:0;background:#f3f4f6;">',
-      '    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 0;">',
+      `  <body style="margin:0;background:${bodyBackground};">`,
+      `    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;">`,
       '      <tr>',
       '        <td align="center">',
-      '          <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">',
+      `          <table role="presentation" width="${emailWidth}" cellspacing="0" cellpadding="0" style="max-width:${emailWidth}px;background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;">`,
       rows,
       '          </table>',
       '        </td>',
@@ -1313,8 +1443,14 @@ export class NgxEmailStudio implements OnChanges {
     const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 2)).join('\n');
     return [
       this.indent('<tr>', depth),
-      this.indent(`<td style="padding:16px;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      this.indent(`<td align="center" style="padding:0;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+      this.indent(`<table role="presentation" width="${this.escapeAttr(String(section.attrs['width'] || '100%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(String(section.attrs['width'] || '100%'))};max-width:${this.escapeAttr(String(section.attrs['maxWidth'] || '640px'))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 2),
+      this.indent('<tr>', depth + 3),
+      this.indent(`<td style="padding:${this.escapeAttr(String(section.attrs['padding'] || '16px'))};">`, depth + 4),
       content,
+      this.indent('</td>', depth + 4),
+      this.indent('</tr>', depth + 3),
+      this.indent('</table>', depth + 2),
       this.indent('</td>', depth + 1),
       this.indent('</tr>', depth),
     ].join('\n');
@@ -1398,6 +1534,13 @@ export class NgxEmailStudio implements OnChanges {
 
   private backgroundAttr(node: EmailNode): string {
     return node.attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(node.attrs['backgroundColor']))}"` : '';
+  }
+
+  private bodyMjmlAttrs(document: EmailDocument): string {
+    const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
+    const background = attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(attrs['backgroundColor']))}"` : '';
+    const width = attrs['width'] ? ` width="${this.escapeAttr(String(attrs['width']))}px"` : '';
+    return `${background}${width}`;
   }
 
   private readonly supportedMjmlTags = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
