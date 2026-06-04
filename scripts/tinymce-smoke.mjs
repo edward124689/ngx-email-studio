@@ -67,8 +67,11 @@ try {
     }
   }
   if (!dropdownOpened) throw new Error('TinyMCE toolbar rendered but no menu/dropdown opened from the first toolbar controls');
-  await studio.locator('.tox-toolbar__overflow button[aria-haspopup="true"]').first().click({ timeout: 5_000 });
-  await studio.locator('.tox-collection, .tox-menu, .tox-pop').first().waitFor({ state: 'visible', timeout: 5_000 });
+  const overflowTrigger = studio.locator('.tox-toolbar__overflow button[aria-haspopup="true"]').first();
+  if (await overflowTrigger.count()) {
+    await overflowTrigger.click({ timeout: 5_000 });
+    await studio.locator('.tox-collection, .tox-menu, .tox-pop').first().waitFor({ state: 'visible', timeout: 5_000 });
+  }
   await page.keyboard.press('Escape');
 
   // Exercise the large editor modal and its TinyMCE instance too.

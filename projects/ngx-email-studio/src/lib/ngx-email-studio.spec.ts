@@ -188,10 +188,25 @@ describe('NgxEmailStudio', () => {
     const compactStyles = styles.replace(/\s+/g, ' ');
 
     expect(compactStyles).toContain('.nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh);');
-    expect(compactStyles).toContain('.nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; align-items: stretch; overflow: hidden; }');
-    expect(compactStyles).toContain('.nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain;');
-    expect(compactStyles).toContain('.nes-stage { min-height: 0; overflow: auto;');
+    expect(compactStyles).toContain('.nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(0, 1fr) clamp(360px, 26vw, 420px); align-items: stretch; overflow: hidden; }');
+    expect(compactStyles).toContain('.nes-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain;');
+    expect(compactStyles).toContain('.nes-stage { min-width: 0; min-height: 0; overflow: auto;');
     expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
+  });
+
+  it('should keep inspector controls readable without horizontal clipping', () => {
+    fixture.detectChanges();
+    const styles = Array.from((fixture.nativeElement.shadowRoot || fixture.nativeElement).querySelectorAll('style') as NodeListOf<HTMLStyleElement>)
+      .map((style) => style.textContent || '')
+      .join('\n')
+      .replace(/\s+/g, ' ');
+
+    expect(styles).toContain('clamp(360px, 26vw, 420px)');
+    expect(styles).toContain('.nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); overflow-x: hidden; container: nes-inspector / inline-size; }');
+    expect(styles).toContain('.nes-unit-field { grid-template-columns: minmax(72px, 1fr) minmax(58px, 68px); }');
+    expect(styles).toContain('.nes-control-row { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; }');
+    expect(styles).toContain('.nes-padding-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }');
+    expect(styles).toContain('@container nes-inspector (max-width: 370px) { .nes-control-row, .nes-padding-grid { grid-template-columns: 1fr; }');
   });
 
   it('should import MJML sections with multiple columns as row nodes', () => {

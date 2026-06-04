@@ -765,12 +765,13 @@ function resolveTinyMceScriptSrc(): string {
     .nes-export-menu::before { content: ''; position: absolute; right: 24px; top: -6px; width: 10px; height: 10px; transform: rotate(45deg); background: #fff; border-left: 1px solid var(--nes-border); border-top: 1px solid var(--nes-border); }
     .nes-export-menu button { width: 100%; justify-content: flex-start; gap: 10px; border: 0; background: transparent; text-align: left; padding: 10px 11px; border-radius: 10px; color: #172033; }
     .nes-export-menu button:hover { background: #eff6ff; color: var(--nes-accent); }
-    .nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; align-items: stretch; overflow: hidden; }
-    .nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
+    .nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(0, 1fr) clamp(360px, 26vw, 420px); align-items: stretch; overflow: hidden; }
+    .nes-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
     .nes-panel::-webkit-scrollbar, .nes-stage::-webkit-scrollbar { width: 10px; height: 10px; }
     .nes-panel::-webkit-scrollbar-thumb, .nes-stage::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
-    .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); }
-    .nes-panel-head p { margin: 5px 0 0; color: var(--nes-muted); font-size: 12px; line-height: 1.45; }
+    .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); overflow-x: hidden; container: nes-inspector / inline-size; }
+    .nes-properties .nes-panel-head { position: sticky; top: -18px; z-index: 6; margin: -18px -18px 0; padding: 18px 18px 14px; background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.94)); border-bottom: 1px solid #eef2f7; backdrop-filter: blur(10px); }
+    .nes-panel-head p { min-width: 0; margin: 5px 0 0; color: var(--nes-muted); font-size: 12px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .nes-search { position: relative; display: block; margin: 16px 0; }
     .nes-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
     .nes-search input { padding-left: 34px; background: #f8fafc; }
@@ -809,7 +810,7 @@ function resolveTinyMceScriptSrc(): string {
 
     .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
     .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
-    .nes-stage { min-height: 0; overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
+    .nes-stage { min-width: 0; min-height: 0; overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
     .nes-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
     .nes-stage-head p { margin: 4px 0 0; color: var(--nes-muted); font-size: 12px; }
     .nes-stage-actions { display: flex; gap: 8px; }
@@ -859,26 +860,27 @@ function resolveTinyMceScriptSrc(): string {
     .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
     .nes-empty { min-height: 380px; display: grid; place-items: center; color: var(--nes-muted); border: 2px dashed #d0d5dd; text-align: center; }
     .nes-root-drop-space { min-height: 24px; }
-    .nes-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 16px 0; border-radius: 12px; background: #f1f5f9; }
-    .nes-tabs button { border: 0; background: transparent; padding: 8px; font-size: 13px; color: var(--nes-muted); }
+    .nes-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; margin: 16px 0; border-radius: 12px; background: #f1f5f9; }
+    .nes-tabs button { min-width: 0; border: 0; background: transparent; padding: 9px 7px; font-size: 13px; font-weight: 800; color: var(--nes-muted); white-space: nowrap; }
     .nes-tabs button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
-    .nes-tab-panel { margin-top: 14px; }
+    .nes-tab-panel { min-width: 0; margin-top: 14px; }
     .nes-inline-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
-    label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
+    label { min-width: 0; display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
     input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
     textarea { min-height: 120px; }
     select { appearance: none; color: #0f172a; font-weight: 800; background: linear-gradient(180deg, #ffffff, #f8fafc); }
     input[type="color"] { width: 44px; min-width: 44px; height: 42px; padding: 4px; border-radius: 12px; cursor: pointer; }
-    .nes-color-control, .nes-unit-field { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
-    .nes-unit-field { grid-template-columns: minmax(0, 1fr) 76px; }
-    .nes-control-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .nes-color-control, .nes-unit-field { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+    .nes-color-control input:not([type="color"]), .nes-unit-field input, .nes-unit-field select { min-width: 0; }
+    .nes-unit-field { grid-template-columns: minmax(72px, 1fr) minmax(58px, 68px); }
+    .nes-control-row { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; }
     .nes-control-heading { margin: 14px 0 8px; color: #475467; font-size: 13px; font-weight: 800; }
     .nes-field-block { margin: 14px 0; }
     .nes-align-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid #dbe3ef; border-radius: 12px; background: #f8fafc; }
     .nes-align-group button { border: 0; background: transparent; padding: 8px; border-radius: 9px; color: #64748b; font-size: 12px; font-weight: 800; }
     .nes-align-group button.is-active { background: #fff; color: var(--nes-accent); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
     .nes-padding-control { margin-top: 6px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
-    .nes-padding-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .nes-padding-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .nes-padding-grid label { margin: 0; gap: 5px; font-size: 12px; }
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
@@ -924,6 +926,7 @@ function resolveTinyMceScriptSrc(): string {
     @keyframes nes-modal-pop { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
+    @container nes-inspector (max-width: 370px) { .nes-control-row, .nes-padding-grid { grid-template-columns: 1fr; } .nes-tabs button { font-size: 12px; padding-inline: 5px; } }
     @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; } .nes-stage, .nes-panel { max-height: none; overflow: visible; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
     @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } .nes-actions { justify-content: flex-start; flex-wrap: wrap; width: 100%; margin-left: 0; } }
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
