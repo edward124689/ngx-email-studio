@@ -452,13 +452,17 @@ describe('NgxEmailStudio', () => {
     outlineNodes[1].click();
     expect(component.selectedNodeId).toBe(first.id);
 
-    const rootOutlineContainer = { id: component.outlineRootDropListId, data: component.emailDocument.body } as any;
-    component.outlineDrop({
-      previousContainer: rootOutlineContainer,
-      container: rootOutlineContainer,
-      previousIndex: 0,
-      currentIndex: 1,
-    } as any);
+    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, first.id);
+    component.previewOutlineDrop({
+      preventDefault: () => undefined,
+      dataTransfer: { getData: () => first.id },
+      currentTarget: { getBoundingClientRect: () => ({ top: 0, height: 40 }) },
+      clientY: 32,
+    } as any, second.id);
+    component.dropOutlineOn({
+      preventDefault: () => undefined,
+      dataTransfer: { getData: () => first.id },
+    } as any, second.id);
 
     expect(component.emailDocument.body[0].id).toBe(second.id);
     expect(component.emailDocument.body[1].id).toBe(first.id);
@@ -473,23 +477,26 @@ describe('NgxEmailStudio', () => {
     const beforeRootIds = component.emailDocument.body.map((node) => node.id);
     const beforeChildIds = sectionChildren.map((node) => node.id);
 
-    component.outlineDrop({
-      previousContainer: { id: component.outlineDropListIdFor(section), data: sectionChildren } as any,
-      container: { id: component.outlineRootDropListId, data: component.emailDocument.body } as any,
-      previousIndex: 0,
-      currentIndex: 1,
-    } as any);
+    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, beforeChildIds[0]);
+    component.dropOutlineOn({
+      preventDefault: () => undefined,
+      dataTransfer: { getData: () => beforeChildIds[0] },
+    } as any, component.emailDocument.body[1].id);
 
     expect(component.emailDocument.body.map((node) => node.id)).toEqual(beforeRootIds);
     expect(section.children!.map((node) => node.id)).toEqual(beforeChildIds);
 
-    const sectionOutlineContainer = { id: component.outlineDropListIdFor(section), data: sectionChildren } as any;
-    component.outlineDrop({
-      previousContainer: sectionOutlineContainer,
-      container: sectionOutlineContainer,
-      previousIndex: 0,
-      currentIndex: 1,
-    } as any);
+    component.beginOutlineDrag({ dataTransfer: { setData: () => undefined } } as any, beforeChildIds[0]);
+    component.previewOutlineDrop({
+      preventDefault: () => undefined,
+      dataTransfer: { getData: () => beforeChildIds[0] },
+      currentTarget: { getBoundingClientRect: () => ({ top: 0, height: 40 }) },
+      clientY: 32,
+    } as any, beforeChildIds[1]);
+    component.dropOutlineOn({
+      preventDefault: () => undefined,
+      dataTransfer: { getData: () => beforeChildIds[0] },
+    } as any, beforeChildIds[1]);
 
     expect(section.children![0].id).toBe(beforeChildIds[1]);
     expect(section.children![1].id).toBe(beforeChildIds[0]);
