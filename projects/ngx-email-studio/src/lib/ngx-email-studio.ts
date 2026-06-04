@@ -69,14 +69,12 @@ function resolveTinyMceScriptSrc(): string {
     <section class="nes-shell">
       <header class="nes-toolbar">
         <div class="nes-brand">
-          <div class="nes-logo">EB</div>
+          <div class="nes-logo" aria-hidden="true"><i class="fa fa-envelope-open-o"></i></div>
           <div>
-            <p class="nes-breadcrumb">{{ effectiveConfig.breadcrumb || 'CMS / Email Campaign / Draft' }}</p>
-            <h2>{{ effectiveConfig.title || 'Membership Email · Email Builder' }}</h2>
+            <h2>{{ effectiveConfig.title || 'Email Studio' }}</h2>
           </div>
         </div>
         <div class="nes-actions">
-          <span class="nes-save-state"><i class="fa fa-circle" aria-hidden="true"></i>{{ effectiveConfig.statusLabel || 'Draft saved' }}</span>
           <button type="button" class="nes-import-trigger" (click)="openImportModal()"><i class="fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen">
             <button type="button" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
@@ -270,8 +268,13 @@ function resolveTinyMceScriptSrc(): string {
 
               <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules into the canvas drop zones to add nested content.</p>
 
-              <label *ngIf="node.type === 'text'">
-                Rich text
+              <label *ngIf="node.type === 'text'" class="nes-rich-text-field">
+                <span class="nes-field-heading">
+                  Rich text
+                  <button type="button" class="nes-expand-editor" (click)="openRichTextModal(node); $event.stopPropagation()">
+                    <i class="fa fa-expand" aria-hidden="true"></i> Open editor
+                  </button>
+                </span>
                 <editor
                   *ngIf="resolvedUseTinyMce; else plainTextEditor"
                   [ngModel]="node.attrs['content']"
@@ -381,6 +384,33 @@ function resolveTinyMceScriptSrc(): string {
             <button type="button" (click)="closeImportModal()">Cancel</button>
             <button type="button" class="nes-primary" (click)="importMjml()"><i class="fa fa-check" aria-hidden="true"></i> Import MJML</button>
           </footer>
+        </section>
+      </div>
+
+      <div class="nes-modal-backdrop" *ngIf="expandedRichTextNode" (click)="closeRichTextModal()">
+        <section class="nes-rich-text-modal" role="dialog" aria-modal="true" aria-label="Rich text editor" (click)="$event.stopPropagation()">
+          <header>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></span>
+              <div>
+                <p>Rich text</p>
+                <h3>Large editing canvas</h3>
+              </div>
+            </div>
+            <button type="button" aria-label="Close rich text editor" (click)="closeRichTextModal()"><i class="fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div class="nes-rich-text-modal-body" *ngIf="expandedRichTextNode as richTextNode">
+            <editor
+              *ngIf="resolvedUseTinyMce; else expandedPlainTextEditor"
+              [ngModel]="richTextNode.attrs['content']"
+              (ngModelChange)="updateExpandedRichText($event)"
+              [init]="largeTinyMceInit"
+              [licenseKey]="'gpl'"
+            ></editor>
+            <ng-template #expandedPlainTextEditor>
+              <textarea [ngModel]="richTextNode.attrs['content']" (ngModelChange)="updateExpandedRichText($event)"></textarea>
+            </ng-template>
+          </div>
         </section>
       </div>
 
@@ -531,8 +561,7 @@ function resolveTinyMceScriptSrc(): string {
     .nes-shell { border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; min-height: 780px; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
-    .nes-logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; font-weight: 900; letter-spacing: -.04em; background: linear-gradient(135deg, #14b8a6, #22c55e); box-shadow: 0 10px 24px rgba(20, 184, 166, .28); }
-    .nes-breadcrumb { margin: 0 0 4px; color: var(--nes-muted); font-size: 12px; }
+    .nes-logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; font-size: 18px; background: linear-gradient(135deg, #14b8a6, #22c55e); box-shadow: 0 10px 24px rgba(20, 184, 166, .28); }
     h2, h3 { margin: 0; }
     h2 { font-size: 20px; letter-spacing: -.02em; }
     h3 { font-size: 14px; color: #172033; }
@@ -541,8 +570,6 @@ function resolveTinyMceScriptSrc(): string {
     button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
     .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); }
     .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
-    .nes-save-state { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 999px; background: #ecfdf3; color: #15803d; font-size: 13px; font-weight: 700; }
-    .nes-save-state i { font-size: 8px; }
     .nes-export { position: relative; }
     .nes-export > button { display: inline-flex; align-items: center; gap: 6px; }
     .nes-export-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 180px; padding: 6px; border: 1px solid var(--nes-border); border-radius: 12px; background: #fff; box-shadow: 0 18px 40px rgba(15, 23, 42, .16); }
@@ -587,8 +614,9 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-children { display: grid; gap: 4px; }
     .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
     .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
-    .nes-stage { overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; }
-    .nes-stage::-webkit-scrollbar { height: 10px; }
+    .nes-stage { max-height: min(900px, calc(100vh - 112px)); overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
+    .nes-stage::-webkit-scrollbar { width: 10px; height: 10px; }
+    .nes-stage::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
     .nes-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
     .nes-stage-head p { margin: 4px 0 0; color: var(--nes-muted); font-size: 12px; }
     .nes-stage-actions { display: flex; gap: 8px; }
@@ -635,21 +663,24 @@ function resolveTinyMceScriptSrc(): string {
     label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
     input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
     textarea { min-height: 120px; }
+    .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
     .nes-muted { color: var(--nes-muted); font-size: 13px; }
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 10%, rgba(37, 99, 235, .16), transparent 32%), rgba(15, 23, 42, .58); backdrop-filter: blur(10px); }
-    .nes-output-modal, .nes-import-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
+    .nes-output-modal, .nes-import-modal, .nes-rich-text-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
     .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); background: #fff; }
     .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
-    .nes-output-modal header, .nes-import-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
+    .nes-rich-text-modal { width: min(1120px, 100%); max-height: min(860px, calc(100vh - 48px)); grid-template-rows: auto minmax(0, 1fr); background: #fff; }
+    .nes-output-modal header, .nes-import-modal header, .nes-rich-text-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
     .nes-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .nes-modal-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #bbf7d0; border-radius: 13px; background: linear-gradient(135deg, #ecfdf3, #eff6ff); color: var(--nes-success); box-shadow: 0 10px 22px rgba(22, 163, 74, .12); flex: 0 0 auto; }
-    .nes-output-modal header p, .nes-import-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
-    .nes-output-modal header h3, .nes-import-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
+    .nes-output-modal header p, .nes-import-modal header p, .nes-rich-text-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
+    .nes-output-modal header h3, .nes-import-modal header h3, .nes-rich-text-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
     .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
-    .nes-modal-actions button, .nes-import-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
-    .nes-modal-actions button:hover, .nes-import-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
+    .nes-modal-actions button, .nes-import-modal header > button, .nes-rich-text-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+    .nes-modal-actions button:hover, .nes-import-modal header > button:hover, .nes-rich-text-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
     .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
     .nes-preview-btn { background: #ecfdf3 !important; color: var(--nes-success) !important; border-color: #bbf7d0 !important; font-weight: 800; }
     .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
@@ -667,6 +698,9 @@ function resolveTinyMceScriptSrc(): string {
     .nes-import-body { padding: 20px; overflow: auto; background: linear-gradient(180deg, #f8fafc, #f1f5f9); }
     .nes-import-body textarea { min-height: 386px; resize: vertical; border: 0; border-radius: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
     .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); outline-offset: -2px; }
+    .nes-rich-text-modal-body { min-height: 0; padding: 20px; background: linear-gradient(180deg, #f8fafc, #f1f5f9); overflow: auto; }
+    .nes-rich-text-modal-body editor, .nes-rich-text-modal-body .tox-tinymce { min-height: 620px; }
+    .nes-rich-text-modal-body textarea { min-height: 620px; resize: vertical; }
     .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
     .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #fff; }
     .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 10px; margin: 12px 20px; }
@@ -701,7 +735,7 @@ export class NgxEmailStudio implements OnChanges {
   ];
 
   emailDocument: EmailDocument = this.createStarterDocument();
-  selectedNodeId?: string;
+  selectedNodeId?: string = this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id;
   mjmlDraft = '';
   paletteSearch = '';
   activeLeftTab: 'modules' | 'outline' = 'modules';
@@ -710,6 +744,7 @@ export class NgxEmailStudio implements OnChanges {
   importModalOpen = false;
   importErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
+  expandedRichTextNode?: EmailNode;
   copyState = '';
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
@@ -717,6 +752,7 @@ export class NgxEmailStudio implements OnChanges {
   lastHtml = '';
 
   tinyMceInit = this.createTinyMceInit();
+  largeTinyMceInit = this.createTinyMceInit(620);
   readonly rootDropListId = 'nes-root-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
 
@@ -781,6 +817,7 @@ export class NgxEmailStudio implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
       this.tinyMceInit = this.createTinyMceInit();
+      this.largeTinyMceInit = this.createTinyMceInit(620);
     }
 
     if (changes['document'] && this.document) {
@@ -857,7 +894,7 @@ export class NgxEmailStudio implements OnChanges {
     if (item.preset === 'hero') {
       return this.createSectionWithChildren([
         this.createNode('text', {
-          content: '<p class="kicker">會員專屬更新</p><h1>今週精選內容已為你整理好</h1><p>用一封清晰、可編輯的 EDM，將 CMS 最新文章、商品與優惠同步發送給會員。</p>',
+          content: '<p class="kicker">Campaign update</p><h1>Your weekly newsletter is ready to edit</h1><p>Create polished, responsive email campaigns with editable MJML blocks and a visual Angular builder.</p>',
           backgroundColor: '#ffffff',
         }),
       ]);
@@ -866,7 +903,7 @@ export class NgxEmailStudio implements OnChanges {
     if (item.preset === 'footer') {
       return this.createSectionWithChildren([
         this.createNode('text', {
-          content: '<p>你收到此電郵是因為你訂閱了 CMS 會員更新。可於會員中心調整通知偏好或取消訂閱。</p>',
+          content: '<p>You are receiving this email because you subscribed to product updates. Manage preferences or unsubscribe from your account settings.</p>',
           backgroundColor: '#f1f5f9',
         }),
       ], { backgroundColor: '#f1f5f9' });
@@ -1035,6 +1072,21 @@ export class NgxEmailStudio implements OnChanges {
     this.copyState = '';
   }
 
+  openRichTextModal(node: EmailNode): void {
+    if (node.type !== 'text') return;
+    this.expandedRichTextNode = node;
+  }
+
+  closeRichTextModal(): void {
+    this.expandedRichTextNode = undefined;
+  }
+
+  updateExpandedRichText(value: string): void {
+    const node = this.expandedRichTextNode;
+    if (!node) return;
+    this.updateAttr(node, 'content', value);
+  }
+
   async copyOutputToClipboard(): Promise<void> {
     const content = this.outputModalContent;
     if (!content) return;
@@ -1154,7 +1206,7 @@ export class NgxEmailStudio implements OnChanges {
     };
   }
 
-  private createTinyMceInit(): Record<string, unknown> {
+  private createTinyMceInit(height = 240): Record<string, unknown> {
     return {
       base_url: this.effectiveConfig.tinyMceBaseUrl || this.resolveTinyMceBaseUrl(),
       suffix: '.min',
@@ -1162,7 +1214,7 @@ export class NgxEmailStudio implements OnChanges {
       menubar: false,
       branding: false,
       promotion: false,
-      height: 240,
+      height,
       plugins: 'link lists',
       toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link | removeformat',
       skin: 'oxide',

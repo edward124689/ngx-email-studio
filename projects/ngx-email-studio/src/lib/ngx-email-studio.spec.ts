@@ -176,9 +176,9 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body.length).toBe(2);
     expect(component.emailDocument.body[0].type).toBe('section');
     expect(component.emailDocument.body[0].children?.[0].type).toBe('text');
-    expect(component.emailDocument.body[0].children?.[0].attrs['content']).toContain('今週精選內容');
+    expect(component.emailDocument.body[0].children?.[0].attrs['content']).toContain('weekly newsletter');
     expect(component.emailDocument.body[1].type).toBe('section');
-    expect(component.emailDocument.body[1].children?.[0].attrs['content']).toContain('取消訂閱');
+    expect(component.emailDocument.body[1].children?.[0].attrs['content']).toContain('Manage preferences');
   });
 
   it('should keep Content modules as drag-only two-column cards with hover descriptions', () => {
@@ -233,6 +233,28 @@ describe('NgxEmailStudio', () => {
     expect(component.tinyMceInit['skin']).toBe('oxide');
     expect(component.tinyMceInit['content_css']).toBe('default');
     expect(component.tinyMceInit['base_url']).toBeTruthy();
+    expect(component.largeTinyMceInit['height']).toBe(620);
+  });
+
+  it('should simplify the header and use a Font Awesome logo icon', () => {
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Email Studio');
+    expect(fixture.nativeElement.textContent).not.toContain('Membership Email');
+    expect(fixture.nativeElement.querySelector('.nes-breadcrumb')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-save-state')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('.nes-logo .fa-envelope-open-o')).toBeTruthy();
+  });
+
+  it('should open a large rich text editor modal from the inspector', () => {
+    const textNode = component.emailDocument.body[0].children?.[0];
+    expect(textNode?.type).toBe('text');
+
+    component.openRichTextModal(textNode!);
+
+    expect(component.expandedRichTextNode?.id).toBe(textNode!.id);
+    component.updateExpandedRichText('<p>Updated from large editor</p>');
+    expect(textNode!.attrs['content']).toContain('Updated from large editor');
   });
 
   it('should open export dropdown and show MJML output in a modal instead of bottom output panels', () => {
