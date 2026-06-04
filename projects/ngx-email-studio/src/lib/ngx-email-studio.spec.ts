@@ -20,6 +20,20 @@ describe('NgxEmailStudio', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should default email width to 600px and max-width to 100%', () => {
+    fixture.detectChanges();
+    (component as any).refreshOutputs(false);
+
+    expect(component.emailWidth).toBe(600);
+    expect(component.emailWidthCss).toBe('600px');
+    expect(component.emailMaxWidthCss).toBe('100%');
+    expect(component.emailCanvasWidthCss).toBe('min(100%, 600px)');
+    expect(component.emailCanvasMaxWidthCss).toBe('100%');
+    expect(component.lastMjml).toContain('<mj-body background-color="#f3f4f6" width="600px">');
+    expect(component.lastHtml).toContain('width="600"');
+    expect(component.lastHtml).toContain('style="width:600px;max-width:100%;');
+  });
+
   it('should compile body width/background and row columns to MJML columns', () => {
     const document: EmailDocument = {
       version: '0.0.1',
@@ -143,6 +157,7 @@ describe('NgxEmailStudio', () => {
     expect(fixture.nativeElement.textContent).toContain('Body / Email canvas');
     component.updateDocumentAttr('width', 700);
     component.updateDocumentAttr('maxWidth', 720);
+    component.updateDocumentAttr('maxWidthUnit', 'px');
     expect(component.emailWidth).toBe(700);
     expect(component.emailWidthCss).toBe('700px');
     expect(component.emailMaxWidthCss).toBe('720px');
@@ -274,7 +289,7 @@ describe('NgxEmailStudio', () => {
     expect(component.previewWidth).toBe(600);
     expect(component.emailWidthCss).toBe('640px');
     expect(component.emailCanvasWidthCss).toBe('min(100%, 640px)');
-    expect(component.emailCanvasMaxWidthCss).toBe('min(100%, 640px)');
+    expect(component.emailCanvasMaxWidthCss).toBe('100%');
     expect(component.lastHtml).toContain('width="640"');
   });
 

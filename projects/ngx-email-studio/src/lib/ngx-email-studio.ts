@@ -258,7 +258,7 @@ function resolveTinyMceScriptSrc(): string {
                 <label>
                   Email width
                   <span class="nes-unit-field">
-                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'width', 640)" (ngModelChange)="updateDocumentAttr('width', +$event)" />
+                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'width', 600)" (ngModelChange)="updateDocumentAttr('width', +$event)" />
                     <select [ngModel]="dimensionUnit(documentAttrs, 'width', 'px')" (ngModelChange)="updateDocumentAttr('widthUnit', $event)">
                       <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
                     </select>
@@ -267,8 +267,8 @@ function resolveTinyMceScriptSrc(): string {
                 <label>
                   Email max width
                   <span class="nes-unit-field">
-                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'maxWidth', 640)" (ngModelChange)="updateDocumentAttr('maxWidth', +$event)" />
-                    <select [ngModel]="dimensionUnit(documentAttrs, 'maxWidth', 'px')" (ngModelChange)="updateDocumentAttr('maxWidthUnit', $event)">
+                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'maxWidth', 100)" (ngModelChange)="updateDocumentAttr('maxWidth', +$event)" />
+                    <select [ngModel]="dimensionUnit(documentAttrs, 'maxWidth', '%')" (ngModelChange)="updateDocumentAttr('maxWidthUnit', $event)">
                       <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
                     </select>
                   </span>
@@ -915,15 +915,15 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   get emailWidth(): number {
-    return this.dimensionValue(this.documentAttrs, 'width', 640);
+    return this.dimensionValue(this.documentAttrs, 'width', 600);
   }
 
   get emailWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'width', 640, 'px');
+    return this.dimensionCss(this.documentAttrs, 'width', 600, 'px');
   }
 
   get emailMaxWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'maxWidth', this.emailWidth, 'px');
+    return this.dimensionCss(this.documentAttrs, 'maxWidth', 100, '%');
   }
 
   get emailCanvasWidthCss(): string {
@@ -1520,10 +1520,10 @@ export class NgxEmailStudio implements OnChanges {
     return {
       backgroundColor: '#f3f4f6',
       contentBackgroundColor: '#ffffff',
-      width: 640,
+      width: 600,
       widthUnit: 'px',
-      maxWidth: 640,
-      maxWidthUnit: 'px',
+      maxWidth: 100,
+      maxWidthUnit: '%',
     };
   }
 
@@ -1782,9 +1782,9 @@ export class NgxEmailStudio implements OnChanges {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
     const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
-    const emailWidth = this.dimensionCss(attrs, 'width', 640, 'px');
-    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', this.dimensionValue(attrs, 'width', 640), 'px');
-    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 640, 'px');
+    const emailWidth = this.dimensionCss(attrs, 'width', 600, 'px');
+    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 100, '%');
+    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 600, 'px');
     const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
     return [
       '<!doctype html>',
