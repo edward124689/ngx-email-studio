@@ -171,6 +171,28 @@ describe('NgxEmailStudio', () => {
     expect(component.isAlignableContent({ id: 'divider_1', type: 'divider', attrs: {} })).toBe(false);
   });
 
+  it('should reflect content module background colors on the editable canvas preview', () => {
+    const textNode = component.emailDocument.body[0].children?.[0];
+    expect(textNode?.type).toBe('text');
+
+    component.updateAttr(textNode!, 'backgroundColor', '#7d5454');
+    expect(component.backgroundFor(textNode!)).toBe('#7d5454');
+    expect(component.lastHtml).toContain('background:#7d5454');
+  });
+
+  it('should keep the sidebar, canvas, and inspector in one equal-height scroll frame', () => {
+    fixture.detectChanges();
+    const styles = Array.from((fixture.nativeElement.shadowRoot || fixture.nativeElement).querySelectorAll('style') as NodeListOf<HTMLStyleElement>)
+      .map((style) => style.textContent || '')
+      .join('\n');
+    const compactStyles = styles.replace(/\s+/g, ' ');
+
+    expect(compactStyles).toContain('.nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; height: min(900px, calc(100vh - 112px)); min-height: 660px; align-items: stretch; overflow: hidden; }');
+    expect(compactStyles).toContain('.nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain;');
+    expect(compactStyles).toContain('.nes-stage { min-height: 0; overflow: auto;');
+    expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
+  });
+
   it('should import MJML sections with multiple columns as row nodes', () => {
     const mjml = `<mjml><mj-body><mj-section background-color="#f8fafc"><mj-column width="40%"><mj-text><p>Left</p></mj-text></mj-column><mj-column width="60%"><mj-image src="https://example.com/image.jpg" alt="Hero" /></mj-column></mj-section></mj-body></mjml>`;
 

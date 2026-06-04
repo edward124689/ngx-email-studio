@@ -689,11 +689,11 @@ function resolveTinyMceScriptSrc(): string {
           <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
-        <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
-        <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)">
+        <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
+        <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)">
           <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
         </div>
-        <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)">
+        <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)">
           <a class="nes-render-button">{{ node.attrs['label'] }}</a>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
@@ -765,8 +765,10 @@ function resolveTinyMceScriptSrc(): string {
     .nes-export-menu::before { content: ''; position: absolute; right: 24px; top: -6px; width: 10px; height: 10px; transform: rotate(45deg); background: #fff; border-left: 1px solid var(--nes-border); border-top: 1px solid var(--nes-border); }
     .nes-export-menu button { width: 100%; justify-content: flex-start; gap: 10px; border: 0; background: transparent; text-align: left; padding: 10px 11px; border-radius: 10px; color: #172033; }
     .nes-export-menu button:hover { background: #eff6ff; color: var(--nes-accent); }
-    .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; min-height: 660px; }
-    .nes-panel { background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
+    .nes-builder { display: grid; grid-template-columns: 285px minmax(430px, 1fr) 340px; height: min(900px, calc(100vh - 112px)); min-height: 660px; align-items: stretch; overflow: hidden; }
+    .nes-panel { min-height: 0; overflow: auto; overscroll-behavior: contain; background: var(--nes-panel); padding: 18px; border-right: 1px solid var(--nes-border); }
+    .nes-panel::-webkit-scrollbar, .nes-stage::-webkit-scrollbar { width: 10px; height: 10px; }
+    .nes-panel::-webkit-scrollbar-thumb, .nes-stage::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
     .nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); }
     .nes-panel-head p { margin: 5px 0 0; color: var(--nes-muted); font-size: 12px; line-height: 1.45; }
     .nes-search { position: relative; display: block; margin: 16px 0; }
@@ -807,9 +809,7 @@ function resolveTinyMceScriptSrc(): string {
 
     .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
     .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
-    .nes-stage { max-height: min(900px, calc(100vh - 112px)); overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
-    .nes-stage::-webkit-scrollbar { width: 10px; height: 10px; }
-    .nes-stage::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f8fafc; }
+    .nes-stage { min-height: 0; overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
     .nes-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
     .nes-stage-head p { margin: 4px 0 0; color: var(--nes-muted); font-size: 12px; }
     .nes-stage-actions { display: flex; gap: 8px; }
@@ -924,7 +924,7 @@ function resolveTinyMceScriptSrc(): string {
     @keyframes nes-modal-pop { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .cdk-drag-preview { box-sizing: border-box; border-radius: 14px; box-shadow: 0 8px 24px rgba(16, 24, 40, .18); }
     .cdk-drag-placeholder { opacity: .35; }
-    @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
+    @media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; } .nes-stage, .nes-panel { max-height: none; overflow: visible; } .nes-properties { border-left: 0; border-top: 1px solid var(--nes-border); } .nes-panel { border-right: 0; border-bottom: 1px solid var(--nes-border); } }
     @media (max-width: 520px) { .nes-toolbar, .nes-stage-head { align-items: flex-start; flex-direction: column; } .nes-actions { justify-content: flex-start; flex-wrap: wrap; width: 100%; margin-left: 0; } }
     @media (max-width: 480px) { .nes-render-row { flex-direction: column; } .nes-render-column { width: 100% !important; max-width: 100% !important; } }
   `,
@@ -1370,6 +1370,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit {
   contentAlign(node: EmailNode): 'left' | 'center' | 'right' {
     const align = String(node.attrs['align'] || 'left').toLowerCase();
     return align === 'center' || align === 'right' ? align : 'left';
+  }
+
+  backgroundFor(node: EmailNode): string {
+    return String(node.attrs['backgroundColor'] || '#ffffff');
   }
 
   setRowColumns(row: EmailNode, count: number): void {
