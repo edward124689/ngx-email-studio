@@ -286,6 +286,43 @@ describe('NgxEmailStudio', () => {
     expect(nestedNode.querySelector('.nes-floating-tools')).toBeTruthy();
   });
 
+
+  it('should normalize section presets dropped inside a section so export keeps their content', () => {
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const hero = component.palette.find((item) => item.preset === 'hero')!;
+    const before = section.children?.length || 0;
+
+    component.drop({
+      previousContainer: { data: component.palette } as any,
+      container: { id: component.dropListIdFor(section), data: section.children || [] } as any,
+      previousIndex: component.palette.indexOf(hero),
+      currentIndex: before,
+      item: { data: hero } as any,
+    } as any);
+
+    expect(section.children?.[before].type).toBe('text');
+    expect(section.children?.[before].attrs['content']).toContain('Campaign update');
+    expect(component.lastMjml).toContain('Campaign update');
+    expect(component.lastMjml).not.toContain('Section container');
+  });
+
+  it('should keep duplicate and delete disabled in readonly mode', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const originalLength = localComponent.emailDocument.body.length;
+    const selected = localComponent.emailDocument.body[0].id;
+    localFixture.componentRef.setInput('readonly', true);
+    localComponent.selectNode(selected);
+
+    localComponent.duplicateSelected();
+    localComponent.deleteSelected();
+    localFixture.detectChanges();
+
+    expect(localComponent.emailDocument.body.length).toBe(originalLength);
+    expect(localComponent.emailDocument.body[0].id).toBe(selected);
+    expect(localFixture.nativeElement.querySelector('.nes-floating-tools')).toBeFalsy();
+  });
+
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {
     fixture.detectChanges();
 
@@ -330,6 +367,31 @@ describe('NgxEmailStudio', () => {
 
     expect(calls.length).toBeGreaterThan(0);
     expect(calls[0].behavior).toBe('smooth');
+  });
+
+
+  it('should scope outline scrolling to the clicked component instance', async () => {
+    const firstFixture = TestBed.createComponent(NgxEmailStudio);
+    const secondFixture = TestBed.createComponent(NgxEmailStudio);
+    firstFixture.detectChanges();
+    secondFixture.detectChanges();
+
+    const firstStage = firstFixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
+    const secondStage = secondFixture.nativeElement.querySelector('.nes-stage') as HTMLElement;
+    const firstCalls: ScrollToOptions[] = [];
+    const secondCalls: ScrollToOptions[] = [];
+    firstStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => firstCalls.push(typeof options === 'number' ? { top: y } : options || {});
+    secondStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => secondCalls.push(typeof options === 'number' ? { top: y } : options || {});
+
+    const secondTabs = secondFixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    secondTabs[1].click();
+    secondFixture.detectChanges();
+    const secondOutlineNodes = secondFixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    secondOutlineNodes[1].click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(firstCalls.length).toBe(0);
+    expect(secondCalls.length).toBeGreaterThan(0);
   });
 
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {

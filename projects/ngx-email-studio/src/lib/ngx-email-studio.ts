@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 
@@ -207,7 +207,7 @@ function resolveTinyMceScriptSrc(): string {
                 (click)="selectNode(node.id); $event.stopPropagation()"
                 (keydown.enter)="selectNode(node.id)"
               >
-                <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId">
+                <div class="nes-floating-tools" *ngIf="node.id === selectedNodeId && !readonly">
                   <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
                   <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
                 </div>
@@ -560,7 +560,7 @@ function resolveTinyMceScriptSrc(): string {
               (click)="selectNode(child.id); $event.stopPropagation()"
               (keydown.enter)="selectNode(child.id)"
             >
-              <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId">
+              <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId && !readonly">
                 <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
                 <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
               </div>
@@ -601,7 +601,7 @@ function resolveTinyMceScriptSrc(): string {
             (click)="selectNode(child.id); $event.stopPropagation()"
             (keydown.enter)="selectNode(child.id)"
           >
-            <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId">
+            <div class="nes-floating-tools" *ngIf="child.id === selectedNodeId && !readonly">
               <button type="button" (click)="duplicateSelected(); $event.stopPropagation()"><i class="fa fa-clone"></i></button>
               <button type="button" (click)="deleteSelected(); $event.stopPropagation()"><i class="fa fa-trash"></i></button>
             </div>
@@ -842,6 +842,8 @@ export class NgxEmailStudio implements OnChanges {
   readonly rootDropListId = 'nes-root-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
 
+  constructor(private readonly hostRef: ElementRef<HTMLElement>) {}
+
   get connectedDropListIds(): string[] {
     return [this.rootDropListId, ...this.collectContainerDropListIds(this.emailDocument.body)];
   }
@@ -944,7 +946,7 @@ export class NgxEmailStudio implements OnChanges {
     }
 
     if (this.isPaletteItem(event.item.data)) {
-      const node = this.wrapForRootDrop(this.createNodeFromPalette(event.item.data), (event.container as { id?: string }).id);
+      const node = this.createNodeForDrop(event.item.data, (event.container as { id?: string }).id);
       event.container.data.splice(event.currentIndex, 0, node);
       this.selectedNodeId = node.id;
     } else {
@@ -1182,7 +1184,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   duplicateSelected(): void {
-    if (!this.selectedNodeId) return;
+    if (this.readonly || !this.selectedNodeId) return;
     const location = this.findNodeLocation(this.selectedNodeId);
     if (!location) return;
     const clone = structuredClone(location.node);
@@ -1193,7 +1195,7 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   deleteSelected(): void {
-    if (!this.selectedNodeId) return;
+    if (this.readonly || !this.selectedNodeId) return;
     const location = this.findNodeLocation(this.selectedNodeId);
     if (!location) return;
     location.siblings.splice(location.index, 1);
@@ -1354,25 +1356,32 @@ export class NgxEmailStudio implements OnChanges {
   }
 
   private scrollNodeIntoStage(id: string): void {
-    const documentRef = globalThis.document;
-    if (!documentRef) return;
     const selector = `[data-node-id="${this.escapeCssIdentifier(id)}"]`;
     setTimeout(() => {
-      const stage = documentRef.querySelector('.nes-stage') as HTMLElement | null;
-      const target = documentRef.querySelector(selector) as HTMLElement | null;
+      const host = this.hostRef.nativeElement;
+      const stage = host.querySelector('.nes-stage') as HTMLElement | null;
+      const target = host.querySelector(selector) as HTMLElement | null;
       if (!stage || !target) return;
       const stageBox = stage.getBoundingClientRect();
       const targetBox = target.getBoundingClientRect();
-      const top = stage.scrollTop + targetBox.top - stageBox.top - 72;
-      stage.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      const top = Math.max(0, stage.scrollTop + targetBox.top - stageBox.top - 72);
+      this.scrollStageToPosition(stage, top);
     }, 0);
   }
 
   private scrollStageToTop(): void {
-    const stage = globalThis.document?.querySelector('.nes-stage') as HTMLElement | null;
     setTimeout(() => {
-      if (typeof stage?.scrollTo === 'function') stage.scrollTo({ top: 0, behavior: 'smooth' });
+      const stage = this.hostRef.nativeElement.querySelector('.nes-stage') as HTMLElement | null;
+      if (stage) this.scrollStageToPosition(stage, 0);
     }, 0);
+  }
+
+  private scrollStageToPosition(stage: HTMLElement, top: number): void {
+    if (typeof stage.scrollTo === 'function') {
+      stage.scrollTo({ top, behavior: 'smooth' });
+    } else {
+      stage.scrollTop = top;
+    }
   }
 
   private escapeCssIdentifier(value: string): string {
@@ -1450,10 +1459,25 @@ export class NgxEmailStudio implements OnChanges {
     return new URL('tinymce', base).href.replace(/\/$/, '');
   }
 
+  private createNodeForDrop(item: PaletteItem, containerId?: string): EmailNode {
+    const node = this.createNodeFromPalette(item);
+    if (containerId === this.rootDropListId) return this.wrapForRootDrop(node, containerId);
+    return this.normalizeNestedDropNode(node);
+  }
+
   private wrapForRootDrop(node: EmailNode, containerId?: string): EmailNode {
     if (containerId !== this.rootDropListId) return node;
     if (node.type === 'row' || node.type === 'section') return node;
     return this.createSectionWithChildren([node]);
+  }
+
+  private normalizeNestedDropNode(node: EmailNode): EmailNode {
+    if (node.type === 'section') {
+      const child = node.children?.[0];
+      return child ? structuredClone(child) : this.createNode('text');
+    }
+    if (node.type === 'row') return this.createNode('text');
+    return node;
   }
 
   private createSectionWithChildren(children: EmailNode[], attrs: Record<string, string | number | boolean> = {}): EmailNode {
