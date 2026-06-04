@@ -153,7 +153,16 @@ function resolveTinyMceScriptSrc(): string {
                 </span>
                 <span class="nes-outline-index">BODY</span>
               </button>
-              <div class="nes-outline-children" role="group">
+              <div
+                class="nes-outline-children nes-outline-drop-list"
+                role="group"
+                cdkDropList
+                [id]="outlineRootDropListId"
+                [cdkDropListData]="emailDocument.body"
+                [cdkDropListConnectedTo]="[outlineRootDropListId]"
+                [cdkDropListAutoScrollStep]="12"
+                (cdkDropListDropped)="outlineDrop($event)"
+              >
                 <ng-container *ngFor="let node of emailDocument.body; let i = index; trackBy: trackNode">
                   <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: node, depth: 1, indexPath: (i + 1).toString().padStart(2, '0') }"></ng-container>
                 </ng-container>
@@ -513,27 +522,42 @@ function resolveTinyMceScriptSrc(): string {
     </section>
 
     <ng-template #outlineTreeNode let-node="node" let-depth="depth" let-indexPath="indexPath">
-      <button
-        type="button"
-        class="nes-outline-node"
-        role="treeitem"
-        [attr.aria-selected]="node.id === selectedNodeId"
-        [class.is-active]="node.id === selectedNodeId"
-        [style.padding-left.px]="12 + depth * 18"
-        (click)="selectNodeFromOutline(node.id)"
-      >
-        <span class="nes-outline-rail" aria-hidden="true"></span>
-        <span class="nes-outline-icon"><i class="fa" [class]="'fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
-        <span class="nes-outline-copy">
-          <strong>{{ outlineLabel(node) }}</strong>
-          <small>{{ outlineMeta(node) }}</small>
-        </span>
-        <span class="nes-outline-index">{{ indexPath }}</span>
-      </button>
-      <div class="nes-outline-children" role="group" *ngIf="node.children?.length">
-        <ng-container *ngFor="let child of node.children; let childIndex = index; trackBy: trackNode">
-          <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: child, depth: depth + 1, indexPath: indexPath + '.' + (childIndex + 1) }"></ng-container>
-        </ng-container>
+      <div class="nes-outline-item" cdkDrag [cdkDragData]="node" [cdkDragDisabled]="readonly">
+        <button
+          type="button"
+          class="nes-outline-node"
+          role="treeitem"
+          [attr.aria-selected]="node.id === selectedNodeId"
+          [class.is-active]="node.id === selectedNodeId"
+          [style.padding-left.px]="12 + depth * 18"
+          (click)="selectNodeFromOutline(node.id)"
+        >
+          <span class="nes-outline-rail" aria-hidden="true"></span>
+          <span class="nes-outline-handle" cdkDragHandle title="Drag to reorder within this level" aria-label="Drag to reorder" (click)="$event.stopPropagation()">
+            <i class="fa fa-ellipsis-v" aria-hidden="true"></i><i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+          </span>
+          <span class="nes-outline-icon"><i class="fa" [class]="'fa ' + outlineIcon(node)" aria-hidden="true"></i></span>
+          <span class="nes-outline-copy">
+            <strong>{{ outlineLabel(node) }}</strong>
+            <small>{{ outlineMeta(node) }}</small>
+          </span>
+          <span class="nes-outline-index">{{ indexPath }}</span>
+        </button>
+        <div
+          class="nes-outline-children nes-outline-drop-list"
+          role="group"
+          *ngIf="node.children?.length"
+          cdkDropList
+          [id]="outlineDropListIdFor(node)"
+          [cdkDropListData]="node.children || []"
+          [cdkDropListConnectedTo]="[outlineDropListIdFor(node)]"
+          [cdkDropListAutoScrollStep]="12"
+          (cdkDropListDropped)="outlineDrop($event)"
+        >
+          <ng-container *ngFor="let child of node.children; let childIndex = index; trackBy: trackNode">
+            <ng-container [ngTemplateOutlet]="outlineTreeNode" [ngTemplateOutletContext]="{ node: child, depth: depth + 1, indexPath: indexPath + '.' + (childIndex + 1) }"></ng-container>
+          </ng-container>
+        </div>
       </div>
     </ng-template>
 
@@ -685,10 +709,14 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-tree { position: relative; display: grid; gap: 4px; margin-top: 16px; max-height: 548px; overflow: auto; padding: 6px 4px 8px 0; }
     .nes-outline-tree::before { content: ''; position: absolute; top: 10px; bottom: 12px; left: 22px; width: 1px; background: linear-gradient(#dbeafe, #bbf7d0); }
     .nes-outline-body { margin-bottom: 4px; }
-    .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
+    .nes-outline-node { position: relative; width: 100%; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #475569; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; }
     .nes-outline-node:hover { border-color: #bfdbfe; background: #f8fafc; color: var(--nes-accent); }
     .nes-outline-node.is-active { border-color: #bfdbfe; background: linear-gradient(135deg, #eff6ff, #f0fdf4); color: #1d4ed8; box-shadow: 0 10px 22px rgba(37, 99, 235, .08); }
     .nes-outline-rail { position: absolute; left: calc(100% - 100% + 4px); top: 50%; width: 12px; height: 1px; background: #cbd5e1; transform: translateY(-50%); }
+    .nes-outline-handle { position: relative; z-index: 1; width: 20px; height: 28px; display: inline-grid; grid-auto-flow: column; place-content: center; gap: 1px; border-radius: 8px; color: #94a3b8; cursor: grab; touch-action: none; }
+    .nes-outline-handle:hover { background: #eff6ff; color: var(--nes-accent); }
+    .nes-outline-handle:active { cursor: grabbing; }
+    .nes-outline-handle i { font-size: 11px; line-height: 1; }
     .nes-outline-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; background: #eff6ff; color: var(--nes-accent); font-size: 12px; }
     .nes-outline-node.is-active .nes-outline-icon { background: #dcfce7; color: var(--nes-success); }
     .nes-outline-copy { min-width: 0; }
@@ -696,7 +724,12 @@ function resolveTinyMceScriptSrc(): string {
     .nes-outline-copy strong { color: currentColor; font-size: 12px; line-height: 1.25; }
     .nes-outline-copy small { margin-top: 2px; color: var(--nes-muted); font-size: 10px; line-height: 1.2; text-transform: uppercase; letter-spacing: .045em; }
     .nes-outline-index { color: #94a3b8; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .nes-outline-children { display: grid; gap: 4px; }
+    .nes-outline-item { display: grid; gap: 4px; }
+    .nes-outline-children { display: grid; gap: 4px; min-height: 4px; }
+    .nes-outline-drop-list.cdk-drop-list-dragging { border-radius: 13px; background: rgba(239, 246, 255, .42); }
+    .nes-outline-drop-list .cdk-drag-placeholder { display: block !important; height: 4px !important; min-height: 4px !important; margin: 6px 0 !important; padding: 0 !important; border: 0 !important; border-radius: 999px !important; background: #dc2626 !important; opacity: 1 !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, .14) !important; overflow: hidden !important; }
+    .nes-outline-drop-list .cdk-drag-placeholder * { visibility: hidden !important; }
+    .nes-outline-item.cdk-drag-preview .nes-outline-node { background: #fff; border-color: #bfdbfe; box-shadow: 0 16px 36px rgba(15, 23, 42, .16); }
     .nes-outline-empty { display: grid; place-items: center; gap: 10px; min-height: 260px; margin-top: 16px; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: var(--nes-muted); text-align: center; font-size: 13px; }
     .nes-outline-empty i { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 13px; background: #eff6ff; color: var(--nes-accent); }
     .nes-stage { max-height: min(900px, calc(100vh - 112px)); overflow: auto; padding: 18px 22px 28px; background-color: #f8fafc; background-image: linear-gradient(var(--nes-grid) 1px, transparent 1px), linear-gradient(90deg, var(--nes-grid) 1px, transparent 1px); background-size: 24px 24px; overscroll-behavior: contain; }
@@ -852,6 +885,7 @@ export class NgxEmailStudio implements OnChanges {
   largeTinyMceInit = this.createTinyMceInit(620);
   readonly rootDropListId = 'nes-root-drop-list';
   readonly paletteDropListId = 'nes-palette-drop-list';
+  readonly outlineRootDropListId = 'nes-outline-root-drop-list';
   readonly bodyNodeId = BODY_NODE_ID;
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>) {}
@@ -974,6 +1008,19 @@ export class NgxEmailStudio implements OnChanges {
 
   dropListIdFor(node: EmailNode): string {
     return `nes-drop-${node.id}`;
+  }
+
+  outlineDropListIdFor(node: EmailNode): string {
+    return `nes-outline-drop-${node.id}`;
+  }
+
+  outlineDrop(event: CdkDragDrop<EmailNode[]>): void {
+    if (this.readonly) return;
+    if (event.previousContainer !== event.container) return;
+    if (event.previousIndex === event.currentIndex) return;
+    moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    this.selectedNodeId = event.container.data[event.currentIndex]?.id;
+    this.emitDocument();
   }
 
   childrenOf(node: EmailNode): EmailNode[] {

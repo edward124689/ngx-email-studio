@@ -431,6 +431,71 @@ describe('NgxEmailStudio', () => {
     expect(secondCalls.length).toBeGreaterThan(0);
   });
 
+  it('should support same-parent outline reorder with drag handles while keeping row click selection', () => {
+    fixture.detectChanges();
+    const tabs = fixture.nativeElement.querySelectorAll('.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    tabs[1].click();
+    fixture.detectChanges();
+
+    const first = component.emailDocument.body[0];
+    const second = component.emailDocument.body[1];
+    const outlineHandles = fixture.nativeElement.querySelectorAll('.nes-outline-handle') as NodeListOf<HTMLElement>;
+    const outlineDropLists = fixture.nativeElement.querySelectorAll('.nes-outline-drop-list') as NodeListOf<HTMLElement>;
+
+    expect(outlineHandles.length).toBeGreaterThan(0);
+    expect(outlineDropLists[0].id).toBe(component.outlineRootDropListId);
+
+    outlineHandles[0].click();
+    expect(component.selectedNodeId).not.toBe(first.id);
+
+    const outlineNodes = fixture.nativeElement.querySelectorAll('.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+    outlineNodes[1].click();
+    expect(component.selectedNodeId).toBe(first.id);
+
+    const rootOutlineContainer = { id: component.outlineRootDropListId, data: component.emailDocument.body } as any;
+    component.outlineDrop({
+      previousContainer: rootOutlineContainer,
+      container: rootOutlineContainer,
+      previousIndex: 0,
+      currentIndex: 1,
+    } as any);
+
+    expect(component.emailDocument.body[0].id).toBe(second.id);
+    expect(component.emailDocument.body[1].id).toBe(first.id);
+    expect(component.selectedNodeId).toBe(first.id);
+    expect(component.lastMjml).toContain('<mjml>');
+  });
+
+  it('should keep outline drag phase 1 limited to same-parent reordering', () => {
+    const section = component.emailDocument.body.find((node) => node.type === 'section')!;
+    const sectionChildren = section.children!;
+    sectionChildren.push((component as any).createNode('divider'));
+    const beforeRootIds = component.emailDocument.body.map((node) => node.id);
+    const beforeChildIds = sectionChildren.map((node) => node.id);
+
+    component.outlineDrop({
+      previousContainer: { id: component.outlineDropListIdFor(section), data: sectionChildren } as any,
+      container: { id: component.outlineRootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 1,
+    } as any);
+
+    expect(component.emailDocument.body.map((node) => node.id)).toEqual(beforeRootIds);
+    expect(section.children!.map((node) => node.id)).toEqual(beforeChildIds);
+
+    const sectionOutlineContainer = { id: component.outlineDropListIdFor(section), data: sectionChildren } as any;
+    component.outlineDrop({
+      previousContainer: sectionOutlineContainer,
+      container: sectionOutlineContainer,
+      previousIndex: 0,
+      currentIndex: 1,
+    } as any);
+
+    expect(section.children![0].id).toBe(beforeChildIds[1]);
+    expect(section.children![1].id).toBe(beforeChildIds[0]);
+    expect(component.selectedNodeId).toBe(beforeChildIds[0]);
+  });
+
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
     expect(component.tinyMceInit['skin']).toBe('oxide');
     expect(component.tinyMceInit['content_css']).toBe('default');
