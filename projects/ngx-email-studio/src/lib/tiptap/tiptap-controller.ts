@@ -29,20 +29,14 @@ export function syncTiptapContent(editor: TiptapEditor, node: EmailNode, editabl
 }
 
 export function installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
-  let pendingTextClick: { x: number; y: number; pos: number } | undefined;
+  let pendingTextClick: { x: number; y: number; pos: number; moved: boolean } | undefined;
   const guardPointer = (event: MouseEvent) => {
     if (event.button !== 0) return;
     const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
     if (!proseMirror) return;
     const isStructuredTarget = isTiptapStructuredEditorTarget(event.target);
     pendingTextClick = isStructuredTarget ? undefined : tiptapTextSelectionFromPoint(proseMirror, editor, event.clientX, event.clientY);
-    if (pendingTextClick) {
-      event.preventDefault();
-      event.stopPropagation();
-      editor.view.focus();
-      editor.commands.setTextSelection(pendingTextClick.pos);
-      return;
-    }
+    if (pendingTextClick) return;
     const contentBottom = tiptapContentBottom(proseMirror);
     const isBlankPanelClick = event.target === element || event.clientY > contentBottom + 4;
     const isWhitespaceInsideEditorClick =
@@ -56,6 +50,21 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
       editor.view.focus();
     }
   };
+  const trackTextDrag = (event: MouseEvent) => {
+    if (!pendingTextClick) return;
+    const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
+    if (movement <= 4) return;
+    const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
+    if (!proseMirror) return;
+    const dragTarget = tiptapSelectionFromViewportPoint(proseMirror, editor, event.clientX, event.clientY);
+    if (!dragTarget) return;
+    pendingTextClick.moved = true;
+    editor.view.focus();
+    editor.commands.setTextSelection({
+      from: Math.min(pendingTextClick.pos, dragTarget.pos),
+      to: Math.max(pendingTextClick.pos, dragTarget.pos),
+    });
+  };
   const restoreTextClick = (event: MouseEvent) => {
     if (!pendingTextClick) return;
     const textClick = pendingTextClick;
@@ -64,7 +73,7 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
       editor.view.focus();
       editor.commands.setTextSelection(textClick.pos);
     };
-    if (movement <= 4) {
+    if (!textClick.moved && movement <= 4) {
       restore();
       requestAnimationFrame(restore);
       setTimeout(restore, 0);
@@ -73,6 +82,8 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   };
   element.addEventListener('pointerdown', guardPointer, true);
   element.addEventListener('mousedown', guardPointer, true);
+  element.ownerDocument.addEventListener('pointermove', trackTextDrag, true);
+  element.ownerDocument.addEventListener('mousemove', trackTextDrag, true);
   element.addEventListener('click', restoreTextClick, false);
 }
 
@@ -102,7 +113,20 @@ export function isPointInTiptapTextRect(proseMirror: HTMLElement, clientX: numbe
   }
 }
 
-export function tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number } | undefined {
+export function tiptapSelectionFromViewportPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number; moved: boolean } | undefined {
+  const documentRef = proseMirror.ownerDocument;
+  const caretRange = documentRef.caretRangeFromPoint?.(clientX, clientY);
+  if (caretRange?.startContainer && proseMirror.contains(caretRange.startContainer)) {
+    return tiptapSelectionAtDomOffset(editor, caretRange.startContainer, caretRange.startOffset, clientX, clientY);
+  }
+  const caretPosition = documentRef.caretPositionFromPoint?.(clientX, clientY);
+  if (caretPosition?.offsetNode && proseMirror.contains(caretPosition.offsetNode)) {
+    return tiptapSelectionAtDomOffset(editor, caretPosition.offsetNode, caretPosition.offset, clientX, clientY);
+  }
+  return tiptapTextSelectionFromPoint(proseMirror, editor, clientX, clientY);
+}
+
+export function tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number; moved: boolean } | undefined {
   if (!isPointInTiptapTextRect(proseMirror, clientX, clientY)) return undefined;
   const documentRef = proseMirror.ownerDocument;
   const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
@@ -134,9 +158,9 @@ export function tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: T
   }
 }
 
-export function tiptapSelectionAtDomOffset(editor: TiptapEditor, node: Node, offset: number, x: number, y: number): { x: number; y: number; pos: number } | undefined {
+export function tiptapSelectionAtDomOffset(editor: TiptapEditor, node: Node, offset: number, x: number, y: number): { x: number; y: number; pos: number; moved: boolean } | undefined {
   try {
-    return { x, y, pos: editor.view.posAtDOM(node, offset) };
+    return { x, y, pos: editor.view.posAtDOM(node, offset), moved: false };
   } catch {
     return undefined;
   }

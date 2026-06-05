@@ -101,6 +101,39 @@ try {
   const afterBlankClick = await editor.evaluate((node) => node.textContent || '');
   if ((afterBlankClick.match(/Y/g) || []).length < 2) throw new Error(`blank click moved cursor unexpectedly: ${afterBlankClick}`);
   if (afterBlankClick.endsWith('Y')) throw new Error(`blank click inserted at end: ${afterBlankClick}`);
+  const selectionPoints = await editor.evaluate((node) => {
+    const textNode = node.querySelector('p')?.firstChild;
+    if (!textNode?.textContent) throw new Error('missing selectable paragraph text node');
+    const text = textNode.textContent;
+    const startOffset = Math.max(1, Math.floor(text.length * 0.15));
+    const endOffset = Math.max(startOffset + 4, Math.floor(text.length * 0.55));
+    const range = document.createRange();
+    range.setStart(textNode, startOffset);
+    range.setEnd(textNode, startOffset + 1);
+    const startRect = Array.from(range.getClientRects())[0];
+    range.setStart(textNode, endOffset - 1);
+    range.setEnd(textNode, endOffset);
+    const endRect = Array.from(range.getClientRects())[0];
+    range.detach();
+    if (!startRect || !endRect) throw new Error('missing selectable text rects');
+    return {
+      startX: startRect.left + startRect.width / 2,
+      startY: startRect.top + startRect.height / 2,
+      endX: endRect.left + endRect.width / 2,
+      endY: endRect.top + endRect.height / 2,
+    };
+  });
+  const beforeDragSelectionText = await editor.evaluate((node) => node.textContent || '');
+  await page.mouse.move(selectionPoints.startX, selectionPoints.startY);
+  await page.mouse.down();
+  await page.mouse.move(selectionPoints.endX, selectionPoints.endY, { steps: 8 });
+  await page.mouse.up();
+  await page.keyboard.type('Q');
+  const afterDragSelectionText = await editor.evaluate((node) => node.textContent || '');
+  if (!afterDragSelectionText.includes('Q') || afterDragSelectionText.length >= beforeDragSelectionText.length) {
+    throw new Error(`drag selection did not replace highlighted Tiptap text: before=${beforeDragSelectionText} after=${afterDragSelectionText}`);
+  }
+
   console.log('Tiptap cursor smoke passed');
   await browser.close();
 } finally {
