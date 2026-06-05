@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, createSectionWithChildren, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { safeAlign } from '../export/export-utils';
+import { safeAlign, normalizeColorValue } from '../export/export-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
 
@@ -18,7 +18,7 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   const unsupported: string[] = [];
   const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
   const documentAttrs = defaultDocumentAttrs();
-  if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = body.getAttribute('background-color') || '#f3f4f6';
+  if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = importedColor(body.getAttribute('background-color'));
   if (body.getAttribute('width')) {
     const bodyWidth = body.getAttribute('width') || '640px';
     documentAttrs['width'] = Number.parseFloat(bodyWidth);
@@ -38,13 +38,13 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
         if (onlyChild) {
           nodes.push(
             createSectionWithChildren(idFactory, [onlyChild], {
-              backgroundColor: section.getAttribute('background-color') || '#ffffff',
+              ...(section.getAttribute('background-color') ? { backgroundColor: importedColor(section.getAttribute('background-color')) } : {}),
             }),
           );
         }
       } else {
         const row = createNode(idFactory, 'row', {
-          backgroundColor: section.getAttribute('background-color') || '#ffffff',
+          ...(section.getAttribute('background-color') ? { backgroundColor: importedColor(section.getAttribute('background-color')) } : {}),
         });
         row.children = parsedColumns;
         nodes.push(row);
@@ -65,8 +65,12 @@ function parseColumn(column: Element, unsupported: string[], idFactory: EmailNod
     .filter((node): node is EmailNode => !!node);
 
   return createColumn(idFactory, children, column.getAttribute('width') || '50%', {
-    backgroundColor: column.getAttribute('background-color') || '#ffffff',
+    ...(column.getAttribute('background-color') ? { backgroundColor: importedColor(column.getAttribute('background-color')) } : {}),
   });
+}
+
+function importedColor(value: string | null): string {
+  return normalizeColorValue(value) || String(value ?? '').trim();
 }
 
 function parseButtonBorderRadius(value: string | null): number {
@@ -84,7 +88,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
       return createNode(idFactory, 'button', {
         label: element.textContent || 'Button',
         href: element.getAttribute('href') || '#',
-        backgroundColor: element.getAttribute('background-color') || '#7c3aed',
+        backgroundColor: importedColor(element.getAttribute('background-color')) || '#7c3aed',
         borderRadius: parseButtonBorderRadius(element.getAttribute('border-radius')),
         align: safeAlign(element.getAttribute('align')),
       });

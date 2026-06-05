@@ -26,8 +26,6 @@ export class App {
   initialDocument: EmailDocument = {
     version: '0.0.1',
     attrs: {
-      backgroundColor: '#f3f4f6',
-      contentBackgroundColor: '#ffffff',
       width: 100,
       widthUnit: '%',
       maxWidth: 600,
@@ -37,7 +35,7 @@ export class App {
       {
         id: 'hero_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'hero_text',
@@ -45,7 +43,6 @@ export class App {
             attrs: {
               content:
                 '<p class="kicker">Product newsletter</p><h1>Launch a polished campaign in minutes</h1><p>Compose responsive MJML emails with reusable content modules, live preview, and clean frontend-only export.</p>',
-              backgroundColor: '#ffffff',
             },
           },
         ],
@@ -53,7 +50,7 @@ export class App {
       {
         id: 'image_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, paddingUnit: 'px' },
+        attrs: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 0, paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0, paddingUnit: 'px' },
         children: [
           {
             id: 'hero_image',
@@ -61,7 +58,6 @@ export class App {
             attrs: {
               src: 'https://placehold.co/1200x420/d9f99d/172033?text=Email+Studio+Asset',
               alt: 'Email Studio placeholder asset',
-              backgroundColor: '#ffffff',
             },
           },
         ],
@@ -69,14 +65,13 @@ export class App {
       {
         id: 'summary_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'summary_text',
             type: 'text',
             attrs: {
               content: '<h2>Campaign summary</h2><p>Use this area for product updates, editorial highlights, event details, or member announcements.</p>',
-              backgroundColor: '#ffffff',
             },
           },
         ],
@@ -84,19 +79,18 @@ export class App {
       {
         id: 'two_col_row',
         type: 'row',
-        attrs: { backgroundColor: '#ffffff' },
+        attrs: {},
         children: [
           {
             id: 'left_col',
             type: 'column',
-            attrs: { width: 50, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff' },
+            attrs: { width: 50, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px' },
             children: [
               {
                 id: 'left_col_text',
                 type: 'text',
                 attrs: {
                   content: '<h2>Primary message</h2><p>Add the main benefit, product detail, or editorial teaser for this campaign.</p>',
-                  backgroundColor: '#ffffff',
                 },
               },
             ],
@@ -104,14 +98,13 @@ export class App {
           {
             id: 'right_col',
             type: 'column',
-            attrs: { width: 50, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff' },
+            attrs: { width: 50, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px' },
             children: [
               {
                 id: 'right_col_text',
                 type: 'text',
                 attrs: {
                   content: '<h2>Secondary message</h2><p>Use the second column for supporting context, offer terms, or a related content block.</p>',
-                  backgroundColor: '#ffffff',
                 },
               },
             ],
@@ -121,7 +114,7 @@ export class App {
       {
         id: 'cta_section',
         type: 'section',
-        attrs: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+        attrs: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
         children: [
           {
             id: 'cta_button',

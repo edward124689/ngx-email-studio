@@ -4,8 +4,6 @@ export type EmailNodeIdFactory = (type: string) => string;
 
 export function defaultDocumentAttrs(): Record<string, string | number | boolean> {
   return {
-    backgroundColor: '#f3f4f6',
-    contentBackgroundColor: '#ffffff',
     width: 100,
     widthUnit: '%',
     maxWidth: 600,
@@ -15,11 +13,11 @@ export function defaultDocumentAttrs(): Record<string, string | number | boolean
 
 export function createNode(idFactory: EmailNodeIdFactory, type: EmailBlockType, attrs: Record<string, string | number | boolean> = {}): EmailNode {
   const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
-    row: { backgroundColor: '#ffffff' },
-    column: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff' },
-    section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
-    text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
-    image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
+    row: {},
+    column: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px' },
+    section: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
+    text: { content: '<p>New text block</p>' },
+    image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image' },
     button: { label: 'Button', href: '#', backgroundColor: '#7c3aed', borderRadius: 10 },
     divider: { borderColor: '#d0d5dd' },
     spacer: { height: 24 },
@@ -53,7 +51,7 @@ export function createColumn(idFactory: EmailNodeIdFactory, children: EmailNode[
   return {
     id: idFactory('column'),
     type: 'column',
-    attrs: { width, widthUnit: String(width).trim().endsWith('%') ? '%' : 'px', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff', ...attrs },
+    attrs: { width, widthUnit: String(width).trim().endsWith('%') ? '%' : 'px', maxWidth: 600, maxWidthUnit: 'px', ...attrs },
     children,
   };
 }

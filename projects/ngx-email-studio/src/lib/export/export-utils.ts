@@ -8,6 +8,20 @@ export function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+export function normalizeColorValue(value: unknown): string {
+  const color = String(value ?? '').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '';
+}
+
+export function colorAttrValue(value: unknown): string {
+  return normalizeColorValue(value) || String(value ?? '').trim();
+}
+
+export function backgroundStyle(value: unknown): string {
+  const color = colorAttrValue(value);
+  return color ? `background:${escapeAttr(color)};` : '';
+}
+
 export function safeAlign(value: string | null | undefined): 'left' | 'center' | 'right' {
   const align = String(value || 'left').toLowerCase();
   return align === 'center' || align === 'right' ? align : 'left';

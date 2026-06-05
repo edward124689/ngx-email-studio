@@ -1,7 +1,7 @@
 import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, contentAlign, dimensionCss, escapeAttr, escapeHtml, isAlignableContent, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, isAlignableContent, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -49,7 +49,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)} />`;
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}" border-radius="${radius}"${alignAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}" border-radius="${radius}"${alignAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
     }
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
@@ -59,7 +59,8 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
 }
 
 function backgroundAttr(node: EmailNode): string {
-  return node.attrs['backgroundColor'] ? ` background-color="${escapeAttr(String(node.attrs['backgroundColor']))}"` : '';
+  const color = colorAttrValue(node.attrs['backgroundColor']);
+  return color ? ` background-color="${escapeAttr(color)}"` : '';
 }
 
 function alignAttr(node: EmailNode): string {
@@ -80,7 +81,8 @@ function buttonBorderRadiusCss(node: EmailNode): string {
 
 function bodyMjmlAttrs(document: EmailDocument): string {
   const attrs = { ...defaultDocumentAttrs(), ...(document.attrs || {}) };
-  const background = attrs['backgroundColor'] ? ` background-color="${escapeAttr(String(attrs['backgroundColor']))}"` : '';
+  const backgroundColor = colorAttrValue(attrs['backgroundColor']);
+  const background = backgroundColor ? ` background-color="${escapeAttr(backgroundColor)}"` : '';
   const width = attrs['width'] ? ` width="${escapeAttr(dimensionCss(attrs, 'width', 100, '%'))}"` : '';
   return `${background}${width}`;
 }

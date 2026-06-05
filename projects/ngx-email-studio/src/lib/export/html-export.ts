@@ -2,6 +2,8 @@ import { defaultDocumentAttrs } from '../tree/block-factory';
 import { EmailDocument, EmailNode, EmailSizeUnit } from '../models';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import {
+  backgroundStyle,
+  colorAttrValue,
   columnMaxWidthCss,
   columnWidthCss,
   contentAlign,
@@ -19,8 +21,8 @@ import {
 
 export function renderHtml(document: EmailDocument): string {
   const attrs = { ...defaultDocumentAttrs(), ...(document.attrs || {}) };
-  const bodyBackground = escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
-  const emailBackground = escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
+  const bodyBackgroundStyle = backgroundStyle(attrs['backgroundColor']);
+  const emailBackgroundStyle = backgroundStyle(attrs['contentBackgroundColor']);
   const emailWidth = dimensionCss(attrs, 'width', 100, '%');
   const emailMaxWidth = dimensionCss(attrs, 'maxWidth', 600, 'px');
   const emailWidthAttr = dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
@@ -67,12 +69,12 @@ export function renderHtml(document: EmailDocument): string {
     '      }',
     '    </style>',
     '  </head>',
-    `  <body style="margin:0;padding:0;background:${bodyBackground};word-spacing:normal;">`,
-    `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `  <body style="margin:0;padding:0;${bodyBackgroundStyle}word-spacing:normal;">`,
+    `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="${bodyBackgroundStyle}padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     '      <tr>',
     '        <td align="center">',
     `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     rows,
     '          </table>',
     '          <!--[if mso | IE]></td></tr></table><![endif]-->',
@@ -97,7 +99,7 @@ function rowToHtml(row: EmailNode, depth = 0): string {
   const cells = columns.map((column) => columnToHtml(column, width, depth + 4)).join('\n');
   return [
     indent('<tr>', depth),
-    indent(`<td style="padding:0;background:${escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
+    indent(`<td style="padding:0;${backgroundStyle(row.attrs['backgroundColor'])}">`, depth + 1),
     indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth + 2),
     indent('<tr>', depth + 3),
     cells,
@@ -110,10 +112,11 @@ function rowToHtml(row: EmailNode, depth = 0): string {
 
 function sectionToHtml(section: EmailNode, depth = 0): string {
   const content = (section.children || []).map((child) => blockToHtmlCellContent(child, depth + 2)).join('\n');
+  const sectionBackgroundStyle = backgroundStyle(section.attrs['backgroundColor']);
   return [
     indent('<tr>', depth),
-    indent(`<td align="center" style="padding:0;background:${escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-    indent(`<table role="presentation" border="0" width="${escapeAttr(dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${escapeAttr(sectionWidthCss(section))};max-width:${escapeAttr(sectionMaxWidthCss(section))};background:${escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
+    indent(`<td align="center" style="padding:0;${sectionBackgroundStyle}">`, depth + 1),
+    indent(`<table role="presentation" border="0" width="${escapeAttr(dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${escapeAttr(sectionWidthCss(section))};max-width:${escapeAttr(sectionMaxWidthCss(section))};${sectionBackgroundStyle}border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
     indent('<tr>', depth + 3),
     indent(`<td style="padding:${escapeAttr(sectionPaddingCss(section))};">`, depth + 4),
     content,
@@ -132,7 +135,7 @@ function columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): stri
   const maxWidth = columnMaxWidthCss(column);
   const content = (column.children || []).map((child) => blockToHtmlCellContent(child, depth + 1)).join('\n');
   return [
-    indent(`<td class="nes-email-column nes-email-outlook-fix" width="${escapeAttr(dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${escapeAttr(width)};max-width:${escapeAttr(maxWidth)};padding:16px;background:${escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;">`, depth),
+    indent(`<td class="nes-email-column nes-email-outlook-fix" width="${escapeAttr(dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${escapeAttr(width)};max-width:${escapeAttr(maxWidth)};padding:16px;${backgroundStyle(column.attrs['backgroundColor'])}border-collapse:collapse;">`, depth),
     content,
     indent('</td>', depth),
   ].join('\n');
@@ -158,12 +161,12 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'section':
       return [indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), sectionToHtml(node, depth + 1), indent('</table>', depth)].join('\n');
     case 'text':
-      return indent(`<div style="padding:20px;background:${escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
+      return indent(`<div style="padding:20px;${backgroundStyle(node.attrs['backgroundColor'])}line-height:1.6;color:#1f2937;text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
       return indent(`<div style="text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" style="display:inline-block;max-width:100%;width:100%;height:auto;border:0;" /></div>`, depth);
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return indent(`<div style="padding:24px;text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+      return indent(`<div style="padding:24px;text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
     }
     case 'divider':
       return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);

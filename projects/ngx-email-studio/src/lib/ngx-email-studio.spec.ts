@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 
-import { EmailDocument, NgxEmailStudio } from './ngx-email-studio';
+import { EmailDocument, EmailNode, NgxEmailStudio } from './ngx-email-studio';
 
 function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
   const host = fixture.nativeElement as HTMLElement;
@@ -152,9 +152,72 @@ describe('NgxEmailStudio', () => {
     expect(component.emailMaxWidthCss).toBe('600px');
     expect(component.emailCanvasWidthCss).toBe('100%');
     expect(component.emailCanvasMaxWidthCss).toBe('min(100%, 600px)');
-    expect(component.lastMjml).toContain('<mj-body background-color="#f3f4f6" width="100%">');
+    expect(component.lastMjml).toContain('<mj-body width="100%">');
+    expect(component.lastMjml).not.toContain('<mj-body background-color=');
     expect(component.lastHtml).toContain('width="100%"');
     expect(component.lastHtml).toContain('style="width:100%;max-width:600px;');
+  });
+
+  it('should default backgrounds to transparent and omit background-color from exports until set', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [
+        {
+          id: 'row_transparent',
+          type: 'row',
+          attrs: {},
+          children: [
+            {
+              id: 'column_transparent',
+              type: 'column',
+              attrs: { width: '100%' },
+              children: [{ id: 'text_transparent', type: 'text', attrs: { content: '<p>Transparent</p>' } }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(mjml).toContain('<mj-body width="100%">');
+    expect(mjml).not.toContain('background-color="#ffffff"');
+    expect(mjml).not.toContain('background-color="#FFFFFF"');
+    expect(html).toContain('<body style="margin:0;padding:0;word-spacing:normal;">');
+    expect(html).not.toContain('background:#ffffff');
+    expect(html).not.toContain('background:#FFFFFF');
+  });
+
+  it('should normalize hex colors to lowercase and let color text inputs clear backgrounds', () => {
+    const textNode: EmailNode = { id: 'text_color', type: 'text', attrs: { content: '<p>Color</p>' } };
+
+    component.updateColorAttr(textNode, 'backgroundColor', '#FFFFFF');
+    expect(textNode.attrs['backgroundColor']).toBe('#ffffff');
+    expect(component.backgroundFor(textNode)).toBe('#ffffff');
+    expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).toContain('background-color="#ffffff"');
+    expect((component as any).renderHtml({ version: '0.0.1', body: [textNode] })).toContain('background:#ffffff;');
+
+    component.updateColorAttr(textNode, 'backgroundColor', '');
+    expect(textNode.attrs['backgroundColor']).toBeUndefined();
+    expect(component.backgroundFor(textNode)).toBe('transparent');
+    expect(component.colorText(textNode, 'backgroundColor')).toBe('');
+    expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).not.toContain('background-color=');
+  });
+
+  it('should import uppercase MJML background colors as lowercase hex values', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body background-color="#FFFFFF"><mj-section background-color="#ABCDEF"><mj-column background-color="#FEDCBA"><mj-button background-color="#123ABC">Go</mj-button></mj-column><mj-column background-color="#AABBCC"><mj-text><p>Side</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const row = imported.body[0];
+    const column = row.children?.[0];
+    const button = column?.children?.[0];
+
+    expect(imported.attrs?.['backgroundColor']).toBe('#ffffff');
+    expect(row.attrs['backgroundColor']).toBe('#abcdef');
+    expect(column?.attrs['backgroundColor']).toBe('#fedcba');
+    expect(button?.attrs['backgroundColor']).toBe('#123abc');
+    expect((component as any).compileMjml(imported)).toContain('background-color="#ffffff"');
+    expect((component as any).compileMjml(imported)).toContain('background-color="#abcdef"');
+    expect((component as any).compileMjml(imported)).not.toContain('#FFFFFF');
   });
 
   it('should compile body width/background and row columns to MJML columns', () => {
@@ -492,7 +555,8 @@ describe('NgxEmailStudio', () => {
     expect(component.colorPickerValue('#112233')).toBe('#112233');
     expect(component.emailWidthCss).toBe('100%');
     expect(component.emailMaxWidthCss).toBe('640px');
-    expect(component.lastMjml).toContain('<mj-body background-color="#f3f4f6" width="100%">');
+    expect(component.lastMjml).toContain('<mj-body width="100%">');
+    expect(component.lastMjml).not.toContain('<mj-body background-color=');
     expect(component.lastHtml).toContain('width="100%"');
     expect(component.lastHtml).toContain('style="width:100%;max-width:640px;');
   });

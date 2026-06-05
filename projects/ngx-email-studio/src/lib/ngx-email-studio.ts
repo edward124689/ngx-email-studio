@@ -9,7 +9,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, isAlignableContent as isAlignableEmailContent, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, isAlignableContent as isAlignableEmailContent, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -273,15 +273,15 @@ function createEmailStudioInstanceId(): string {
               <label>
                 Body background
                 <span class="nes-color-control">
-                  <input type="color" [ngModel]="colorPickerValue(bodyBackgroundColor)" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" />
-                  <input [ngModel]="bodyBackgroundColor" (ngModelChange)="updateDocumentAttr('backgroundColor', $event)" placeholder="#f3f4f6" />
+                  <input type="color" [ngModel]="colorPickerValue(documentAttrs['backgroundColor'], '#f3f4f6')" (ngModelChange)="updateDocumentColorAttr('backgroundColor', $event)" />
+                  <input [ngModel]="documentColorText('backgroundColor')" (ngModelChange)="updateDocumentColorAttr('backgroundColor', $event)" placeholder="transparent" />
                 </span>
               </label>
               <label>
                 Email background
                 <span class="nes-color-control">
-                  <input type="color" [ngModel]="colorPickerValue(emailBackgroundColor)" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" />
-                  <input [ngModel]="emailBackgroundColor" (ngModelChange)="updateDocumentAttr('contentBackgroundColor', $event)" placeholder="#ffffff" />
+                  <input type="color" [ngModel]="colorPickerValue(documentAttrs['contentBackgroundColor'], '#ffffff')" (ngModelChange)="updateDocumentColorAttr('contentBackgroundColor', $event)" />
+                  <input [ngModel]="documentColorText('contentBackgroundColor')" (ngModelChange)="updateDocumentColorAttr('contentBackgroundColor', $event)" placeholder="transparent" />
                 </span>
               </label>
               <div class="nes-control-row">
@@ -534,8 +534,8 @@ function createEmailStudioInstanceId(): string {
               <label *ngIf="node.type !== 'divider' && node.type !== 'spacer'">
                 Background color
                 <span class="nes-color-control">
-                  <input type="color" [ngModel]="colorPickerValue(node.attrs['backgroundColor'] || '#ffffff')" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" />
-                  <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
+                  <input type="color" [ngModel]="colorPickerValue(node.attrs['backgroundColor'], node.type === 'button' ? '#7c3aed' : '#ffffff')" (ngModelChange)="updateColorAttr(node, 'backgroundColor', $event)" />
+                  <input [ngModel]="colorText(node, 'backgroundColor')" (ngModelChange)="updateColorAttr(node, 'backgroundColor', $event)" placeholder="transparent" />
                 </span>
               </label>
               <label *ngIf="node.type === 'button'">
@@ -548,8 +548,8 @@ function createEmailStudioInstanceId(): string {
               <label *ngIf="node.type === 'divider'">
                 Border color
                 <span class="nes-color-control">
-                  <input type="color" [ngModel]="colorPickerValue(node.attrs['borderColor'] || '#d0d5dd')" (ngModelChange)="updateAttr(node, 'borderColor', $event)" />
-                  <input [ngModel]="node.attrs['borderColor']" (ngModelChange)="updateAttr(node, 'borderColor', $event)" placeholder="#d0d5dd" />
+                  <input type="color" [ngModel]="colorPickerValue(node.attrs['borderColor'], '#d0d5dd')" (ngModelChange)="updateColorAttr(node, 'borderColor', $event)" />
+                  <input [ngModel]="colorText(node, 'borderColor')" (ngModelChange)="updateColorAttr(node, 'borderColor', $event)" placeholder="#d0d5dd" />
                 </span>
               </label>
             </div>
@@ -756,7 +756,7 @@ function createEmailStudioInstanceId(): string {
 
     <ng-template #nodePreview let-node="node" let-nested="nested">
       <ng-container [ngSwitch]="node.type">
-        <section *ngSwitchCase="'row'" class="nes-render-row" [style.background]="node.attrs['backgroundColor'] || '#ffffff'">
+        <section *ngSwitchCase="'row'" class="nes-render-row" [style.background]="backgroundFor(node)">
           <div
             cdkDropList
             class="nes-render-column"
@@ -808,7 +808,7 @@ function createEmailStudioInstanceId(): string {
           cdkDropList
           class="nes-render-section"
           [id]="dropListIdFor(node)"
-          [style.background]="node.attrs['backgroundColor'] || '#ffffff'"
+          [style.background]="backgroundFor(node)"
           [style.width]="sectionWidthCss(node)"
           [style.max-width]="sectionMaxWidthCss(node)"
           [style.padding]="sectionPaddingCss(node)"
@@ -983,11 +983,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   get bodyBackgroundColor(): string {
-    return String(this.documentAttrs['backgroundColor'] || '#f3f4f6');
+    return normalizeColorValue(this.documentAttrs['backgroundColor']) || String(this.documentAttrs['backgroundColor'] ?? '').trim() || 'transparent';
   }
 
   get emailBackgroundColor(): string {
-    return String(this.documentAttrs['contentBackgroundColor'] || '#ffffff');
+    return normalizeColorValue(this.documentAttrs['contentBackgroundColor']) || String(this.documentAttrs['contentBackgroundColor'] ?? '').trim() || 'transparent';
   }
 
   get emailWidth(): number {
@@ -1157,7 +1157,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       return this.createSectionWithChildren([
         this.createNode('text', {
           content: '<p class="kicker">Campaign update</p><h1>Your weekly newsletter is ready to edit</h1><p>Create polished, responsive email campaigns with editable MJML blocks and a visual Angular builder.</p>',
-          backgroundColor: '#ffffff',
         }),
       ]);
     }
@@ -1219,6 +1218,19 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.emitDocument();
   }
 
+  updateColorAttr(node: EmailNode, key: string, value: string): void {
+    if (this.readonly) return;
+    const normalized = normalizeColorValue(value);
+    const nextAttrs = { ...node.attrs };
+    if (String(value ?? '').trim() === '') {
+      delete nextAttrs[key];
+    } else {
+      nextAttrs[key] = normalized || String(value).trim();
+    }
+    node.attrs = nextAttrs;
+    this.emitDocument();
+  }
+
   updateDocumentAttr(key: string, value: string | number | boolean): void {
     if (this.readonly) return;
     this.emailDocument = {
@@ -1228,8 +1240,29 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.emitDocument();
   }
 
-  colorPickerValue(value: unknown): string {
-    return getColorPickerValue(value);
+  updateDocumentColorAttr(key: string, value: string): void {
+    if (this.readonly) return;
+    const normalized = normalizeColorValue(value);
+    const nextAttrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
+    if (String(value ?? '').trim() === '') {
+      delete nextAttrs[key];
+    } else {
+      nextAttrs[key] = normalized || String(value).trim();
+    }
+    this.emailDocument = { ...this.emailDocument, attrs: nextAttrs };
+    this.emitDocument();
+  }
+
+  colorPickerValue(value: unknown, fallback = '#ffffff'): string {
+    return getColorPickerValue(value, fallback);
+  }
+
+  colorText(node: EmailNode, key: string): string {
+    return normalizeColorValue(node.attrs[key]) || String(node.attrs[key] ?? '').trim();
+  }
+
+  documentColorText(key: string): string {
+    return normalizeColorValue(this.documentAttrs[key]) || String(this.documentAttrs[key] ?? '').trim();
   }
 
   dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {
