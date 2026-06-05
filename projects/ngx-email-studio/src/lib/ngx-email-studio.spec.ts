@@ -989,6 +989,38 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('class="intro-copy"');
   });
 
+  it('should keep safe rich-text class and id attributes on inline marks through Tiptap edits', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p><strong class="brand-bold" id="bold-mark">Bold</strong> <em class="brand-em" id="em-mark">italic</em> <u class="brand-under" id="under-mark">under</u> <s class="brand-strike" id="strike-mark">strike</s> <a class="brand-link" id="link-mark" href="https://example.com">link</a></p>');
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    editor.commands.insertContent('!');
+
+    expect(textNode.attrs['content']).toContain('class="brand-bold"');
+    expect(textNode.attrs['content']).toContain('id="bold-mark"');
+    expect(textNode.attrs['content']).toContain('class="brand-em"');
+    expect(textNode.attrs['content']).toContain('id="em-mark"');
+    expect(textNode.attrs['content']).toContain('class="brand-under"');
+    expect(textNode.attrs['content']).toContain('id="under-mark"');
+    expect(textNode.attrs['content']).toContain('class="brand-strike"');
+    expect(textNode.attrs['content']).toContain('id="strike-mark"');
+    expect(textNode.attrs['content']).toContain('class="brand-link"');
+    expect(textNode.attrs['content']).toContain('id="link-mark"');
+    expect(component.lastMjml).toContain('class="brand-bold"');
+    expect(component.lastMjml).toContain('id="bold-mark"');
+    expect(component.lastMjml).toContain('class="brand-em"');
+    expect(component.lastMjml).toContain('id="em-mark"');
+    expect(component.lastMjml).toContain('class="brand-under"');
+    expect(component.lastMjml).toContain('id="under-mark"');
+    expect(component.lastMjml).toContain('class="brand-strike"');
+    expect(component.lastMjml).toContain('id="strike-mark"');
+    expect(component.lastMjml).toContain('class="brand-link"');
+    expect(component.lastMjml).toContain('id="link-mark"');
+  });
+
   it('should update text content from the Tiptap editor', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;

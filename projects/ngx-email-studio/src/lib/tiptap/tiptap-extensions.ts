@@ -106,7 +106,7 @@ const HtmlIdentityAttributes = Extension.create({
   addGlobalAttributes() {
     return [
       {
-        types: ['paragraph', 'heading', 'textStyle', 'bulletList', 'orderedList', 'listItem', 'link', 'table', 'tableRow', 'tableHeader', 'tableCell'],
+        types: ['paragraph', 'heading', 'textStyle', 'bold', 'italic', 'underline', 'strike', 'bulletList', 'orderedList', 'listItem', 'link', 'table', 'tableRow', 'tableHeader', 'tableCell'],
         attributes: {
           htmlId: {
             default: null,
