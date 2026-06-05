@@ -1,9 +1,8 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
 import { Editor as TiptapEditor } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import { Table } from '@tiptap/extension-table';
@@ -18,16 +17,12 @@ export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';
 export type CanvasMode = 'edit' | 'preview';
-export type RichTextEditorMode = 'tiptap' | 'tinymce' | 'plain';
+export type RichTextEditorMode = 'tiptap' | 'plain';
 
 export interface EmailStudioConfig {
-  /** Rich text editor provider. Defaults to Tiptap; set to 'tinymce' to use TinyMCE or 'plain' for textarea-only editing. */
+  /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
   richTextEditor?: RichTextEditorMode;
-  /** @deprecated Use richTextEditor: 'tinymce' or 'plain'. true maps to TinyMCE, false maps to plain textarea. */
-  useTinyMce?: boolean;
   showHtmlPreview?: boolean;
-  /** Optional path where TinyMCE assets are hosted. Defaults to `${document.baseURI}/tinymce`. */
-  tinyMceBaseUrl?: string;
   title?: string;
   breadcrumb?: string;
   brandLabel?: string;
@@ -76,17 +71,13 @@ function createEmailStudioInstanceId(): string {
   return `nes-${nextEmailStudioInstanceId}`;
 }
 
-function resolveTinyMceScriptSrc(): string {
-  const base = globalThis.document?.baseURI || 'http://localhost/';
-  return new URL('tinymce/tinymce.min.js', base).href;
-}
 
 @Component({
   selector: 'ngx-email-studio',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, EditorModule],
+  encapsulation: ViewEncapsulation.None,
+  imports: [CommonModule, FormsModule, DragDropModule],
   providers: [
-    { provide: TINYMCE_SCRIPT_SRC, useFactory: resolveTinyMceScriptSrc },
     { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
   template: `
@@ -351,14 +342,6 @@ function resolveTinyMceScriptSrc(): string {
                   </button>
                 </span>
                 <ng-container [ngSwitch]="resolvedRichTextEditor">
-                  <editor
-                    *ngSwitchCase="'tinymce'"
-                    [ngModel]="node.attrs['content']"
-                    (ngModelChange)="updateAttr(node, 'content', $event)"
-                    [init]="tinyMceInit"
-                    [modelEvents]="'change blur'"
-                    [licenseKey]="'gpl'"
-                  ></editor>
                   <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell" [attr.data-tiptap-host]="node.id">
                     <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
                       <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bold')"><strong>B</strong></button>
@@ -557,14 +540,6 @@ function resolveTinyMceScriptSrc(): string {
           </header>
           <div class="nes-rich-text-modal-body" *ngIf="expandedRichTextNode as richTextNode">
             <ng-container [ngSwitch]="resolvedRichTextEditor">
-              <editor
-                *ngSwitchCase="'tinymce'"
-                [ngModel]="richTextNode.attrs['content']"
-                (ngModelChange)="updateExpandedRichText($event)"
-                [init]="largeTinyMceInit"
-                [modelEvents]="'change blur'"
-                [licenseKey]="'gpl'"
-              ></editor>
               <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell nes-tiptap-shell-large" [attr.data-tiptap-modal-host]="richTextNode.id">
                 <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
                   <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bold')"><strong>B</strong></button>
@@ -940,7 +915,8 @@ function resolveTinyMceScriptSrc(): string {
     .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
     .nes-tiptap-editor { min-height: 88px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; cursor: text; }
     .nes-tiptap-editor-large { min-height: 620px; }
-    .nes-tiptap-editor .ProseMirror { min-height: 0; outline: none; white-space: pre-wrap; }
+    .nes-tiptap-editor .ProseMirror { min-height: 0; outline: none !important; box-shadow: none !important; white-space: pre-wrap; }
+    .nes-tiptap-editor .ProseMirror:focus, .nes-tiptap-editor .ProseMirror:focus-visible, .nes-tiptap-editor .ProseMirror-focused { outline: none !important; box-shadow: none !important; }
     .nes-tiptap-editor-large .ProseMirror { min-height: 0; }
     .nes-tiptap-editor .ProseMirror > :first-child { margin-top: 0; }
     .nes-tiptap-editor .ProseMirror > :last-child { margin-bottom: 0; }
@@ -987,7 +963,6 @@ function resolveTinyMceScriptSrc(): string {
     .nes-import-body textarea { min-height: 386px; resize: vertical; border: 0; border-radius: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
     .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); outline-offset: -2px; }
     .nes-rich-text-modal-body { min-height: 0; padding: 20px; background: linear-gradient(180deg, #f8fafc, #f1f5f9); overflow: auto; }
-    .nes-rich-text-modal-body editor, .nes-rich-text-modal-body .tox-tinymce { min-height: 620px; }
     .nes-rich-text-modal-body textarea { min-height: 620px; resize: vertical; }
     .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
     .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #fff; }
@@ -1049,8 +1024,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   lastHtml = '';
   previewSrcdoc: SafeHtml | string = '';
 
-  tinyMceInit = this.createTinyMceInit();
-  largeTinyMceInit = this.createTinyMceInit(620);
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
@@ -1075,7 +1048,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   ngAfterViewInit(): void {
-    this.ensureTinyMceSkinLoaded();
     this.syncTiptapEditors();
   }
 
@@ -1141,15 +1113,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   get resolvedRichTextEditor(): RichTextEditorMode {
-    const config = this.effectiveConfig;
-    if (config.richTextEditor) return config.richTextEditor;
-    if (config.useTinyMce === true) return 'tinymce';
-    if (config.useTinyMce === false) return 'plain';
-    return 'tiptap';
-  }
-
-  get resolvedUseTinyMce(): boolean {
-    return this.resolvedRichTextEditor === 'tinymce';
+    return this.effectiveConfig.richTextEditor === 'plain' ? 'plain' : 'tiptap';
   }
 
   get resolvedUseTiptap(): boolean {
@@ -1175,9 +1139,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
-      this.tinyMceInit = this.createTinyMceInit();
-      this.largeTinyMceInit = this.createTinyMceInit(620);
-      this.ensureTinyMceSkinLoaded();
       this.destroyTiptapEditors();
     }
 
@@ -2063,157 +2024,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     return this.hostRef.nativeElement;
   }
 
-  private ensureTinyMceSkinLoaded(): void {
-    // TinyMCE skin CSS is loaded globally in light DOM mode via TinyMCE base_url/content_css.
-    // This hook remains as a lifecycle synchronization point for provider changes.
-  }
-
-  private createTinyMceInit(height = 240): Record<string, unknown> {
-    return {
-      base_url: this.resolveConfiguredTinyMceBaseUrl(),
-      suffix: '.min',
-      license_key: 'gpl',
-      menubar: false,
-      branding: false,
-      promotion: false,
-      height,
-      plugins: 'link lists',
-      toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link | removeformat',
-      skin: 'oxide',
-      content_css: 'default',
-      content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.55;color:#1f2937;margin:12px;} a{color:#7c3aed;}',
-      setup: (editor: {
-        on: (event: string, callback: (event?: KeyboardEvent) => void) => void;
-        getContainer?: () => HTMLElement | null;
-        getDoc?: () => Document;
-        getWin?: () => Window;
-        selection?: {
-          getNode?: () => Node | null;
-          setCursorLocation?: (node: Node, offset?: number) => void;
-        };
-      }) => {
-        this.ensureTinyMceSkinLoaded();
-        const reveal = () => {
-          const run = () => editor.getContainer?.()?.style.removeProperty('visibility');
-          if (typeof globalThis.requestAnimationFrame === 'function') {
-            globalThis.requestAnimationFrame(run);
-          } else {
-            setTimeout(run, 0);
-          }
-        };
-        const editableBlockSelector = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,div';
-        let pendingEnterTarget: HTMLElement | null = null;
-        let pendingEnterScrollTop = 0;
-        const closestEditableBlock = (node: Node | null, doc?: Document): HTMLElement | null => {
-          if (!node || !doc) return null;
-          const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement;
-          const block = element?.closest?.(editableBlockSelector) as HTMLElement | null;
-          return block && doc.body?.contains(block) ? block : null;
-        };
-        const restorePendingEnterTarget = () => {
-          const doc = editor.getDoc?.();
-          const win = editor.getWin?.();
-          const body = doc?.body;
-          if (!doc || !body || !pendingEnterTarget || !body.contains(pendingEnterTarget)) return;
-          const currentSelection = win?.getSelection?.();
-          const currentNode = currentSelection?.anchorNode ?? editor.selection?.getNode?.() ?? null;
-          const currentBlock = closestEditableBlock(currentNode, doc);
-          if (currentBlock === pendingEnterTarget || pendingEnterTarget.contains(currentBlock)) return;
-          const jumpedToDocumentStart = !!currentBlock && currentBlock === body.firstElementChild && pendingEnterScrollTop > 20;
-          if (!jumpedToDocumentStart) return;
-          editor.selection?.setCursorLocation?.(pendingEnterTarget, pendingEnterTarget.childNodes.length);
-          const scrollingElement = doc.scrollingElement as HTMLElement | null;
-          if (scrollingElement) scrollingElement.scrollTop = pendingEnterScrollTop;
-          doc.documentElement.scrollTop = pendingEnterScrollTop;
-          doc.body.scrollTop = pendingEnterScrollTop;
-          win?.scrollTo?.(0, pendingEnterScrollTop);
-        };
-        const restoreScrollAndCaretAfterEnter = (event?: KeyboardEvent) => {
-          const doc = editor.getDoc?.();
-          const win = editor.getWin?.();
-          const body = doc?.body;
-          const scrollingElement = doc?.scrollingElement as HTMLElement | null | undefined;
-          const restoreScroll = (scrollTop: number) => {
-            if (scrollingElement) scrollingElement.scrollTop = scrollTop;
-            if (doc?.documentElement) doc.documentElement.scrollTop = scrollTop;
-            if (doc?.body) doc.body.scrollTop = scrollTop;
-            win?.scrollTo?.(0, scrollTop);
-          };
-          if (event?.key !== 'Enter') {
-            restorePendingEnterTarget();
-            return;
-          }
-          const scrollTop = scrollingElement?.scrollTop ?? doc?.documentElement?.scrollTop ?? doc?.body?.scrollTop ?? 0;
-          const selectionBeforeEnter = win?.getSelection?.();
-          const nodeBeforeEnter = selectionBeforeEnter?.anchorNode ?? editor.selection?.getNode?.() ?? null;
-          const blockBeforeEnter = closestEditableBlock(nodeBeforeEnter, doc);
-          const blockBeforeEnterIndex = blockBeforeEnter && body ? Array.prototype.indexOf.call(body.children, blockBeforeEnter) : -1;
-          const firstBlockBeforeEnter = body?.firstElementChild;
-          const restoreCaretIfTinyMceJumpedToStart = () => {
-            if (!doc || !body) return;
-            const currentSelection = win?.getSelection?.();
-            const currentNode = currentSelection?.anchorNode ?? editor.selection?.getNode?.() ?? null;
-            const currentBlock = closestEditableBlock(currentNode, doc);
-            const expectedBlock = (blockBeforeEnterIndex >= 0
-              ? body.children[Math.min(blockBeforeEnterIndex + 1, body.children.length - 1)]
-              : blockBeforeEnter?.nextElementSibling || body.lastElementChild) as HTMLElement | null;
-            if (!expectedBlock || !body.contains(expectedBlock)) return;
-            pendingEnterTarget = expectedBlock;
-            pendingEnterScrollTop = scrollTop;
-            if (currentBlock === expectedBlock || expectedBlock.contains(currentBlock)) return;
-            const jumpedToDocumentStart = !!currentBlock
-              && currentBlock === body.firstElementChild
-              && scrollTop > 20
-              && (!blockBeforeEnter || blockBeforeEnter !== firstBlockBeforeEnter);
-            if (!jumpedToDocumentStart) return;
-            editor.selection?.setCursorLocation?.(expectedBlock, expectedBlock.childNodes.length);
-          };
-          const restore = () => {
-            restoreCaretIfTinyMceJumpedToStart();
-            restorePendingEnterTarget();
-            restoreScroll(scrollTop);
-          };
-          if (typeof globalThis.requestAnimationFrame === 'function') {
-            globalThis.requestAnimationFrame(() => {
-              restore();
-              globalThis.requestAnimationFrame(restore);
-            });
-          }
-          setTimeout(restore, 0);
-          setTimeout(restore, 60);
-          setTimeout(restore, 150);
-          setTimeout(restore, 300);
-        };
-        editor.on('init', reveal);
-        editor.on('SkinLoaded', reveal);
-        editor.on('PostRender', reveal);
-        editor.on('keydown', restoreScrollAndCaretAfterEnter);
-        editor.on('beforeinput', restorePendingEnterTarget);
-        editor.on('input', restorePendingEnterTarget);
-        editor.on('keyup', restorePendingEnterTarget);
-        editor.on('mousedown', () => { pendingEnterTarget = null; });
-      },
-    };
-  }
-
-  private resolveConfiguredTinyMceBaseUrl(): string {
-    const fallback = this.resolveTinyMceBaseUrl();
-    const configured = this.effectiveConfig.tinyMceBaseUrl;
-    if (!configured) return fallback;
-    try {
-      const base = globalThis.document?.baseURI || 'http://localhost/';
-      const resolved = new URL(configured, base);
-      if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return fallback;
-      return resolved.href.replace(/\/$/, '');
-    } catch {
-      return fallback;
-    }
-  }
-
-  private resolveTinyMceBaseUrl(): string {
-    const base = globalThis.document?.baseURI || 'http://localhost/';
-    return new URL('tinymce', base).href.replace(/\/$/, '');
-  }
 
   private createNodeForDrop(item: PaletteItem, containerId?: string): EmailNode {
     const node = this.createNodeFromPalette(item);

@@ -225,12 +225,6 @@ describe('NgxEmailStudio', () => {
     expect(document.body[0].children?.[1].children?.[0].type).toBe('image');
   });
 
-  it('should resolve TinyMCE assets relative to the current base URI', () => {
-    const baseUrl = (component as any).resolveTinyMceBaseUrl() as string;
-    expect(baseUrl.endsWith('/tinymce')).toBe(true);
-    expect(baseUrl.startsWith('http')).toBe(true);
-    expect((component.tinyMceInit['base_url'] as string).endsWith('/tinymce')).toBe(true);
-  });
 
   it('should drop palette blocks into a row column', () => {
     const row = component.emailDocument.body.find((node) => node.type === 'row');
@@ -539,11 +533,10 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.effectiveConfig.showHtmlPreview).toBe(true);
     expect(localComponent.resolvedRichTextEditor).toBe('tiptap');
     expect(localComponent.resolvedUseTiptap).toBe(true);
-    expect(localComponent.resolvedUseTinyMce).toBe(false);
     expect(studioText(localFixture)).toContain('Custom Builder');
   });
 
-  it('should default rich text editing to Tiptap and keep TinyMCE opt-in', () => {
+  it('should default rich text editing to Tiptap and keep plain textarea opt-in', () => {
     fixture.detectChanges();
     expect(component.resolvedRichTextEditor).toBe('tiptap');
     expect(query(fixture, '.nes-tiptap-shell')).toBeTruthy();
@@ -551,13 +544,13 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, 'editor')).toBeFalsy();
 
     const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentRef.setInput('config', { richTextEditor: 'tinymce' });
+    localFixture.componentRef.setInput('config', { richTextEditor: 'plain' });
     localFixture.detectChanges();
 
-    expect(localFixture.componentInstance.resolvedRichTextEditor).toBe('tinymce');
-    expect(localFixture.componentInstance.resolvedUseTinyMce).toBe(true);
-    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
-    expect(localFixture.componentInstance.tinyMceInit['skin']).toBe('oxide');
+    expect(localFixture.componentInstance.resolvedRichTextEditor).toBe('plain');
+    expect(localFixture.componentInstance.resolvedUseTiptap).toBe(false);
+    expect(query(localFixture, '.nes-tiptap-shell')).toBeFalsy();
+    expect(query(localFixture, 'textarea')).toBeTruthy();
   });
 
   it('should update text content from the Tiptap editor', () => {
@@ -898,61 +891,6 @@ describe('NgxEmailStudio', () => {
 
     expect(component.selectedNodeId).toBe(first.id);
     expect(component.emailDocument.body.map((node) => node.id)).toEqual(beforeRootIds);
-  });
-
-  it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
-    fixture.componentRef.setInput('config', { richTextEditor: 'tinymce' });
-    fixture.detectChanges();
-    expect(query(fixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
-    expect(component.tinyMceInit['skin']).toBe('oxide');
-    expect(component.tinyMceInit['content_css']).toBe('default');
-    expect(component.tinyMceInit['base_url']).toBeTruthy();
-    expect(component.largeTinyMceInit['height']).toBe(620);
-  });
-
-  it('should not inject TinyMCE skin CSS links when TinyMCE is disabled', () => {
-    const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentRef.setInput('config', { useTinyMce: false });
-    localFixture.detectChanges();
-
-    expect(localFixture.componentInstance.resolvedUseTinyMce).toBe(false);
-    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
-  });
-
-  it('should update the TinyMCE base URL when config changes', () => {
-    const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentRef.setInput('config', { richTextEditor: 'tinymce' });
-    localFixture.detectChanges();
-
-    localFixture.componentInstance.config = { richTextEditor: 'tinymce', tinyMceBaseUrl: 'https://cdn.example.test/tinymce' };
-    localFixture.componentInstance.ngOnChanges({ config: {} as any });
-    localFixture.detectChanges();
-
-    expect(localFixture.componentInstance.tinyMceInit['base_url']).toBe('https://cdn.example.test/tinymce');
-    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
-  });
-
-  it('should ignore unsafe TinyMCE base URL protocols', () => {
-    const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentInstance.config = { richTextEditor: 'tinymce', tinyMceBaseUrl: 'data:text/css,body{}' };
-    localFixture.componentInstance.ngOnChanges({ config: {} as any });
-    localFixture.detectChanges();
-
-    const safeBaseUrl = localFixture.componentInstance.tinyMceInit['base_url'] as string;
-    expect(safeBaseUrl).not.toContain('data:');
-    expect(safeBaseUrl.endsWith('/tinymce')).toBe(true);
-    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
-  });
-
-  it('should accept relative TinyMCE base URLs after normalizing them', () => {
-    const localFixture = TestBed.createComponent(NgxEmailStudio);
-    localFixture.componentInstance.config = { tinyMceBaseUrl: './assets/tinymce/' };
-    localFixture.componentInstance.ngOnChanges({ config: {} as any });
-    localFixture.detectChanges();
-
-    const baseUrl = localFixture.componentInstance.tinyMceInit['base_url'] as string;
-    expect(baseUrl).toContain('/assets/tinymce');
-    expect(baseUrl.endsWith('/')).toBe(false);
   });
 
   it('should render internal SVG-mask icons without relying on global Font Awesome CSS', () => {

@@ -52,8 +52,8 @@ try {
 
   const html = await editor.evaluate((node) => node.innerHTML);
   if (!html.includes('Product newsletter')) throw new Error(`Tiptap editor did not load document content: ${html}`);
-  const tinyMceCount = await studio.locator('.tox-tinymce').count();
-  if (tinyMceCount !== 0) throw new Error('Default Tiptap mode unexpectedly rendered TinyMCE');
+  const legacyEditorCount = await studio.locator('.tox-tinymce, editor').count();
+  if (legacyEditorCount !== 0) throw new Error('Default Tiptap mode unexpectedly rendered a legacy editor shell');
 
   console.log('Tiptap browser smoke passed');
 } catch (error) {

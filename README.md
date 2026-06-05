@@ -17,7 +17,7 @@ This release focuses on a frontend-only builder experience:
 - frontend HTML export for the supported subset;
 - responsive preview widths: desktop, tablet, mobile;
 - Font Awesome 4.7-compatible icon classes;
-- TinyMCE community rich text editor integration for text blocks.
+- Tiptap rich text editor integration for text blocks.
 
 ## Install
 
@@ -28,7 +28,7 @@ npm install ngx-email-studio
 Peer dependencies:
 
 ```bash
-npm install @angular/cdk @tinymce/tinymce-angular tinymce
+npm install @angular/cdk @tiptap/core @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-text-align @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
 ```
 
 Optional Font Awesome 4.7 CSS for icons:
@@ -37,21 +37,6 @@ Optional Font Awesome 4.7 CSS for icons:
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
 ```
 
-TinyMCE is self-hosted by default. Copy TinyMCE assets to `/tinymce` in your Angular app. The component resolves the script and base URL relative to the current Angular `<base href>`, so GitHub Pages/project subpaths such as `/ngx-email-studio/` work as long as the assets are copied under that app base path:
-
-```json
-{
-  "glob": "**/*",
-  "input": "node_modules/tinymce",
-  "output": "tinymce"
-}
-```
-
-If your app serves TinyMCE somewhere else, pass:
-
-```html
-<ngx-email-studio [config]="{ tinyMceBaseUrl: '/custom/tinymce' }" />
-```
 
 ## Basic Usage
 
@@ -98,7 +83,7 @@ export class EmailBuilderPage {
 | `document` | `EmailDocument` | Internal document model. Recommended for app state. |
 | `previewSize` | `'desktop' \| 'tablet' \| 'mobile' \| number` | Preview width preset or custom pixel width. |
 | `readonly` | `boolean` | Disables drag/drop edits when true. |
-| `config` | `EmailStudioConfig` | Editor options, including `useTinyMce`. |
+| `config` | `EmailStudioConfig` | Editor options, including `richTextEditor: 'tiptap' | 'plain'`. |
 
 ### Outputs
 

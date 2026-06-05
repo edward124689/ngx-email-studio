@@ -1,13 +1,12 @@
 {
   "name": "ngx-email-studio",
   "version": "0.0.1",
-  "description": "Angular 21 frontend email builder library with MJML import/export, HTML export, responsive preview, drag-and-drop blocks, Font Awesome 4.7 icons, and Tiptap/TinyMCE rich text editing.",
+  "description": "Angular 21 frontend email builder library with MJML import/export, HTML export, responsive preview, drag-and-drop blocks, Font Awesome 4.7 icons, and Tiptap rich text editing.",
   "keywords": [
     "angular",
     "email-builder",
     "mjml",
     "tiptap",
-    "tinymce",
     "drag-and-drop",
     "newsletter"
   ],
@@ -25,9 +24,7 @@
     "@tiptap/extension-table-row": "^3.0.0",
     "@tiptap/extension-link": "^3.0.0",
     "@tiptap/extension-text-align": "^3.0.0",
-    "@tiptap/starter-kit": "^3.0.0",
-    "@tinymce/tinymce-angular": "^9.1.1",
-    "tinymce": "^8.0.0"
+    "@tiptap/starter-kit": "^3.0.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"

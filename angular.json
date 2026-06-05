@@ -53,46 +53,6 @@
               {
                 "glob": "**/*",
                 "input": "projects/demo/public"
-              },
-              {
-                "glob": "tinymce.min.js",
-                "input": "node_modules/tinymce",
-                "output": "tinymce"
-              },
-              {
-                "glob": "icons.min.js",
-                "input": "node_modules/tinymce/icons/default",
-                "output": "tinymce/icons/default"
-              },
-              {
-                "glob": "theme.min.js",
-                "input": "node_modules/tinymce/themes/silver",
-                "output": "tinymce/themes/silver"
-              },
-              {
-                "glob": "model.min.js",
-                "input": "node_modules/tinymce/models/dom",
-                "output": "tinymce/models/dom"
-              },
-              {
-                "glob": "plugin.min.js",
-                "input": "node_modules/tinymce/plugins/link",
-                "output": "tinymce/plugins/link"
-              },
-              {
-                "glob": "plugin.min.js",
-                "input": "node_modules/tinymce/plugins/lists",
-                "output": "tinymce/plugins/lists"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/tinymce/skins/ui/oxide",
-                "output": "tinymce/skins/ui/oxide"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/tinymce/skins/content/default",
-                "output": "tinymce/skins/content/default"
               }
             ],
             "styles": [

@@ -11,15 +11,14 @@ Angular 21 frontend email builder library.
 - Frontend HTML export for supported blocks
 - Responsive preview presets
 - Font Awesome 4.7-compatible icon classes
-- TinyMCE community editor integration
+- Tiptap rich text editor integration
 
 ## Install
 
 ```bash
-npm install ngx-email-studio @angular/cdk @tinymce/tinymce-angular tinymce
+npm install ngx-email-studio @angular/cdk @tiptap/core @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-text-align @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
 ```
 
-Copy TinyMCE assets to `/tinymce` in your Angular app assets config. For Angular apps deployed under a subpath, the component resolves TinyMCE relative to the current `<base href>`. You can override the asset location with `config.tinyMceBaseUrl`.
 
 ## Usage
 
