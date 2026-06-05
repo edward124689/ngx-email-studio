@@ -273,7 +273,7 @@ function createEmailStudioInstanceId(): string {
               <label>
                 Body background
                 <span class="nes-color-control">
-                  <input type="color" [ngModel]="colorPickerValue(documentAttrs['backgroundColor'], '#f3f4f6')" (ngModelChange)="updateDocumentColorAttr('backgroundColor', $event)" />
+                  <input type="color" [ngModel]="colorPickerValue(documentAttrs['backgroundColor'], '#ffffff')" (ngModelChange)="updateDocumentColorAttr('backgroundColor', $event)" />
                   <input [ngModel]="documentColorText('backgroundColor')" (ngModelChange)="updateDocumentColorAttr('backgroundColor', $event)" placeholder="transparent" />
                 </span>
               </label>
@@ -978,8 +978,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   get documentAttrs(): Record<string, string | number | boolean> {
-    this.emailDocument.attrs ??= this.defaultDocumentAttrs();
-    return this.emailDocument.attrs;
+    return { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
   }
 
   get bodyBackgroundColor(): string {
@@ -1245,7 +1244,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const normalized = normalizeColorValue(value);
     const nextAttrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
     if (String(value ?? '').trim() === '') {
-      delete nextAttrs[key];
+      nextAttrs[key] = '';
     } else {
       nextAttrs[key] = normalized || String(value).trim();
     }

@@ -154,6 +154,7 @@ describe('NgxEmailStudio', () => {
     expect(component.emailCanvasMaxWidthCss).toBe('min(100%, 600px)');
     expect(component.lastMjml).toContain('<mj-body background-color="#ffffff" width="100%">');
     expect(component.lastHtml).toContain('background:#ffffff;');
+    expect(component.documentColorText('backgroundColor')).toBe('#ffffff');
     expect(component.lastHtml).toContain('width="100%"');
     expect(component.lastHtml).toContain('style="width:100%;max-width:600px;');
   });
@@ -205,6 +206,52 @@ describe('NgxEmailStudio', () => {
     expect(component.colorText(textNode, 'backgroundColor')).toBe('');
     expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).toContain('<mj-body background-color="#ffffff" width="100%">');
     expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).not.toContain('<mj-text background-color=');
+  });
+
+  it('should let document color inputs override body defaults with explicit transparent values', () => {
+    component.emailDocument = { version: '0.0.1', attrs: {}, body: [] };
+
+    expect(component.documentColorText('backgroundColor')).toBe('#ffffff');
+    expect((component as any).compileMjml(component.emailDocument)).toContain('<mj-body background-color="#ffffff" width="100%">');
+
+    component.updateDocumentColorAttr('backgroundColor', '');
+
+    expect(component.emailDocument.attrs?.['backgroundColor']).toBe('');
+    expect(component.documentColorText('backgroundColor')).toBe('');
+    expect((component as any).compileMjml(component.emailDocument)).toContain('<mj-body width="100%">');
+    expect((component as any).compileMjml(component.emailDocument)).not.toContain('<mj-body background-color=');
+    expect((component as any).renderHtml(component.emailDocument)).toContain('<body style="margin:0;padding:0;word-spacing:normal;">');
+  });
+
+  it('should merge body defaults for host-provided documents without mutating transparent block defaults', () => {
+    component.document = {
+      version: '0.0.1',
+      attrs: { width: 100, widthUnit: '%' },
+      body: [{ id: 'host_section', type: 'section', attrs: {}, children: [] }],
+    };
+
+    component.ngOnChanges({ document: { currentValue: component.document, previousValue: undefined, firstChange: true, isFirstChange: () => true } });
+
+    expect(component.documentColorText('backgroundColor')).toBe('#ffffff');
+    expect(component.bodyBackgroundColor).toBe('#ffffff');
+    expect(component.backgroundFor(component.emailDocument.body[0])).toBe('transparent');
+    expect(component.lastMjml).toContain('<mj-body background-color="#ffffff" width="100%">');
+    expect(component.lastMjml).not.toContain('<mj-section background-color=');
+  });
+
+  it('should preserve explicit transparent body background on host-provided documents', () => {
+    component.document = {
+      version: '0.0.1',
+      attrs: { backgroundColor: '', width: 100, widthUnit: '%' },
+      body: [],
+    };
+
+    component.ngOnChanges({ document: { currentValue: component.document, previousValue: undefined, firstChange: true, isFirstChange: () => true } });
+
+    expect(component.documentColorText('backgroundColor')).toBe('');
+    expect(component.bodyBackgroundColor).toBe('transparent');
+    expect(component.lastMjml).toContain('<mj-body width="100%">');
+    expect(component.lastMjml).not.toContain('<mj-body background-color=');
   });
 
   it('should import uppercase MJML background colors as lowercase hex values', () => {
