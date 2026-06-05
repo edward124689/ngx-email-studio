@@ -5,12 +5,32 @@ import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import { safeAlign, normalizeColorValue } from '../export/export-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
+const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
+const HTML_ENTITY_CODEPOINTS: Record<string, number> = {
+  nbsp: 160,
+  copy: 169,
+  reg: 174,
+  trade: 8482,
+  ndash: 8211,
+  mdash: 8212,
+  lsquo: 8216,
+  rsquo: 8217,
+  ldquo: 8220,
+  rdquo: 8221,
+  bull: 8226,
+  middot: 183,
+  hellip: 8230,
+  euro: 8364,
+  pound: 163,
+  yen: 165,
+  cent: 162,
+};
 
 export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDocument {
   if (typeof DOMParser === 'undefined') {
     return { version: '0.0.1', body: [createNode(idFactory, 'text', { content: mjml })], unsupported: ['DOMParser unavailable'] };
   }
-  const xml = new DOMParser().parseFromString(mjml, 'text/xml');
+  const xml = new DOMParser().parseFromString(normalizeMjmlForXmlParser(mjml), 'text/xml');
   const parserError = xml.querySelector('parsererror');
   if (parserError) {
     throw new Error(parserError.textContent || 'Invalid MJML markup.');
@@ -58,6 +78,15 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   });
 
   return { version: '0.0.1', attrs: documentAttrs, body: nodes.length ? nodes : [createNode(idFactory, 'text')], unsupported };
+}
+
+function normalizeMjmlForXmlParser(mjml: string): string {
+  return mjml.replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
+    const name = entity.toLowerCase();
+    if (XML_SAFE_ENTITIES.has(name)) return match;
+    const codepoint = HTML_ENTITY_CODEPOINTS[name];
+    return codepoint ? `&#${codepoint};` : `&amp;${entity};`;
+  });
 }
 
 function parseColumn(column: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {

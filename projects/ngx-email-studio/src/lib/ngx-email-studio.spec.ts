@@ -368,6 +368,18 @@ describe('NgxEmailStudio', () => {
     expect(importedColumn?.children?.[2].attrs['align']).toBe('left');
   });
 
+  it('should import MJML text that contains common HTML named entities', () => {
+    const mjml = '<mjml><mj-body><mj-section><mj-column><mj-text><p>WOMEN&nbsp; | &copy; 2026 &unknown;</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const text = findImportedNode(document.body, 'text');
+
+    expect(text?.type).toBe('text');
+    expect(String(text?.attrs['content'])).toContain('WOMEN');
+    expect(String(text?.attrs['content'])).toContain('©');
+    expect(String(text?.attrs['content'])).toContain('&amp;unknown;');
+  });
+
   it('should compile, render, and import image width settings', () => {
     const imageNode: EmailNode = {
       id: 'image_width',
