@@ -900,7 +900,7 @@ function createEmailStudioInstanceId(): string {
     </ng-template>
   `,
   styles: `
-    :host {
+    ngx-email-studio {
       all: initial;
       --nes-accent: #2563eb;
       --nes-success: #16a34a;
@@ -915,7 +915,7 @@ function createEmailStudioInstanceId(): string {
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       color: var(--nes-ink);
     }
-    *, *::before, *::after { box-sizing: border-box; }
+    ngx-email-studio *, ngx-email-studio *::before, ngx-email-studio *::after { box-sizing: border-box; }
     .nes-icon { --nes-icon-size: 1em; display: inline-grid; place-items: center; width: var(--nes-icon-size); height: var(--nes-icon-size); min-width: var(--nes-icon-size); font-style: normal; line-height: 1; vertical-align: -0.12em; }
     .nes-icon::before { content: ''; display: block; width: 100%; height: 100%; background: currentColor; -webkit-mask: var(--nes-icon-mask) center / contain no-repeat; mask: var(--nes-icon-mask) center / contain no-repeat; }
     .fa-envelope-open-o, .fa-envelope-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2v.35l8 5 8-5V8H4Zm16 2.7-7.47 4.67a1 1 0 0 1-1.06 0L4 10.7V16h16v-5.3Z'/%3E%3C/svg%3E"); }
@@ -946,12 +946,12 @@ function createEmailStudioInstanceId(): string {
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
     .nes-logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; font-size: 18px; background: linear-gradient(135deg, #14b8a6, #22c55e); box-shadow: 0 10px 24px rgba(20, 184, 166, .28); }
-    h2, h3 { margin: 0; }
-    h2 { font-size: 20px; letter-spacing: -.02em; }
-    h3 { font-size: 14px; color: #172033; }
+    ngx-email-studio h2, ngx-email-studio h3 { margin: 0; }
+    ngx-email-studio h2 { font-size: 20px; letter-spacing: -.02em; }
+    ngx-email-studio h3 { font-size: 14px; color: #172033; }
     .nes-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: nowrap; margin-left: auto; }
-    button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; white-space: nowrap; }
-    button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
+    ngx-email-studio button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; white-space: nowrap; }
+    ngx-email-studio button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
     .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); box-shadow: 0 8px 18px rgba(22, 163, 74, .16); }
     .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
     .nes-export { position: relative; flex: 0 0 auto; }
@@ -1063,11 +1063,11 @@ function createEmailStudioInstanceId(): string {
     .nes-tabs button.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
     .nes-tab-panel { min-width: 0; margin-top: 14px; }
     .nes-inline-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
-    label { min-width: 0; display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
-    input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
-    textarea { min-height: 120px; }
-    select { appearance: none; color: #0f172a; font-weight: 800; background: linear-gradient(180deg, #ffffff, #f8fafc); }
-    input[type="color"] { width: 44px; min-width: 44px; height: 42px; padding: 4px; border-radius: 12px; cursor: pointer; }
+    ngx-email-studio label { min-width: 0; display: grid; gap: 7px; margin: 14px 0; font-size: 13px; color: #475467; }
+    ngx-email-studio input, ngx-email-studio textarea, ngx-email-studio select { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; font: inherit; background: #fff; }
+    ngx-email-studio textarea { min-height: 120px; }
+    ngx-email-studio select { appearance: none; color: #0f172a; font-weight: 800; background: linear-gradient(180deg, #ffffff, #f8fafc); }
+    ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42px; padding: 4px; border-radius: 12px; cursor: pointer; }
     .nes-color-control, .nes-unit-field { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
     .nes-color-control input:not([type="color"]), .nes-unit-field input, .nes-unit-field select { min-width: 0; }
     .nes-unit-field { grid-template-columns: minmax(72px, 1fr) minmax(58px, 68px); }

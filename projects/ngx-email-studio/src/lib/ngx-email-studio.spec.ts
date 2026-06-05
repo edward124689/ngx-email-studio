@@ -1046,8 +1046,11 @@ describe('NgxEmailStudio', () => {
 
     expect(builder).toBeTruthy();
     expect(button).toBeTruthy();
+    expect(styles).toMatch(/ngx-email-studio\s*{[\s\S]*--nes-accent:\s*#2563eb;/);
+    expect(styles).not.toContain(':host {');
     expect(styles).toMatch(/\.nes-builder\s*{[\s\S]*display:\s*grid;/);
-    expect(styles).toMatch(/button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
+    expect(styles).toMatch(/ngx-email-studio button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
+    expect(styles).toMatch(/ngx-email-studio input,\s*ngx-email-studio textarea,\s*ngx-email-studio select/);
   });
 
   it('should simplify the header and render an internal logo icon', () => {
