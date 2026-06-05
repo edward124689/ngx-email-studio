@@ -26,7 +26,12 @@ export type TiptapCommand =
   | 'addRowAfter'
   | 'deleteColumn'
   | 'deleteRow'
-  | 'deleteTable';
+  | 'deleteTable'
+  | 'mergeCells'
+  | 'splitCell'
+  | 'toggleHeaderRow'
+  | 'toggleHeaderColumn'
+  | 'toggleHeaderCell';
 
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */

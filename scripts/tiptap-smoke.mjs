@@ -53,7 +53,7 @@ try {
   const html = await editor.evaluate((node) => node.innerHTML);
   if (!html.includes('Product newsletter')) throw new Error(`Tiptap editor did not load document content: ${html}`);
   const toolbarText = await studio.locator('.nes-tiptap-toolbar').first().textContent();
-  for (const marker of ['Paragraph', 'H1', 'Size', 'Line', 'Table', '2×2', '4×4']) {
+  for (const marker of ['Paragraph', 'H1', 'Size', 'Line', 'Table', '2×2', '4×4', 'Merge', 'Split', 'Head row', 'Bg', 'Border']) {
     if (!toolbarText?.includes(marker)) throw new Error(`Tiptap toolbar missing ${marker}: ${toolbarText}`);
   }
   for (const label of ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Bullet list', 'Align center', 'Add link', 'Edit HTML source']) {
@@ -88,6 +88,14 @@ try {
   }
   const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
   if (!tooltipContent.includes('Bold')) throw new Error(`Tiptap icon hover label CSS missing: ${tooltipContent}`);
+  await studio.locator('.nes-tiptap-toolbar button[aria-label="Insert 2 by 2 table"]').first().click();
+  await studio.locator('.nes-tiptap-editor .ProseMirror table').waitFor({ state: 'visible', timeout: 15_000 });
+  const tableUi = await studio.locator('.nes-tiptap-editor .ProseMirror').first().evaluate((node) => ({
+    hasTable: !!node.querySelector('table'),
+    hasResizeHandle: !!node.querySelector('.column-resize-handle'),
+    hasWrapper: !!node.querySelector('.tableWrapper'),
+  }));
+  if (!tableUi.hasTable || !tableUi.hasWrapper) throw new Error(`Tiptap table wrapper missing: ${JSON.stringify(tableUi)}`);
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();
   await studio.locator('.nes-source-modal textarea').waitFor({ state: 'visible', timeout: 15_000 });
   const sourceValue = await studio.locator('.nes-source-modal textarea').inputValue();

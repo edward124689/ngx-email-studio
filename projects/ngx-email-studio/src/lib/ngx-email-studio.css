@@ -214,6 +214,12 @@ ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42p
 .nes-tiptap-icon-btn:hover:not(:disabled)::after, .nes-tiptap-icon-btn:focus-visible:not(:disabled)::after { transform: translate(-50%, 0); }
 .nes-tiptap-table-btn { gap: 6px; padding-inline: 9px !important; background: #f8fafc !important; border-color: #dbe3ef !important; }
 .nes-tiptap-chip-btn { min-width: auto !important; padding-inline: 8px !important; font-size: 11px !important; }
+.nes-tiptap-style-group { align-items: center; gap: 4px; }
+.nes-tiptap-color-control { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 3px 6px; border: 1px solid #dbe3ef; border-radius: 8px; background: #fff; color: #334155; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; }
+.nes-tiptap-color-control input { width: 20px; height: 20px; min-height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.nes-tiptap-editor .ProseMirror .tableWrapper { overflow-x: auto; margin: 12px 0; }
+.nes-tiptap-editor .ProseMirror .column-resize-handle { position: absolute; top: 0; right: -3px; bottom: -2px; width: 6px; background: rgba(37, 99, 235, .32); pointer-events: none; }
+.nes-tiptap-editor .ProseMirror.resize-cursor { cursor: col-resize; }
 .nes-tiptap-source-btn { color: #0f766e !important; }
 .nes-tiptap-danger-btn { color: #b42318 !important; }
 .nes-tiptap-toolbar button:hover:not(:disabled), .nes-tiptap-toolbar select:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--nes-accent); box-shadow: 0 6px 14px rgba(37, 99, 235, .10); transform: translateY(-1px); }

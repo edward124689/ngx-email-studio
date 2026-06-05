@@ -624,6 +624,9 @@ describe('NgxEmailStudio', () => {
     expect(toolbar?.textContent).toContain('Paragraph');
     expect(toolbar?.textContent).toContain('H1');
     expect(toolbar?.textContent).toContain('2×2');
+    expect(toolbar?.textContent).toContain('Merge');
+    expect(toolbar?.textContent).toContain('Split');
+    expect(toolbar?.textContent).toContain('Head row');
     expect(toolbar.querySelector('.nes-tiptap-group')).toBeTruthy();
     expect(toolbar.querySelector('button[aria-label="Undo"] .fa-undo')).toBeTruthy();
     expect(toolbar.querySelector('button[aria-label="Redo"] .fa-repeat')).toBeTruthy();
@@ -683,12 +686,47 @@ describe('NgxEmailStudio', () => {
     component.runTiptapCommand('inline', 'addColumnAfter');
     component.runTiptapCommand('inline', 'addRowAfter');
 
-    expect(textNode.attrs['content']).toContain('<table>');
+    expect(textNode.attrs['content']).toContain('<table');
     expect(textNode.attrs['content']).toContain('<th');
     expect(textNode.attrs['content']).toContain('<td');
-    expect(component.lastMjml).toContain('<table>');
-    expect(component.lastHtml).toContain('<table>');
+    expect(component.lastMjml).toContain('<table');
+    expect(component.lastHtml).toContain('<table');
     expect(studioRoot(fixture).querySelector('.nes-tiptap-toolbar')?.textContent).toContain('Table');
+  });
+
+  it('should style Tiptap table cells and preserve email-safe table styles', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    component.runTiptapCommand('inline', 'insertTable');
+    component.setTiptapCellStyle('inline', 'backgroundColor', '#fef3c7');
+    component.setTiptapCellStyle('inline', 'borderColor', '#2563eb');
+    component.setTiptapCellStyle('inline', 'borderWidth', '2px');
+    component.setTiptapCellStyle('inline', 'borderStyle', 'dashed');
+    component.setTiptapCellStyle('inline', 'width', '180px');
+    component.setTiptapCellStyle('inline', 'height', '64px');
+    component.setTiptapCellStyle('inline', 'padding', '12px');
+
+    expect(textNode.attrs['content']).toContain('background-color: rgb(254, 243, 199)');
+    expect(textNode.attrs['content']).toContain('border-color: rgb(37, 99, 235)');
+    expect(textNode.attrs['content']).toContain('border-width: 2px');
+    expect(textNode.attrs['content']).toContain('border-style: dashed');
+    expect(textNode.attrs['content']).toContain('width: 180px');
+    expect(textNode.attrs['content']).toContain('height: 64px');
+    expect(textNode.attrs['content']).toContain('padding: 12px');
+    expect(component.lastMjml).toContain('background-color: rgb(254, 243, 199)');
+    expect(component.lastHtml).toContain('border-style: dashed');
+  });
+
+  it('should keep unsafe table cell styles out of rich text content', () => {
+    const sanitized = (component as any).sanitizeRichTextContent('<table><tr><td style="background-color:url(javascript:evil); border-color:#2563eb; width:9999px; padding:12px" onclick="x()">Safe</td></tr></table>');
+
+    expect(sanitized).toContain('<td style="border-color: #2563eb; padding: 12px">Safe</td>');
+    expect(sanitized).not.toContain('javascript');
+    expect(sanitized).not.toContain('onclick');
+    expect(sanitized).not.toContain('9999px');
   });
 
   it('should not reset active Tiptap content during sanitizer-equivalent sync', () => {

@@ -396,6 +396,21 @@ function createEmailStudioInstanceId(): string {
                         <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
                         <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
                       </div>
+                      <div class="nes-tiptap-group nes-tiptap-table-group">
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Merge cells" title="Merge cells" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'mergeCells')">Merge</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Split cell" title="Split cell" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'splitCell')">Split</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Toggle header row" title="Toggle header row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'toggleHeaderRow')">Head row</button>
+                      </div>
+                      <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
+                        <label class="nes-tiptap-color-control" title="Cell background"><span>Bg</span><input type="color" aria-label="Cell background color" [value]="currentTiptapCellStyle('inline', 'backgroundColor') || '#ffffff'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('inline', 'backgroundColor', $any($event.target).value)" /></label>
+                        <label class="nes-tiptap-color-control" title="Cell border color"><span>Border</span><input type="color" aria-label="Cell border color" [value]="currentTiptapCellStyle('inline', 'borderColor') || '#cbd5e1'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('inline', 'borderColor', $any($event.target).value)" /></label>
+                      </div>
+                      <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'height', 'Cell height (px, auto)', '48px')">H</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'padding', 'Cell padding (px)', '8px')">Pad</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
+                      </div>
                     </div>
                     <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id" (mousedown)="guardTiptapBlankMouseDown($event, 'inline')" (click)="$event.stopPropagation()"></div>
                   </div>
@@ -614,6 +629,21 @@ function createEmailStudioInstanceId(): string {
                     <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete column" title="Delete column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
                     <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
                     <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
+                  </div>
+                  <div class="nes-tiptap-group nes-tiptap-table-group">
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Merge cells" title="Merge cells" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'mergeCells')">Merge</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Split cell" title="Split cell" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'splitCell')">Split</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Toggle header row" title="Toggle header row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'toggleHeaderRow')">Head row</button>
+                  </div>
+                  <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
+                    <label class="nes-tiptap-color-control" title="Cell background"><span>Bg</span><input type="color" aria-label="Cell background color" [value]="currentTiptapCellStyle('modal', 'backgroundColor') || '#ffffff'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('modal', 'backgroundColor', $any($event.target).value)" /></label>
+                    <label class="nes-tiptap-color-control" title="Cell border color"><span>Border</span><input type="color" aria-label="Cell border color" [value]="currentTiptapCellStyle('modal', 'borderColor') || '#cbd5e1'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('modal', 'borderColor', $any($event.target).value)" /></label>
+                  </div>
+                  <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'height', 'Cell height (px, auto)', '48px')">H</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'padding', 'Cell padding (px)', '8px')">Pad</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
                   </div>
                 </div>
                 <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id" (mousedown)="guardTiptapBlankMouseDown($event, 'modal')" (click)="$event.stopPropagation()"></div>
@@ -1376,6 +1406,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (command === 'deleteColumn') chain.deleteColumn().run();
     if (command === 'deleteRow') chain.deleteRow().run();
     if (command === 'deleteTable') chain.deleteTable().run();
+    if (command === 'mergeCells') chain.mergeCells().run();
+    if (command === 'splitCell') chain.splitCell().run();
+    if (command === 'toggleHeaderRow') chain.toggleHeaderRow().run();
+    if (command === 'toggleHeaderColumn') chain.toggleHeaderColumn().run();
+    if (command === 'toggleHeaderCell') chain.toggleHeaderCell().run();
     if (command === 'undo') chain.undo().run();
     if (command === 'redo') chain.redo().run();
     if (command === 'unlink') chain.extendMarkRange('link').unsetLink().run();
@@ -1477,6 +1512,41 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const safeRows = Math.min(6, Math.max(1, Math.floor(rows)));
     const safeCols = Math.min(6, Math.max(1, Math.floor(cols)));
     this.tiptapEditor(scope)?.chain().focus().insertTable({ rows: safeRows, cols: safeCols, withHeaderRow: true }).run();
+  }
+
+  currentTiptapCellStyle(scope: TiptapScope, name: string): string {
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return '';
+    const value = editor.getAttributes('tableCell')[name] || editor.getAttributes('tableHeader')[name];
+    return typeof value === 'string' ? value : '';
+  }
+
+  setTiptapCellStyle(scope: TiptapScope, name: string, value: string): void {
+    if (this.readonly) return;
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    const safeValue = this.sanitizeTiptapCellStyleValue(name, value);
+    editor.chain().focus().setCellAttribute(name, safeValue || null).run();
+  }
+
+  promptTiptapCellStyle(scope: TiptapScope, name: string, label: string, fallback: string): void {
+    if (this.readonly) return;
+    const currentValue = this.currentTiptapCellStyle(scope, name) || fallback;
+    const value = globalThis.prompt?.(label, currentValue) ?? null;
+    if (value === null) return;
+    this.setTiptapCellStyle(scope, name, value);
+  }
+
+  private sanitizeTiptapCellStyleValue(name: string, rawValue: string): string {
+    const value = rawValue.trim();
+    if (!value) return '';
+    if ((name === 'backgroundColor' || name === 'borderColor') && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value)) return value;
+    if (name === 'borderWidth' && /^(0|[1-9][0-9]?)px$/.test(value)) return value;
+    if (name === 'borderStyle' && /^(solid|dashed|dotted|double|none)$/.test(value)) return value;
+    if (name === 'width' && /^(auto|100%|[1-9][0-9]{0,2}px|[1-9][0-9]?%)$/.test(value)) return value;
+    if (name === 'height' && /^(auto|[1-9][0-9]{0,2}px)$/.test(value)) return value;
+    if (name === 'padding' && /^(0|[1-9][0-9]?px)$/.test(value)) return value;
+    return '';
   }
 
   openRichTextSource(scope: TiptapScope): void {
