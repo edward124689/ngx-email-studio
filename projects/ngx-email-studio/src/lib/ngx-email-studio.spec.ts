@@ -254,6 +254,35 @@ describe('NgxEmailStudio', () => {
     expect(component.lastMjml).not.toContain('<mj-body background-color=');
   });
 
+  it('should omit unsafe or unsupported color text values from exports', () => {
+    const textNode: EmailNode = { id: 'text_unsafe_color', type: 'text', attrs: { content: '<p>Unsafe</p>' } };
+    component.updateColorAttr(textNode, 'backgroundColor', 'red;background:url(javascript:alert(1))');
+
+    expect(textNode.attrs['backgroundColor']).toBe('red;background:url(javascript:alert(1))');
+    expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).not.toContain('red;background');
+    expect((component as any).compileMjml({ version: '0.0.1', body: [textNode] })).not.toContain('<mj-text background-color=');
+    expect((component as any).renderHtml({ version: '0.0.1', body: [textNode] })).not.toContain('red;background');
+
+    component.updateDocumentColorAttr('backgroundColor', 'red;background:url(javascript:alert(1))');
+    expect(component.emailDocument.attrs?.['backgroundColor']).toBe('red;background:url(javascript:alert(1))');
+    expect((component as any).compileMjml(component.emailDocument)).not.toContain('<mj-body background-color=');
+    expect((component as any).renderHtml(component.emailDocument)).not.toContain('red;background');
+  });
+
+  it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body background-color="red;background:url(javascript:alert(1))"><mj-section background-color="red;background:url(javascript:alert(1))"><mj-column background-color="#ABCDEF"><mj-text><p>Safe</p></mj-text></mj-column><mj-column background-color="red;background:url(javascript:alert(1))"><mj-text><p>Unsafe column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const row = imported.body[0];
+    const column = row.children?.[0];
+    const unsafeColumn = row.children?.[1];
+
+    expect(imported.attrs?.['backgroundColor']).toBe('#ffffff');
+    expect(row.attrs['backgroundColor']).toBeUndefined();
+    expect(column?.attrs['backgroundColor']).toBe('#abcdef');
+    expect(unsafeColumn?.attrs['backgroundColor']).toBeUndefined();
+    expect((component as any).compileMjml(imported)).not.toContain('red;background');
+    expect((component as any).renderHtml(imported)).not.toContain('red;background');
+  });
+
   it('should import uppercase MJML background colors as lowercase hex values', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body background-color="#FFFFFF"><mj-section background-color="#ABCDEF"><mj-column background-color="#FEDCBA"><mj-button background-color="#123ABC">Go</mj-button></mj-column><mj-column background-color="#AABBCC"><mj-text><p>Side</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const row = imported.body[0];

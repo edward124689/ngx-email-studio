@@ -14,7 +14,7 @@ export function normalizeColorValue(value: unknown): string {
 }
 
 export function colorAttrValue(value: unknown): string {
-  return normalizeColorValue(value) || String(value ?? '').trim();
+  return normalizeColorValue(value);
 }
 
 export function backgroundStyle(value: unknown): string {

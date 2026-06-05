@@ -18,7 +18,8 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   const unsupported: string[] = [];
   const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
   const documentAttrs = defaultDocumentAttrs();
-  if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = importedColor(body.getAttribute('background-color'));
+  const bodyBackgroundColor = importedColor(body.getAttribute('background-color'));
+  if (bodyBackgroundColor) documentAttrs['backgroundColor'] = bodyBackgroundColor;
   if (body.getAttribute('width')) {
     const bodyWidth = body.getAttribute('width') || '640px';
     documentAttrs['width'] = Number.parseFloat(bodyWidth);
@@ -38,13 +39,13 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
         if (onlyChild) {
           nodes.push(
             createSectionWithChildren(idFactory, [onlyChild], {
-              ...(section.getAttribute('background-color') ? { backgroundColor: importedColor(section.getAttribute('background-color')) } : {}),
+              ...importedBackgroundColorAttrs(section),
             }),
           );
         }
       } else {
         const row = createNode(idFactory, 'row', {
-          ...(section.getAttribute('background-color') ? { backgroundColor: importedColor(section.getAttribute('background-color')) } : {}),
+          ...importedBackgroundColorAttrs(section),
         });
         row.children = parsedColumns;
         nodes.push(row);
@@ -65,12 +66,17 @@ function parseColumn(column: Element, unsupported: string[], idFactory: EmailNod
     .filter((node): node is EmailNode => !!node);
 
   return createColumn(idFactory, children, column.getAttribute('width') || '50%', {
-    ...(column.getAttribute('background-color') ? { backgroundColor: importedColor(column.getAttribute('background-color')) } : {}),
+    ...importedBackgroundColorAttrs(column),
   });
 }
 
+function importedBackgroundColorAttrs(element: Element): { backgroundColor?: string } {
+  const color = importedColor(element.getAttribute('background-color'));
+  return color ? { backgroundColor: color } : {};
+}
+
 function importedColor(value: string | null): string {
-  return normalizeColorValue(value) || String(value ?? '').trim();
+  return normalizeColorValue(value);
 }
 
 function parseButtonBorderRadius(value: string | null): number {
