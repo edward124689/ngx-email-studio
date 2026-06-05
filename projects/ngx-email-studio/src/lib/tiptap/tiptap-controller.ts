@@ -55,16 +55,11 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
     if (!pendingTextClick) return;
     const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
     if (movement <= 4) return;
-    const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
-    if (!proseMirror) return;
-    const dragTarget = tiptapSelectionFromViewportPoint(proseMirror, editor, event.clientX, event.clientY);
-    if (!dragTarget) return;
-    pendingTextClick.moved = true;
-    editor.view.focus();
-    editor.commands.setTextSelection({
-      from: Math.min(pendingTextClick.pos, dragTarget.pos),
-      to: Math.max(pendingTextClick.pos, dragTarget.pos),
-    });
+    // Once the user is dragging, stop the single-click caret restore path and let
+    // the browser/ProseMirror native selection own highlighting. Calling
+    // setTextSelection() during mousemove fights native drag selection and can
+    // collapse the highlight back to a cursor at the document end in real use.
+    pendingTextClick = undefined;
   };
   const restoreTextClick = (event: MouseEvent) => {
     if (!pendingTextClick) return;

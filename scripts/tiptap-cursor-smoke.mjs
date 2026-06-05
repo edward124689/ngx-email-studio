@@ -128,6 +128,9 @@ try {
   await page.mouse.down();
   await page.mouse.move(selectionPoints.endX, selectionPoints.endY, { steps: 8 });
   await page.mouse.up();
+  await page.waitForTimeout(50);
+  const selectedTextAfterDrag = await editor.evaluate(() => window.getSelection()?.toString() || '');
+  if (selectedTextAfterDrag.length < 4) throw new Error(`drag selection collapsed or jumped before replacement: selected=${selectedTextAfterDrag}`);
   await page.keyboard.type('Q');
   const afterDragSelectionText = await editor.evaluate((node) => node.textContent || '');
   if (!afterDragSelectionText.includes('Q') || afterDragSelectionText.length >= beforeDragSelectionText.length) {
