@@ -167,7 +167,7 @@ ngx-email-studio button:hover { border-color: var(--nes-accent); color: var(--ne
 .nes-render-text h2 { font-size: 22px; margin: 0 0 10px; }
 .nes-render-text .kicker { color: var(--nes-accent); font-size: 13px; font-weight: 900; letter-spacing: .04em; }
 .nes-render-image-wrap { padding: 0; }
-.nes-render-image { display: inline-block; width: 100%; max-width: 100%; height: auto; object-fit: contain; background: #ecfeff; vertical-align: top; }
+.nes-render-image { display: inline-block; width: 100%; max-width: 100%; height: auto; object-fit: contain; vertical-align: top; }
 .nes-render-button-wrap { padding: 22px 32px 30px; }
 .nes-render-button { display: inline-block; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
 .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
