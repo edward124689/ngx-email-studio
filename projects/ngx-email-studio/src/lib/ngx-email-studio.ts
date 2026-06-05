@@ -328,6 +328,13 @@ function createEmailStudioInstanceId(): string {
                 <input type="number" min="1" max="4" [ngModel]="node.children?.length || 1" (ngModelChange)="setRowColumns(node, +$event)" />
               </label>
 
+              <div *ngIf="node.type === 'row' && (node.children?.length || 0) === 2" class="nes-field-block">
+                <div class="nes-control-heading">Column ratio</div>
+                <div class="nes-ratio-group" role="group" aria-label="Two column ratio presets">
+                  <button type="button" *ngFor="let ratio of twoColumnRatios" [class.is-active]="rowRatioLabel(node) === ratio.label" (click)="setTwoColumnRatio(node, ratio.left, ratio.right)">{{ ratio.label }}</button>
+                </div>
+              </div>
+
               <p *ngIf="node.type === 'row' || node.type === 'column' || node.type === 'section'" class="nes-muted">Drag Content modules from the left into this container; the red insertion line shows the exact position.</p>
 
               <div *ngIf="node.type === 'text'" class="nes-rich-text-field">
@@ -529,6 +536,13 @@ function createEmailStudioInstanceId(): string {
                 <span class="nes-color-control">
                   <input type="color" [ngModel]="colorPickerValue(node.attrs['backgroundColor'] || '#ffffff')" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" />
                   <input [ngModel]="node.attrs['backgroundColor']" (ngModelChange)="updateAttr(node, 'backgroundColor', $event)" placeholder="#ffffff" />
+                </span>
+              </label>
+              <label *ngIf="node.type === 'button'">
+                Border radius
+                <span class="nes-unit-field">
+                  <input type="number" min="0" [ngModel]="buttonBorderRadiusValue(node)" (ngModelChange)="updateAttr(node, 'borderRadius', +$event)" />
+                  <span class="nes-static-unit">px</span>
                 </span>
               </label>
               <label *ngIf="node.type === 'divider'">
@@ -837,7 +851,7 @@ function createEmailStudioInstanceId(): string {
           <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
         </div>
         <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)">
-          <a class="nes-render-button" [style.background]="backgroundFor(node)">{{ node.attrs['label'] }}</a>
+          <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
@@ -897,6 +911,13 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
+  readonly twoColumnRatios = [
+    { label: '3:7', left: 30, right: 70 },
+    { label: '4:6', left: 40, right: 60 },
+    { label: '5:5', left: 50, right: 50 },
+    { label: '6:4', left: 60, right: 40 },
+    { label: '7:3', left: 70, right: 30 },
+  ] as const;
   readonly tiptapBlockOptions: Array<{ label: string; value: TiptapHeadingValue }> = TIPTAP_BLOCK_OPTIONS;
   readonly tiptapFontSizeOptions = TIPTAP_FONT_SIZE_OPTIONS;
   readonly tiptapLineHeightOptions = TIPTAP_LINE_HEIGHT_OPTIONS;
@@ -1284,6 +1305,36 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   backgroundFor(node: EmailNode): string {
     return getBackgroundFor(node.attrs);
+  }
+
+  buttonBorderRadiusValue(node: EmailNode): number {
+    const raw = node.attrs['borderRadius'];
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw);
+    const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+  }
+
+  buttonBorderRadiusCss(node: EmailNode): string {
+    return `${this.buttonBorderRadiusValue(node)}px`;
+  }
+
+  rowRatioLabel(row: EmailNode): string {
+    const columns = row.children || [];
+    if (row.type !== 'row' || columns.length !== 2) return '';
+    const left = Math.round(dimensionValue(columns[0].attrs, 'width', 50));
+    const right = Math.round(dimensionValue(columns[1].attrs, 'width', 50));
+    return `${left / 10}:${right / 10}`;
+  }
+
+  setTwoColumnRatio(row: EmailNode, left: number, right: number): void {
+    if (this.readonly) return;
+    if (row.type !== 'row') return;
+    if ((row.children || []).length !== 2) this.setRowColumns(row, 2);
+    const [first, second] = row.children || [];
+    if (!first || !second) return;
+    first.attrs = { ...first.attrs, width: left, widthUnit: '%' };
+    second.attrs = { ...second.attrs, width: right, widthUnit: '%' };
+    this.emitDocument();
   }
 
   setRowColumns(row: EmailNode, count: number): void {

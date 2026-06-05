@@ -21,6 +21,15 @@ function studioText<T>(fixture: ComponentFixture<T>): string {
   return (studioRoot(fixture) as HTMLElement | ShadowRoot).textContent || '';
 }
 
+function findImportedNode(nodes: any[], type: string): any | undefined {
+  for (const node of nodes) {
+    if (node.type === type) return node;
+    const child = findImportedNode(node.children || [], type);
+    if (child) return child;
+  }
+  return undefined;
+}
+
 function componentStyleText(): string {
   const styles = ((NgxEmailStudio as any).ɵcmp?.styles || []) as string[];
   return styles
@@ -181,7 +190,7 @@ describe('NgxEmailStudio', () => {
     expect(mjml).toContain('<mj-section background-color="#ffffff">');
     expect(mjml).toContain('<mj-column width="50%"');
     expect(mjml).toContain('<mj-text><p>Left</p></mj-text>');
-    expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed">Right</mj-button>');
+    expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed" border-radius="10px">Right</mj-button>');
   });
 
   it('should compile, render, and import left/center/right content alignment', () => {
@@ -207,7 +216,7 @@ describe('NgxEmailStudio', () => {
 
     expect(mjml).toContain('<mj-text align="center"><p>Centered copy</p></mj-text>');
     expect(mjml).toContain('<mj-image src="https://example.com/hero.jpg" alt="Hero" align="right" />');
-    expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed" align="left">CTA</mj-button>');
+    expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed" border-radius="10px" align="left">CTA</mj-button>');
     expect(html).toContain('text-align:center;');
     expect(html).toContain('text-align:right;');
     expect(html).toContain('text-align:left;');
@@ -241,7 +250,7 @@ describe('NgxEmailStudio', () => {
   it('should apply button background color to the button element, not the outer block background', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const localComponent = localFixture.componentInstance;
-    const buttonNode = { id: 'button_target', type: 'button' as const, attrs: { label: 'Target CTA', href: '#', backgroundColor: '#ff5500' } };
+    const buttonNode = { id: 'button_target', type: 'button' as const, attrs: { label: 'Target CTA', href: '#', backgroundColor: '#ff5500', borderRadius: 18 } };
     localComponent.emailDocument = {
       version: '0.0.1',
       attrs: { backgroundColor: '#f3f4f6', contentBackgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px' },
@@ -255,8 +264,37 @@ describe('NgxEmailStudio', () => {
     expect(wrapper?.style.background).toBe('');
     expect(button?.getAttribute('style') || '').toContain('background');
     expect(button?.style.background).toBe('rgb(255, 85, 0)');
-    expect((localComponent as any).compileMjml(localComponent.emailDocument)).toContain('<mj-button href="#" background-color="#ff5500">Target CTA</mj-button>');
+    expect(button?.style.borderRadius).toBe('18px');
+    expect((localComponent as any).compileMjml(localComponent.emailDocument)).toContain('<mj-button href="#" background-color="#ff5500" border-radius="18px">Target CTA</mj-button>');
     expect((localComponent as any).renderHtml(localComponent.emailDocument)).toContain('display:inline-block;background:#ff5500;');
+    expect((localComponent as any).renderHtml(localComponent.emailDocument)).toContain('border-radius:18px;');
+  });
+
+  it('should import button border radius and keep preview/export radius consistent', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-button href="https://example.com" background-color="#123456" border-radius="22px">Rounded</mj-button></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const button = findImportedNode(imported.body, 'button');
+    expect(button?.type).toBe('button');
+    expect(button?.attrs['borderRadius']).toBe(22);
+    expect((component as any).compileMjml(imported)).toContain('border-radius="22px"');
+    expect((component as any).renderHtml(imported)).toContain('border-radius:22px;');
+  });
+
+  it('should apply two-column ratio presets to preview and exports', () => {
+    const row = component.emailDocument.body.find((node) => node.type === 'row')!;
+    expect(row?.children?.length).toBe(2);
+
+    component.setTwoColumnRatio(row, 30, 70);
+
+    expect(row.children?.[0].attrs['width']).toBe(30);
+    expect(row.children?.[1].attrs['width']).toBe(70);
+    expect(row.children?.[0].attrs['widthUnit']).toBe('%');
+    expect(component.rowRatioLabel(row)).toBe('3:7');
+    expect(component.columnWidthCss(row.children![0], 50, '%')).toBe('30%');
+    expect(component.columnWidthCss(row.children![1], 50, '%')).toBe('70%');
+    expect(component.lastMjml).toContain('<mj-column width="30%"');
+    expect(component.lastMjml).toContain('<mj-column width="70%"');
+    expect(component.lastHtml).toContain('width="30%"');
+    expect(component.lastHtml).toContain('width="70%"');
   });
 
   it('should keep the sidebar, canvas, and inspector in one equal-height scroll frame', () => {
@@ -269,6 +307,7 @@ describe('NgxEmailStudio', () => {
     expect(compactStyles).toContain('.nes-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain;');
     expect(compactStyles).toContain('.nes-stage { min-width: 0; min-height: 0; overflow: auto;');
     expect(compactStyles).toContain('.nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: visible;');
+    expect(compactStyles).toContain('.nes-render-column { min-width: 0; min-height: 150px; flex: 0 1 auto;');
     expect(compactStyles).toContain('.nes-size-bar { position: sticky; top: -18px; z-index: 12;');
     expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
   });

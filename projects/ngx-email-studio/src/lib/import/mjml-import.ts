@@ -69,6 +69,11 @@ function parseColumn(column: Element, unsupported: string[], idFactory: EmailNod
   });
 }
 
+function parseButtonBorderRadius(value: string | null): number {
+  const parsed = Number.parseFloat(String(value || '10').replace(/px$/i, ''));
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+}
+
 function parseMjmlBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
   switch (element.tagName.toLowerCase()) {
     case 'mj-text':
@@ -80,6 +85,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
         label: element.textContent || 'Button',
         href: element.getAttribute('href') || '#',
         backgroundColor: element.getAttribute('background-color') || '#7c3aed',
+        borderRadius: parseButtonBorderRadius(element.getAttribute('border-radius')),
         align: safeAlign(element.getAttribute('align')),
       });
     case 'mj-divider':

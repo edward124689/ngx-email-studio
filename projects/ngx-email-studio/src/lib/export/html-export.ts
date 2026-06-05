@@ -161,8 +161,10 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
       return indent(`<div style="padding:20px;background:${escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
       return indent(`<div style="text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" style="display:inline-block;max-width:100%;width:100%;height:auto;border:0;" /></div>`, depth);
-    case 'button':
-      return indent(`<div style="padding:24px;text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+    case 'button': {
+      const radius = escapeAttr(buttonBorderRadiusCss(node));
+      return indent(`<div style="padding:24px;text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+    }
     case 'divider':
       return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
     case 'spacer': {
@@ -172,6 +174,13 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     default:
       return '';
   }
+}
+
+function buttonBorderRadiusCss(node: EmailNode): string {
+  const raw = node.attrs['borderRadius'];
+  if (typeof raw === 'number' && Number.isFinite(raw)) return `${Math.max(0, raw)}px`;
+  const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
+  return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
 }
 
 function autoColumnWidth(row: EmailNode): string {

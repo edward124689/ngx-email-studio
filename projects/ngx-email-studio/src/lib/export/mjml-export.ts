@@ -47,8 +47,10 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       return `<mj-text${backgroundAttr(node)}${alignAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
     case 'image':
       return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)} />`;
-    case 'button':
-      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}"${alignAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+    case 'button': {
+      const radius = escapeAttr(buttonBorderRadiusCss(node));
+      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}" border-radius="${radius}"${alignAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+    }
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
     case 'spacer':
@@ -67,6 +69,13 @@ function alignAttr(node: EmailNode): string {
 function sectionMjmlAttrs(section: EmailNode): string {
   const padding = ` padding="${escapeAttr(sectionPaddingCss(section))}"`;
   return `${backgroundAttr(section)}${padding}`;
+}
+
+function buttonBorderRadiusCss(node: EmailNode): string {
+  const raw = node.attrs['borderRadius'];
+  if (typeof raw === 'number' && Number.isFinite(raw)) return `${Math.max(0, raw)}px`;
+  const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
+  return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
 }
 
 function bodyMjmlAttrs(document: EmailDocument): string {

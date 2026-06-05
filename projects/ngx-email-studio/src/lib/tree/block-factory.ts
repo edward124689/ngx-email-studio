@@ -20,7 +20,7 @@ export function createNode(idFactory: EmailNodeIdFactory, type: EmailBlockType, 
     section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
     text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
     image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
-    button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },
+    button: { label: 'Button', href: '#', backgroundColor: '#7c3aed', borderRadius: 10 },
     divider: { borderColor: '#d0d5dd' },
     spacer: { height: 24 },
   };
