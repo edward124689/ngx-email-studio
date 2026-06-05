@@ -7,6 +7,8 @@ import { Editor as TiptapEditor } from '@tiptap/core';
 
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
+import { compileMjml as compileMjmlDocument } from './export/mjml-export';
+import { parseMjml as parseMjmlDocument } from './import/mjml-import';
 import {
   CanvasMode,
   EmailBlockType,
@@ -27,6 +29,8 @@ import {
 import { sanitizeRichTextContent as sanitizeRichTextHtml } from './tiptap/rich-text-sanitizer';
 import { TIPTAP_EXTENSIONS } from './tiptap/tiptap-extensions';
 import { TIPTAP_BLOCK_OPTIONS, TIPTAP_FONT_SIZE_OPTIONS, TIPTAP_LINE_HEIGHT_OPTIONS } from './tiptap/tiptap-options';
+import { createColumn as createTreeColumn, createNode as createTreeNode, createSectionWithChildren as createTreeSectionWithChildren, createStarterDocument as createTreeStarterDocument, defaultDocumentAttrs as getDefaultDocumentAttrs } from './tree/block-factory';
+import { elementChildren as getElementChildren, findNode as findTreeNode, findNodeLocation as findTreeNodeLocation, nodeContainsId as treeNodeContainsId, reseedIds as reseedTreeIds } from './tree/node-utils';
 
 export type {
   CanvasMode,
@@ -1690,7 +1694,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private nodeContainsId(node: EmailNode, id: string): boolean {
-    return (node.children || []).some((child) => child.id === id || this.nodeContainsId(child, id));
+    return treeNodeContainsId(node, id);
   }
 
   private isContentModule(node: EmailNode): boolean {
@@ -1760,28 +1764,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private createStarterDocument(): EmailDocument {
-    return {
-      version: '0.0.1',
-      attrs: this.defaultDocumentAttrs(),
-      body: [
-        this.createSectionWithChildren([this.createNode('text', { content: '<h1>Welcome to ngx-email-studio</h1><p>Drag, edit, preview, and export MJML from Angular.</p>' })]),
-        this.createNode('row', {
-          backgroundColor: '#f8fafc',
-        }),
-        this.createSectionWithChildren([this.createNode('button', { label: 'Get started', href: 'https://www.npmjs.com/package/ngx-email-studio' })]),
-      ],
-    };
+    return createTreeStarterDocument((type) => this.nextId(type));
   }
 
   private defaultDocumentAttrs(): Record<string, string | number | boolean> {
-    return {
-      backgroundColor: '#f3f4f6',
-      contentBackgroundColor: '#ffffff',
-      width: 100,
-      widthUnit: '%',
-      maxWidth: 600,
-      maxWidthUnit: 'px',
-    };
+    return getDefaultDocumentAttrs();
   }
 
 
@@ -2017,54 +2004,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private createSectionWithChildren(children: EmailNode[], attrs: Record<string, string | number | boolean> = {}): EmailNode {
-    const section = this.createNode('section', attrs);
-    section.children = children;
-    return section;
+    return createTreeSectionWithChildren((type) => this.nextId(type), children, attrs);
   }
 
   private createNode(type: EmailBlockType, attrs: Record<string, string | number | boolean> = {}): EmailNode {
-    const defaults: Record<EmailBlockType, Record<string, string | number | boolean>> = {
-      row: { backgroundColor: '#ffffff' },
-      column: { width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff' },
-      section: { backgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px', padding: 16, paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, paddingUnit: 'px' },
-      text: { content: '<p>New text block</p>', backgroundColor: '#ffffff' },
-      image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image', backgroundColor: '#ffffff' },
-      button: { label: 'Button', href: '#', backgroundColor: '#7c3aed' },
-      divider: { borderColor: '#d0d5dd' },
-      spacer: { height: 24 },
-    };
-
-    if (type === 'row') {
-      return {
-        id: this.nextId(type),
-        type,
-        attrs: { ...defaults[type], ...attrs },
-        children: [
-          this.createColumn([this.createNode('text', { content: '<p><strong>Left column</strong><br>Describe your offer.</p>' })], '50%'),
-          this.createColumn([this.createNode('button', { label: 'Shop now', href: '#' })], '50%'),
-        ],
-      };
-    }
-
-    if (type === 'section') {
-      return {
-        id: this.nextId(type),
-        type,
-        attrs: { ...defaults[type], ...attrs },
-        children: [this.createNode('text', { content: '<p>Drop blocks into this section.</p>' })],
-      };
-    }
-
-    return { id: this.nextId(type), type, attrs: { ...defaults[type], ...attrs } };
+    return createTreeNode((nodeType) => this.nextId(nodeType), type, attrs);
   }
 
   private createColumn(children: EmailNode[] = [], width = '100%', attrs: Record<string, string | number | boolean> = {}): EmailNode {
-    return {
-      id: this.nextId('column'),
-      type: 'column',
-      attrs: { width, widthUnit: String(width).trim().endsWith('%') ? '%' : 'px', maxWidth: 600, maxWidthUnit: 'px', backgroundColor: '#ffffff', ...attrs },
-      children,
-    };
+    return createTreeColumn((type) => this.nextId(type), children, width, attrs);
   }
 
   private nextId(type: string): string {
@@ -2072,144 +2020,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private compileMjml(document: EmailDocument): string {
-    const body = document.body.map((node) => this.nodeToMjml(node)).join('\n');
-    return `<mjml>\n  <mj-body${this.bodyMjmlAttrs(document)}>\n${body}\n  </mj-body>\n</mjml>`;
-  }
-
-  private nodeToMjml(node: EmailNode): string {
-    if (node.type === 'row') return this.rowToMjml(node);
-    if (node.type === 'column') return this.columnToMjml(node);
-    if (node.type === 'section') return this.sectionToMjml(node);
-    return `    <mj-section${this.backgroundAttr(node)}><mj-column>${this.blockToMjml(node)}</mj-column></mj-section>`;
-  }
-
-  private rowToMjml(row: EmailNode): string {
-    const columns = (row.children || []).filter((child) => child.type === 'column');
-    const columnMarkup = columns.length
-      ? columns.map((column) => this.columnToMjml(column)).join('')
-      : this.columnToMjml(this.createColumn([this.createNode('text')]));
-    return `    <mj-section${this.backgroundAttr(row)}>${columnMarkup}</mj-section>`;
-  }
-
-  private sectionToMjml(section: EmailNode): string {
-    const children = (section.children || []).map((child) => this.blockToMjml(child)).join('');
-    return `    <mj-section${this.sectionMjmlAttrs(section)}><mj-column>${children || '<mj-text></mj-text>'}</mj-column></mj-section>`;
-  }
-
-  private columnToMjml(column: EmailNode): string {
-    const width = column.attrs['width'] ? ` width="${this.escapeAttr(this.columnWidthCss(column))}"` : '';
-    const background = this.backgroundAttr(column);
-    const children = (column.children || []).map((child) => this.blockToMjml(child)).join('');
-    return `<mj-column${width}${background}>${children || '<mj-text></mj-text>'}</mj-column>`;
-  }
-
-  private blockToMjml(node: EmailNode): string {
-    switch (node.type) {
-      case 'row':
-        return this.rowToMjml(node);
-      case 'column':
-        return this.columnToMjml(node);
-      case 'section':
-        return (node.children || []).map((child) => this.blockToMjml(child)).join('') || '<mj-text></mj-text>';
-      case 'text':
-        return `<mj-text${this.backgroundAttr(node)}${this.alignAttr(node)}>${this.sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
-      case 'image':
-        return `<mj-image src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}"${this.alignAttr(node)} />`;
-      case 'button':
-        return `<mj-button href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))}"${this.alignAttr(node)}>${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
-      case 'divider':
-        return `<mj-divider border-color="${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
-      case 'spacer':
-        return `<mj-spacer height="${Number(node.attrs['height'] || 24)}px" />`;
-    }
+    return compileMjmlDocument(document, (type) => this.nextId(type));
   }
 
   private parseMjml(mjml: string): EmailDocument {
-    if (typeof DOMParser === 'undefined') {
-      return { version: '0.0.1', body: [this.createNode('text', { content: mjml })], unsupported: ['DOMParser unavailable'] };
-    }
-    const xml = new DOMParser().parseFromString(mjml, 'text/xml');
-    const parserError = xml.querySelector('parsererror');
-    if (parserError) {
-      throw new Error(parserError.textContent || 'Invalid MJML markup.');
-    }
-    const unsupported: string[] = [];
-    const body = xml.getElementsByTagName('mj-body')[0] || xml.documentElement;
-    const documentAttrs = this.defaultDocumentAttrs();
-    if (body.getAttribute('background-color')) documentAttrs['backgroundColor'] = body.getAttribute('background-color') || '#f3f4f6';
-    if (body.getAttribute('width')) {
-      const bodyWidth = body.getAttribute('width') || '640px';
-      documentAttrs['width'] = Number.parseFloat(bodyWidth);
-      documentAttrs['widthUnit'] = bodyWidth.trim().endsWith('%') ? '%' : 'px';
-    }
-    const nodes: EmailNode[] = [];
-
-    this.elementChildren(body)
-      .filter((element) => element.tagName.toLowerCase() === 'mj-section')
-      .forEach((section) => {
-        const columns = this.elementChildren(section).filter((element) => element.tagName.toLowerCase() === 'mj-column');
-        if (columns.length === 0) return;
-
-        const parsedColumns = columns.map((column) => this.parseColumn(column, unsupported)).filter((column): column is EmailNode => !!column);
-        if (parsedColumns.length === 1 && (parsedColumns[0].children?.length || 0) === 1) {
-          const onlyChild = parsedColumns[0].children?.[0];
-          if (onlyChild) {
-            nodes.push(
-              this.createSectionWithChildren([onlyChild], {
-                backgroundColor: section.getAttribute('background-color') || '#ffffff',
-              }),
-            );
-          }
-        } else {
-          nodes.push(
-            this.createNode('row', {
-              backgroundColor: section.getAttribute('background-color') || '#ffffff',
-            }),
-          );
-          const row = nodes[nodes.length - 1];
-          row.children = parsedColumns;
-        }
-      });
-
-    Array.from(xml.getElementsByTagName('*')).forEach((element) => {
-      const tag = element.tagName.toLowerCase();
-      if (tag.startsWith('mj-') && !this.supportedMjmlTags.has(tag) && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
-    });
-
-    return { version: '0.0.1', attrs: documentAttrs, body: nodes.length ? nodes : [this.createNode('text')], unsupported };
-  }
-
-  private parseColumn(column: Element, unsupported: string[]): EmailNode | undefined {
-    const children = this.elementChildren(column)
-      .map((element) => this.parseMjmlBlock(element, unsupported))
-      .filter((node): node is EmailNode => !!node);
-
-    return this.createColumn(children, column.getAttribute('width') || '50%', {
-      backgroundColor: column.getAttribute('background-color') || '#ffffff',
-    });
-  }
-
-  private parseMjmlBlock(element: Element, unsupported: string[]): EmailNode | undefined {
-    switch (element.tagName.toLowerCase()) {
-      case 'mj-text':
-        return this.createNode('text', { content: this.sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: this.safeAlign(element.getAttribute('align')) });
-      case 'mj-image':
-        return this.createNode('image', { src: element.getAttribute('src') || '', alt: element.getAttribute('alt') || '', align: this.safeAlign(element.getAttribute('align')) });
-      case 'mj-button':
-        return this.createNode('button', {
-          label: element.textContent || 'Button',
-          href: element.getAttribute('href') || '#',
-          backgroundColor: element.getAttribute('background-color') || '#7c3aed',
-          align: this.safeAlign(element.getAttribute('align')),
-        });
-      case 'mj-divider':
-        return this.createNode('divider', { borderColor: element.getAttribute('border-color') || '#d0d5dd' });
-      case 'mj-spacer':
-        return this.createNode('spacer', { height: Number.parseInt(element.getAttribute('height') || '24', 10) });
-      default:
-        if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
-        return undefined;
-    }
+    return parseMjmlDocument(mjml, (type) => this.nextId(type));
   }
 
   private renderHtml(document: EmailDocument): string {
@@ -2390,29 +2205,19 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private findNode(id?: string): EmailNode | undefined {
-    if (!id) return undefined;
-    return this.findNodeLocation(id)?.node;
+    return findTreeNode(id, this.emailDocument.body);
   }
 
   private findNodeLocation(id: string, siblings = this.emailDocument.body): { node: EmailNode; siblings: EmailNode[]; index: number } | undefined {
-    for (let index = 0; index < siblings.length; index += 1) {
-      const node = siblings[index];
-      if (node.id === id) return { node, siblings, index };
-      if (node.children?.length) {
-        const nested = this.findNodeLocation(id, node.children);
-        if (nested) return nested;
-      }
-    }
-    return undefined;
+    return findTreeNodeLocation(id, siblings);
   }
 
   private reseedIds(node: EmailNode): void {
-    node.id = this.nextId(node.type);
-    node.children?.forEach((child) => this.reseedIds(child));
+    reseedTreeIds(node, (type) => this.nextId(type));
   }
 
   private elementChildren(element: Element): Element[] {
-    return Array.from(element.children).filter((child): child is Element => child.nodeType === Node.ELEMENT_NODE);
+    return getElementChildren(element);
   }
 
   private backgroundAttr(node: EmailNode): string {

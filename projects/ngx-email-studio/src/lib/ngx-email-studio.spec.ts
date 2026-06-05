@@ -850,7 +850,11 @@ describe('NgxEmailStudio', () => {
     const nestedSection = (component as any).createSectionWithChildren([
       { id: 'text_nested', type: 'text', attrs: { content: '<p>Nested content</p>' } },
     ]);
-    const mjml = (component as any).blockToMjml(nestedSection) as string;
+    const mjml = (component as any).compileMjml({
+      version: '0.0.1',
+      attrs: (component as any).defaultDocumentAttrs(),
+      body: [nestedSection],
+    }) as string;
 
     expect(mjml).toContain('Nested content');
     expect(mjml).not.toContain('Section container');
