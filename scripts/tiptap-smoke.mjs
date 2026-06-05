@@ -53,16 +53,20 @@ try {
   const html = await editor.evaluate((node) => node.innerHTML);
   if (!html.includes('Product newsletter')) throw new Error(`Tiptap editor did not load document content: ${html}`);
   const toolbarText = await studio.locator('.nes-tiptap-toolbar').first().textContent();
-  for (const marker of ['Paragraph', 'H1', 'Size', 'Line', 'Table', '2×2', '4×4', 'Merge', 'Split', 'Head row', 'Bg', 'Border']) {
+  for (const marker of ['Paragraph', 'H1', 'Size', 'Line', 'Table', '2×2', '4×4', 'Table tools', 'Merge', 'Split', 'Head row', 'Bg', 'Border']) {
     if (!toolbarText?.includes(marker)) throw new Error(`Tiptap toolbar missing ${marker}: ${toolbarText}`);
   }
+  const tableToolsCollapsed = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-table-tools').first().evaluate((node) => !(node instanceof HTMLDetailsElement) || !node.open);
+  if (!tableToolsCollapsed) throw new Error('Tiptap table tools should be collapsed by default to avoid crowding the inspector');
   for (const label of ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Bullet list', 'Align center', 'Add link', 'Edit HTML source']) {
     const count = await studio.locator(`.nes-tiptap-toolbar button[aria-label="${label}"] .nes-icon`).count();
     if (count === 0) throw new Error(`Tiptap icon button missing ${label}`);
   }
   const rowBreakCount = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-row-break').count();
   if (rowBreakCount < 2) throw new Error(`Tiptap toolbar row breaks missing: ${rowBreakCount}`);
-  const groupLayout = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-group').evaluateAll((groups) => groups.map((group) => {
+  const groupLayout = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-group').evaluateAll((groups) => groups
+    .filter((group) => group.getClientRects().length > 0)
+    .map((group) => {
     const style = getComputedStyle(group);
     const childTops = Array.from(group.children)
       .filter((child) => !child.classList.contains('nes-tiptap-row-break'))
@@ -78,6 +82,7 @@ try {
   const toolbarOverflow = await studio.locator('.nes-tiptap-toolbar').first().evaluate((toolbar) => {
     const toolbarRect = toolbar.getBoundingClientRect();
     const overflowing = Array.from(toolbar.querySelectorAll('.nes-tiptap-group')).filter((group) => {
+      if (!group.getClientRects().length) return false;
       const rect = group.getBoundingClientRect();
       return rect.left < toolbarRect.left - 1 || rect.right > toolbarRect.right + 1;
     }).map((group) => ({ className: group.className, right: group.getBoundingClientRect().right, toolbarRight: toolbarRect.right }));

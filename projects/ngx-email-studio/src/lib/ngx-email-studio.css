@@ -202,6 +202,13 @@ ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42p
 .nes-tiptap-row-break { flex: 0 0 100%; width: 0; height: 0; margin: 0; }
 .nes-tiptap-group { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; flex-wrap: nowrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.78); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); overflow: visible; }
 .nes-tiptap-table-group { max-width: none; row-gap: 0; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92)); }
+.nes-tiptap-table-tools { flex: 0 0 100%; max-width: 100%; }
+.nes-tiptap-table-tools summary { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 9px; border: 1px solid #dbe3ef; border-radius: 999px; background: linear-gradient(180deg, #fff, #f8fafc); color: #475569; font-size: 11px; font-weight: 900; cursor: pointer; list-style: none; user-select: none; }
+.nes-tiptap-table-tools summary::-webkit-details-marker { display: none; }
+.nes-tiptap-table-tools summary::before { content: '▸'; font-size: 10px; color: #64748b; transition: transform .15s ease; }
+.nes-tiptap-table-tools[open] summary::before { transform: rotate(90deg); }
+.nes-tiptap-table-tools-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 5px; max-width: 100%; }
+.nes-tiptap-table-tools:not([open]) .nes-tiptap-table-tools-panel { display: none; }
 .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 30px; border: 1px solid transparent; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 850; color: #334155; }
 .nes-tiptap-toolbar button { min-width: 30px; padding: 5px 7px; }
 .nes-tiptap-toolbar select { max-width: 106px; padding: 5px 22px 5px 8px; background: linear-gradient(180deg, #fff, #f8fafc); border-color: #dbe3ef; }
