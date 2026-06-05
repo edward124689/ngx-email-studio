@@ -4,6 +4,7 @@ export type EmailNodeIdFactory = (type: string) => string;
 
 export function defaultDocumentAttrs(): Record<string, string | number | boolean> {
   return {
+    backgroundColor: '#ffffff',
     width: 100,
     widthUnit: '%',
     maxWidth: 600,
