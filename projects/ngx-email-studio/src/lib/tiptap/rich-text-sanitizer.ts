@@ -79,10 +79,13 @@ function safeRichTextStyle(value: string): string {
     const rawValue = rawValueParts.join(':').trim();
     if (!rawValue || /url\s*\(|expression\s*\(|javascript:/i.test(rawValue)) continue;
     if (property === 'font-size' && /^(1[0-9]|2[0-9]|3[0-9]|4[0-8])px$/.test(rawValue)) safe.push(`font-size: ${rawValue}`);
-    if (property === 'line-height' && /^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(rawValue)) safe.push(`line-height: ${rawValue}`);
+    if (property === 'line-height' && (/^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(rawValue) || /^([1-9]|[1-6][0-9])px$/.test(rawValue))) safe.push(`line-height: ${rawValue}`);
     if (property === 'text-align' && /^(left|center|right|justify)$/.test(rawValue)) safe.push(`text-align: ${rawValue}`);
-    if (property === 'background-color' && (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(rawValue) || /^rgb\(\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/.test(rawValue))) safe.push(`background-color: ${rawValue}`);
-    if (property === 'border-color' && (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(rawValue) || /^rgb\(\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/.test(rawValue))) safe.push(`border-color: ${rawValue}`);
+    if (property === 'color' && safeColor(rawValue)) safe.push(`color: ${rawValue}`);
+    if (property === 'font-family' && safeFontFamily(rawValue)) safe.push(`font-family: ${rawValue}`);
+    if ((property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
+    if (property === 'background-color' && safeColor(rawValue)) safe.push(`background-color: ${rawValue}`);
+    if (property === 'border-color' && safeColor(rawValue)) safe.push(`border-color: ${rawValue}`);
     if (property === 'border-width' && /^(0|[1-9][0-9]?)px$/.test(rawValue)) safe.push(`border-width: ${rawValue}`);
     if (property === 'border-style' && /^(solid|dashed|dotted|double|none)$/.test(rawValue)) safe.push(`border-style: ${rawValue}`);
     if (property === 'width' && /^(auto|100%|[1-9][0-9]{0,2}px|[1-9][0-9]?%)$/.test(rawValue)) safe.push(`width: ${rawValue}`);
@@ -90,4 +93,17 @@ function safeRichTextStyle(value: string): string {
     if (property === 'padding' && /^(0|[1-9][0-9]?px)$/.test(rawValue)) safe.push(`padding: ${rawValue}`);
   }
   return safe.join('; ');
+}
+
+function safeColor(value: string): boolean {
+  return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value) || /^rgb\(\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/.test(value);
+}
+
+function safeFontFamily(value: string): boolean {
+  return /^[a-zA-Z0-9\s,'"\-]+$/.test(value) && /[a-zA-Z]/.test(value) && value.length <= 120;
+}
+
+function safeBoxSpacing(value: string): boolean {
+  const parts = value.split(/\s+/).filter(Boolean);
+  return parts.length >= 1 && parts.length <= 4 && parts.every((part) => part === '0' || /^-?([1-9]|[1-9][0-9])px$/.test(part) || part === 'auto');
 }

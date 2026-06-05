@@ -15,6 +15,9 @@ import {
   escapeHtml,
   imageWidthCss,
   indent,
+  normalizeCssSizeValue,
+  normalizeFontFamilyValue,
+  normalizeLineHeightValue,
   paddingCss,
   sectionMaxWidthCss,
   sectionPaddingCss,
@@ -163,7 +166,7 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'section':
       return [indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), sectionToHtml(node, depth + 1), indent('</table>', depth)].join('\n');
     case 'text':
-      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 20))};${backgroundStyle(node.attrs['backgroundColor'])}line-height:1.6;color:#1f2937;text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
+      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 20))};${backgroundStyle(node.attrs['backgroundColor'])}${textTypographyStyle(node)}text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
     case 'button': {
@@ -186,6 +189,14 @@ function buttonBorderRadiusCss(node: EmailNode): string {
   if (typeof raw === 'number' && Number.isFinite(raw)) return `${Math.max(0, raw)}px`;
   const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
   return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
+}
+
+function textTypographyStyle(node: EmailNode): string {
+  const color = colorAttrValue(node.attrs['color']) || '#1f2937';
+  const fontFamily = normalizeFontFamilyValue(node.attrs['fontFamily']);
+  const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
+  const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']) || '1.6';
+  return `${fontFamily ? `font-family:${escapeAttr(fontFamily)};` : ''}${fontSize ? `font-size:${escapeAttr(fontSize)};` : ''}line-height:${escapeAttr(lineHeight)};color:${escapeAttr(color)};`;
 }
 
 function autoColumnWidth(row: EmailNode): string {

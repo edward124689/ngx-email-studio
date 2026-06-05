@@ -9,7 +9,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -880,7 +880,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           <div class="nes-drop-hit-pad" aria-hidden="true"></div>
           <div class="nes-empty-container-note" *ngIf="childrenOf(node).length === 0">Empty section</div>
         </section>
-        <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 28)" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
+        <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 28)" [style.color]="textColorCss(node)" [style.font-family]="textFontFamilyCss(node)" [style.font-size]="textFontSizeCss(node)" [style.line-height]="textLineHeightCss(node)" [innerHTML]="trustedRichText(node.attrs['content'])"></div>
         <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 0)">
           <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" [style.width]="imageWidthCss(node)" />
         </div>
@@ -1160,6 +1160,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     return this.sanitizeRichTextContent(value);
   }
 
+  trustedRichText(value: unknown): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.sanitizeRichTextContent(value));
+  }
+
   selectNodeFromOutline(id: string): void {
     this.selectNode(id);
     this.scrollNodeIntoStage(id);
@@ -1372,6 +1376,22 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   contentPaddingCss(node: EmailNode, fallback: number): string {
     return nodePaddingToCss(node, fallback);
+  }
+
+  textColorCss(node: EmailNode): string | null {
+    return normalizeColorValue(node.attrs['color']) || null;
+  }
+
+  textFontFamilyCss(node: EmailNode): string | null {
+    return normalizeFontFamilyValue(node.attrs['fontFamily']) || null;
+  }
+
+  textFontSizeCss(node: EmailNode): string | null {
+    return normalizeCssSizeValue(node.attrs['fontSize']) || null;
+  }
+
+  textLineHeightCss(node: EmailNode): string | null {
+    return normalizeLineHeightValue(node.attrs['lineHeight']) || null;
   }
 
   isAlignableContent(node: EmailNode): boolean {

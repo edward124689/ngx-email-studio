@@ -13,6 +13,21 @@ export function normalizeColorValue(value: unknown): string {
   return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '';
 }
 
+export function normalizeCssSizeValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  return /^([1-9]|[1-6][0-9])px$/.test(raw) ? raw : '';
+}
+
+export function normalizeLineHeightValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  return /^([1-9]|[1-8][0-9])px$/.test(raw) || /^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(raw) ? raw : '';
+}
+
+export function normalizeFontFamilyValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  return /^[a-zA-Z0-9\s,'"\-]+$/.test(raw) && /[a-zA-Z]/.test(raw) && raw.length <= 120 ? raw : '';
+}
+
 export function colorAttrValue(value: unknown): string {
   return normalizeColorValue(value);
 }

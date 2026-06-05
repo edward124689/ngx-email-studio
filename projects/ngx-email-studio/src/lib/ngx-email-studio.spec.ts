@@ -368,6 +368,32 @@ describe('NgxEmailStudio', () => {
     expect(importedSection?.children?.[2].attrs['align']).toBe('left');
   });
 
+  it('should preserve MJML text typography attrs and safe inline email styles', () => {
+    const source = '<mjml><mj-body><mj-section><mj-column><mj-text align="left" color="#55575d" font-family="Arial, sans-serif" font-size="13px" line-height="22px" padding-bottom="0px" padding-top="0px" padding="10px 25px"><p style="line-height: 18px; margin: 10px 0; text-align: center;font-size:14px;color:#ffffff;font-family:\'Times New Roman\',Helvetica,Arial,sans-serif">WOMEN&nbsp; | MEN</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+
+    const document = (component as any).parseMjml(source) as EmailDocument;
+    const text = document.body[0].children?.[0];
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(text?.attrs['color']).toBe('#55575d');
+    expect(text?.attrs['fontFamily']).toBe('Arial, sans-serif');
+    expect(text?.attrs['fontSize']).toBe('13px');
+    expect(text?.attrs['lineHeight']).toBe('22px');
+    expect(String(text?.attrs['content'])).toContain('line-height: 18px');
+    expect(String(text?.attrs['content'])).toContain('margin: 10px 0');
+    expect(String(text?.attrs['content'])).toContain('color: #ffffff');
+    expect(String(text?.attrs['content'])).toContain("font-family: 'Times New Roman',Helvetica,Arial,sans-serif");
+    expect(mjml).toContain('color="#55575d"');
+    expect(mjml).toContain('font-family="Arial, sans-serif"');
+    expect(mjml).toContain('font-size="13px"');
+    expect(mjml).toContain('line-height="22px"');
+    expect(mjml).toContain('style="line-height: 18px; margin: 10px 0; text-align: center; font-size: 14px; color: #ffffff; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif"');
+    expect(html).toContain('font-family:Arial, sans-serif;');
+    expect(html).toContain('font-size:13px;');
+    expect(html).toContain('line-height:22px;');
+  });
+
   it('should import MJML single-column stacked sections without a visible row/column wrapper', () => {
     const mjml = '<mjml><mj-body><mj-section background-color="#000000" padding="0 0 0 0"><mj-column><mj-image src="https://example.com/logo.png" width="180px" padding="10px 25px" /><mj-text padding-bottom="0px" padding-top="0px" padding="10px 25px"><p>WOMEN&nbsp; | MEN</p></mj-text></mj-column></mj-section></mj-body></mjml>';
 

@@ -1,7 +1,7 @@
 import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, paddingCss, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -44,7 +44,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
     case 'section':
       return (node.children || []).map((child) => blockToMjml(child, idFactory)).join('') || '<mj-text></mj-text>';
     case 'text':
-      return `<mj-text${backgroundAttr(node)}${alignAttr(node)}${paddingAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
+      return `<mj-text${backgroundAttr(node)}${alignAttr(node)}${textTypographyAttrs(node)}${paddingAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
     case 'image':
       return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
     case 'button': {
@@ -69,6 +69,14 @@ function alignAttr(node: EmailNode): string {
 
 function imageWidthAttr(node: EmailNode): string {
   return hasExplicitDimension(node.attrs, 'width') ? ` width="${escapeAttr(imageWidthCss(node))}"` : '';
+}
+
+function textTypographyAttrs(node: EmailNode): string {
+  const color = colorAttrValue(node.attrs['color']);
+  const fontFamily = normalizeFontFamilyValue(node.attrs['fontFamily']);
+  const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
+  const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']);
+  return `${color ? ` color="${escapeAttr(color)}"` : ''}${fontFamily ? ` font-family="${escapeAttr(fontFamily)}"` : ''}${fontSize ? ` font-size="${escapeAttr(fontSize)}"` : ''}${lineHeight ? ` line-height="${escapeAttr(lineHeight)}"` : ''}`;
 }
 
 function paddingAttr(node: EmailNode): string {

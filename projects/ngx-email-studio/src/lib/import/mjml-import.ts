@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, createSectionWithChildren, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { safeAlign, normalizeColorValue } from '../export/export-utils';
+import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from '../export/export-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
 const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
@@ -170,10 +170,23 @@ function paddingUnitFromValue(value: string | null): '%' | 'px' | '' {
   return raw.endsWith('%') ? '%' : 'px';
 }
 
+function importedTextStyleAttrs(element: Element): Record<string, string> {
+  const color = normalizeColorValue(element.getAttribute('color'));
+  const fontFamily = normalizeFontFamilyValue(element.getAttribute('font-family'));
+  const fontSize = normalizeCssSizeValue(element.getAttribute('font-size'));
+  const lineHeight = normalizeLineHeightValue(element.getAttribute('line-height'));
+  return {
+    ...(color ? { color } : {}),
+    ...(fontFamily ? { fontFamily } : {}),
+    ...(fontSize ? { fontSize } : {}),
+    ...(lineHeight ? { lineHeight } : {}),
+  };
+}
+
 function parseMjmlBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
   switch (element.tagName.toLowerCase()) {
     case 'mj-text':
-      return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')), ...importedPaddingAttrs(element) });
+      return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')), ...importedTextStyleAttrs(element), ...importedPaddingAttrs(element) });
     case 'mj-image':
       return createNode(idFactory, 'image', {
         src: element.getAttribute('src') || '',
