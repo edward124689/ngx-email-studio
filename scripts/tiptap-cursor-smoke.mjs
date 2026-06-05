@@ -134,6 +134,15 @@ try {
     throw new Error(`drag selection did not replace highlighted Tiptap text: before=${beforeDragSelectionText} after=${afterDragSelectionText}`);
   }
 
+  await page.goto(`http://127.0.0.1:${port}/?editor=tiptap&case=toolbar-insert`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('ngx-email-studio .nes-render-text'));
+  await page.locator('ngx-email-studio .nes-render-text').first().evaluate((node) => node.closest('article')?.click());
+  await page.locator('ngx-email-studio button[aria-label="Insert 2 by 2 table"]').first().click();
+  const toolbarInsertHtml = await page.locator('ngx-email-studio .nes-tiptap-editor .ProseMirror').evaluate((node) => node.innerHTML || '');
+  if (!toolbarInsertHtml.startsWith('<div class="tableWrapper">')) {
+    throw new Error(`toolbar table insert defaulted to document end instead of a stable start selection: ${toolbarInsertHtml}`);
+  }
+
   console.log('Tiptap cursor smoke passed');
   await browser.close();
 } finally {

@@ -1511,7 +1511,17 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (this.readonly) return;
     const safeRows = Math.min(6, Math.max(1, Math.floor(rows)));
     const safeCols = Math.min(6, Math.max(1, Math.floor(cols)));
-    this.tiptapEditor(scope)?.chain().focus().insertTable({ rows: safeRows, cols: safeCols, withHeaderRow: true }).run();
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    this.ensureTiptapToolbarSelection(editor);
+    editor.chain().focus().insertTable({ rows: safeRows, cols: safeCols, withHeaderRow: true }).run();
+  }
+
+  private ensureTiptapToolbarSelection(editor: TiptapEditor): void {
+    const selection = editor.state.selection;
+    const docEnd = editor.state.doc.content.size;
+    if (editor.isFocused || !selection.empty || selection.from < docEnd - 2) return;
+    editor.commands.focus('start');
   }
 
   currentTiptapCellStyle(scope: TiptapScope, name: string): string {
