@@ -368,6 +368,35 @@ describe('NgxEmailStudio', () => {
     expect(importedColumn?.children?.[2].attrs['align']).toBe('left');
   });
 
+  it('should compile, render, and import image width settings', () => {
+    const imageNode: EmailNode = {
+      id: 'image_width',
+      type: 'image',
+      attrs: { src: 'https://example.com/hero.jpg', alt: 'Hero', align: 'center', width: 320, widthUnit: 'px' },
+    };
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [{ id: 'section_image', type: 'section', attrs: {}, children: [imageNode] }],
+    };
+
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    localComponent.emailDocument = document;
+    localComponent.selectedNodeId = imageNode.id;
+    localFixture.detectChanges();
+
+    const previewImage = query<HTMLImageElement>(localFixture, '.nes-render-image');
+    expect(previewImage?.style.width).toBe('320px');
+    expect(localComponent.imageWidthCss(imageNode)).toBe('320px');
+    expect((localComponent as any).compileMjml(document)).toContain('<mj-image src="https://example.com/hero.jpg" alt="Hero" align="center" width="320px" />');
+    expect((localComponent as any).renderHtml(document)).toContain('width="320" style="display:inline-block;max-width:100%;width:320px;');
+
+    const imported = (localComponent as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-image src="https://example.com/a.jpg" alt="A" width="45%" /></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const importedImage = findImportedNode(imported.body, 'image');
+    expect(importedImage?.attrs['width']).toBe(45);
+    expect(importedImage?.attrs['widthUnit']).toBe('%');
+  });
+
   it('should expose content alignment controls and update alignable content modules', () => {
     const textNode = component.emailDocument.body[0].children?.[0];
     expect(textNode?.type).toBe('text');

@@ -9,7 +9,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, isAlignableContent as isAlignableEmailContent, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -545,6 +545,18 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </div>
                 </div>
               </ng-container>
+              <div class="nes-field-block" *ngIf="node.type === 'image'">
+                <div class="nes-control-heading">Image size</div>
+                <label>
+                  Image width
+                  <span class="nes-unit-field">
+                    <input type="number" min="1" [ngModel]="dimensionValue(node.attrs, 'width', 100)" (ngModelChange)="updateAttr(node, 'width', +$event)" />
+                    <select [ngModel]="dimensionUnit(node.attrs, 'width', '%')" (ngModelChange)="updateAttr(node, 'widthUnit', $event)">
+                      <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+                    </select>
+                  </span>
+                </label>
+              </div>
               <div class="nes-field-block" *ngIf="isAlignableContent(node)">
                 <div class="nes-control-heading">Content alignment</div>
                 <div class="nes-align-group" role="group" aria-label="Content alignment">
@@ -870,7 +882,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         </section>
         <div *ngSwitchCase="'text'" class="nes-render-text" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [innerHTML]="sanitizedRichText(node.attrs['content'])"></div>
         <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)">
-          <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
+          <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" [style.width]="imageWidthCss(node)" />
         </div>
         <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)">
           <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
@@ -1313,6 +1325,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   columnMaxWidthCss(column: EmailNode): string {
     return dimensionCss(column.attrs, 'maxWidth', 600, 'px');
+  }
+
+  imageWidthCss(image: EmailNode): string {
+    return getImageWidthCss(image);
   }
 
   dimensionValueFromCss(value: string): number {

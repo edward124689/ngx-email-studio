@@ -13,6 +13,7 @@ import {
   dimensionValue,
   escapeAttr,
   escapeHtml,
+  imageWidthCss,
   indent,
   sectionMaxWidthCss,
   sectionPaddingCss,
@@ -163,7 +164,7 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'text':
       return indent(`<div style="padding:20px;${backgroundStyle(node.attrs['backgroundColor'])}line-height:1.6;color:#1f2937;text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
-      return indent(`<div style="text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" style="display:inline-block;max-width:100%;width:100%;height:auto;border:0;" /></div>`, depth);
+      return indent(`<div style="text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return indent(`<div style="padding:24px;text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);

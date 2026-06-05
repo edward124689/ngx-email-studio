@@ -94,6 +94,14 @@ export function columnMaxWidthCss(column: EmailNode): string {
   return dimensionCss(column.attrs, 'maxWidth', 600, 'px');
 }
 
+export function imageWidthCss(image: EmailNode): string {
+  return dimensionCss(image.attrs, 'width', 100, '%');
+}
+
+export function hasExplicitDimension(attrs: Record<string, string | number | boolean>, key: string): boolean {
+  return attrs[key] !== undefined && attrs[key] !== null && String(attrs[key]).trim() !== '';
+}
+
 export function indent(value: string, depth: number): string {
   return `${'  '.repeat(depth)}${value}`;
 }

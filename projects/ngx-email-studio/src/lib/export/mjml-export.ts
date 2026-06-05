@@ -1,7 +1,7 @@
 import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, isAlignableContent, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -46,7 +46,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
     case 'text':
       return `<mj-text${backgroundAttr(node)}${alignAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
     case 'image':
-      return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)} />`;
+      return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)} />`;
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}" border-radius="${radius}"${alignAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
@@ -65,6 +65,10 @@ function backgroundAttr(node: EmailNode): string {
 
 function alignAttr(node: EmailNode): string {
   return isAlignableContent(node) && node.attrs['align'] ? ` align="${escapeAttr(contentAlign(node))}"` : '';
+}
+
+function imageWidthAttr(node: EmailNode): string {
+  return hasExplicitDimension(node.attrs, 'width') ? ` width="${escapeAttr(imageWidthCss(node))}"` : '';
 }
 
 function sectionMjmlAttrs(section: EmailNode): string {

@@ -84,12 +84,25 @@ function parseButtonBorderRadius(value: string | null): number {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
 }
 
+function importedDimensionAttrs(value: string | null, key: string): Record<string, string | number | boolean> {
+  const raw = String(value || '').trim();
+  if (!raw) return {};
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return {};
+  return { [key]: parsed, [`${key}Unit`]: raw.endsWith('%') ? '%' : 'px' };
+}
+
 function parseMjmlBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
   switch (element.tagName.toLowerCase()) {
     case 'mj-text':
       return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')) });
     case 'mj-image':
-      return createNode(idFactory, 'image', { src: element.getAttribute('src') || '', alt: element.getAttribute('alt') || '', align: safeAlign(element.getAttribute('align')) });
+      return createNode(idFactory, 'image', {
+        src: element.getAttribute('src') || '',
+        alt: element.getAttribute('alt') || '',
+        align: safeAlign(element.getAttribute('align')),
+        ...importedDimensionAttrs(element.getAttribute('width'), 'width'),
+      });
     case 'mj-button':
       return createNode(idFactory, 'button', {
         label: element.textContent || 'Button',
