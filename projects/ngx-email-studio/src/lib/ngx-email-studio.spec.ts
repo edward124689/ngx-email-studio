@@ -247,6 +247,8 @@ describe('NgxEmailStudio', () => {
     expect(compactStyles).toContain('.nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(0, 1fr) clamp(360px, 26vw, 420px); align-items: stretch; overflow: hidden; }');
     expect(compactStyles).toContain('.nes-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain;');
     expect(compactStyles).toContain('.nes-stage { min-width: 0; min-height: 0; overflow: auto;');
+    expect(compactStyles).toContain('.nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: visible;');
+    expect(compactStyles).toContain('.nes-size-bar { position: sticky; top: -18px; z-index: 12;');
     expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
   });
 
