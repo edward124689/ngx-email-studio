@@ -75,6 +75,17 @@ try {
   }));
   const wrappedGroups = groupLayout.filter((group) => group.flexWrap !== 'nowrap' || group.rows > 1);
   if (wrappedGroups.length) throw new Error(`Tiptap control groups should not wrap internally: ${JSON.stringify(wrappedGroups)}`);
+  const toolbarOverflow = await studio.locator('.nes-tiptap-toolbar').first().evaluate((toolbar) => {
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const overflowing = Array.from(toolbar.querySelectorAll('.nes-tiptap-group')).filter((group) => {
+      const rect = group.getBoundingClientRect();
+      return rect.left < toolbarRect.left - 1 || rect.right > toolbarRect.right + 1;
+    }).map((group) => ({ className: group.className, right: group.getBoundingClientRect().right, toolbarRight: toolbarRect.right }));
+    return { clientWidth: toolbar.clientWidth, scrollWidth: toolbar.scrollWidth, overflowing };
+  });
+  if (toolbarOverflow.scrollWidth > toolbarOverflow.clientWidth + 1 || toolbarOverflow.overflowing.length) {
+    throw new Error(`Tiptap toolbar overflowed inspector: ${JSON.stringify(toolbarOverflow)}`);
+  }
   const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
   if (!tooltipContent.includes('Bold')) throw new Error(`Tiptap icon hover label CSS missing: ${tooltipContent}`);
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();

@@ -386,8 +386,12 @@ function createEmailStudioInstanceId(): string {
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 2, 2)">2×2</button>
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">3×3</button>
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 4 by 4 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 4, 4)">4×4</button>
+                      </div>
+                      <div class="nes-tiptap-group nes-tiptap-table-group">
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Add column" title="Add column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Add row" title="Add row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
+                      </div>
+                      <div class="nes-tiptap-group nes-tiptap-table-group">
                         <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete column" title="Delete column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
                         <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
                         <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
@@ -601,8 +605,12 @@ function createEmailStudioInstanceId(): string {
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 2, 2)">2×2</button>
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">3×3</button>
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 4 by 4 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 4, 4)">4×4</button>
+                  </div>
+                  <div class="nes-tiptap-group nes-tiptap-table-group">
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Add column" title="Add column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Add row" title="Add row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
+                  </div>
+                  <div class="nes-tiptap-group nes-tiptap-table-group">
                     <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete column" title="Delete column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
                     <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
                     <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
