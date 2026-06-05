@@ -17,7 +17,7 @@ This release focuses on a frontend-only builder experience:
 - frontend HTML export for the supported subset;
 - responsive preview widths: desktop, tablet, mobile;
 - Font Awesome 4.7-compatible icon classes;
-- Tiptap rich text editor integration for text blocks.
+- Tiptap rich text editor integration for text blocks with H1-H6, lists, font size, line height, inline styles, links, tables, undo/redo, and sanitized HTML source editing.
 
 ## Install
 
@@ -28,7 +28,7 @@ npm install ngx-email-studio
 Peer dependencies:
 
 ```bash
-npm install @angular/cdk @tiptap/core @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-text-align @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
+npm install @angular/cdk @tiptap/core @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-text-align @tiptap/extension-text-style @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
 ```
 
 Optional Font Awesome 4.7 CSS for icons:

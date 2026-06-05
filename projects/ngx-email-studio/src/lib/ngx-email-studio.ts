@@ -1,15 +1,16 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Editor as TiptapEditor } from '@tiptap/core';
+import { Editor as TiptapEditor, Extension } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import { Table } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableRow } from '@tiptap/extension-table-row';
 import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 
 export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'divider' | 'spacer';
@@ -18,6 +19,71 @@ export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';
 export type CanvasMode = 'edit' | 'preview';
 export type RichTextEditorMode = 'tiptap' | 'plain';
+export type TiptapScope = 'inline' | 'modal';
+export type TiptapHeadingValue = 'paragraph' | '1' | '2' | '3' | '4' | '5' | '6';
+export type TiptapTextAlignValue = 'left' | 'center' | 'right' | 'justify';
+export type TiptapCommand =
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strike'
+  | 'clearFormatting'
+  | 'bulletList'
+  | 'orderedList'
+  | 'sinkListItem'
+  | 'liftListItem'
+  | 'link'
+  | 'unlink'
+  | 'undo'
+  | 'redo'
+  | 'insertTable'
+  | 'addColumnAfter'
+  | 'addRowAfter'
+  | 'deleteColumn'
+  | 'deleteRow'
+  | 'deleteTable';
+
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.style.fontSize || null,
+            renderHTML: (attributes: Record<string, unknown>) => {
+              const fontSize = typeof attributes['fontSize'] === 'string' ? attributes['fontSize'] : '';
+              return fontSize ? { style: `font-size: ${fontSize}` } : {};
+            },
+          },
+        },
+      },
+    ];
+  },
+});
+
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading'],
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.style.lineHeight || null,
+            renderHTML: (attributes: Record<string, unknown>) => {
+              const lineHeight = typeof attributes['lineHeight'] === 'string' ? attributes['lineHeight'] : '';
+              return lineHeight ? { style: `line-height: ${lineHeight}` } : {};
+            },
+          },
+        },
+      },
+    ];
+  },
+});
 
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
@@ -344,19 +410,58 @@ function createEmailStudioInstanceId(): string {
                 <ng-container [ngSwitch]="resolvedRichTextEditor">
                   <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell" [attr.data-tiptap-host]="node.id">
                     <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bold')"><strong>B</strong></button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'italic')"><em>I</em></button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'heading')">H2</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'bulletList')">• List</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'orderedList')">1. List</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')">Link</button>
-                      <span class="nes-tiptap-separator" aria-hidden="true"></span>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'insertTable')">Table</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
-                      <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')">Del table</button>
+                      <div class="nes-tiptap-group">
+                        <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('inline', $event)">
+                          <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
+                        </select>
+                        <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'undo')" (click)="runTiptapCommand('inline', 'undo')">Undo</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'redo')" (click)="runTiptapCommand('inline', 'redo')">Redo</button>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bold')" (click)="runTiptapCommand('inline', 'bold')"><strong>B</strong></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'italic')" (click)="runTiptapCommand('inline', 'italic')"><em>I</em></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'underline')" (click)="runTiptapCommand('inline', 'underline')"><u>U</u></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'strike')" (click)="runTiptapCommand('inline', 'strike')"><s>S</s></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'clearFormatting')">Clear</button>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <select aria-label="Font size" [ngModel]="currentTiptapFontSize('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('inline', $event)">
+                          <option value="">Size</option>
+                          <option *ngFor="let size of tiptapFontSizeOptions" [value]="size">{{ size }}</option>
+                        </select>
+                        <select aria-label="Line height" [ngModel]="currentTiptapLineHeight('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapLineHeight('inline', $event)">
+                          <option value="">Line</option>
+                          <option *ngFor="let lineHeight of tiptapLineHeightOptions" [value]="lineHeight">{{ lineHeight }}</option>
+                        </select>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bulletList')" (click)="runTiptapCommand('inline', 'bulletList')">• List</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'orderedList')" (click)="runTiptapCommand('inline', 'orderedList')">1. List</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'liftListItem')">Outdent</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'sinkListItem')">Indent</button>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'left')" (click)="setTiptapTextAlign('inline', 'left')">Left</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'center')" (click)="setTiptapTextAlign('inline', 'center')">Center</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'right')" (click)="setTiptapTextAlign('inline', 'right')">Right</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'justify')" (click)="setTiptapTextAlign('inline', 'justify')">Justify</button>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')">Link</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'unlink')">Unlink</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('inline')">Source</button>
+                      </div>
+                      <div class="nes-tiptap-group">
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">Table</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 2, 2)">2×2</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">3×3</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 4, 4)">4×4</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')">Del table</button>
+                      </div>
                     </div>
                     <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id" (mousedown)="guardTiptapBlankMouseDown($event, 'inline')" (click)="$event.stopPropagation()"></div>
                   </div>
@@ -542,25 +647,94 @@ function createEmailStudioInstanceId(): string {
             <ng-container [ngSwitch]="resolvedRichTextEditor">
               <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell nes-tiptap-shell-large" [attr.data-tiptap-modal-host]="richTextNode.id">
                 <div class="nes-tiptap-toolbar" role="toolbar" aria-label="Rich text formatting">
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bold')"><strong>B</strong></button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'italic')"><em>I</em></button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'heading')">H2</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'bulletList')">• List</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'orderedList')">1. List</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')">Link</button>
-                  <span class="nes-tiptap-separator" aria-hidden="true"></span>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'insertTable')">Table</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
-                  <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')">Del table</button>
+                  <div class="nes-tiptap-group">
+                    <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('modal', $event)">
+                      <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
+                    </select>
+                    <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'undo')" (click)="runTiptapCommand('modal', 'undo')">Undo</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'redo')" (click)="runTiptapCommand('modal', 'redo')">Redo</button>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bold')" (click)="runTiptapCommand('modal', 'bold')"><strong>B</strong></button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'italic')" (click)="runTiptapCommand('modal', 'italic')"><em>I</em></button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'underline')" (click)="runTiptapCommand('modal', 'underline')"><u>U</u></button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'strike')" (click)="runTiptapCommand('modal', 'strike')"><s>S</s></button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'clearFormatting')">Clear</button>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <select aria-label="Font size" [ngModel]="currentTiptapFontSize('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('modal', $event)">
+                      <option value="">Size</option>
+                      <option *ngFor="let size of tiptapFontSizeOptions" [value]="size">{{ size }}</option>
+                    </select>
+                    <select aria-label="Line height" [ngModel]="currentTiptapLineHeight('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapLineHeight('modal', $event)">
+                      <option value="">Line</option>
+                      <option *ngFor="let lineHeight of tiptapLineHeightOptions" [value]="lineHeight">{{ lineHeight }}</option>
+                    </select>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bulletList')" (click)="runTiptapCommand('modal', 'bulletList')">• List</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'orderedList')" (click)="runTiptapCommand('modal', 'orderedList')">1. List</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'liftListItem')">Outdent</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'sinkListItem')">Indent</button>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'left')" (click)="setTiptapTextAlign('modal', 'left')">Left</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'center')" (click)="setTiptapTextAlign('modal', 'center')">Center</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'right')" (click)="setTiptapTextAlign('modal', 'right')">Right</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'justify')" (click)="setTiptapTextAlign('modal', 'justify')">Justify</button>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')">Link</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'unlink')">Unlink</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('modal')">Source</button>
+                  </div>
+                  <div class="nes-tiptap-group">
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">Table</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 2, 2)">2×2</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">3×3</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 4, 4)">4×4</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
+                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')">Del table</button>
+                  </div>
                 </div>
                 <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id" (mousedown)="guardTiptapBlankMouseDown($event, 'modal')" (click)="$event.stopPropagation()"></div>
               </div>
               <textarea *ngSwitchDefault [ngModel]="richTextNode.attrs['content']" (ngModelChange)="updateExpandedRichText($event)"></textarea>
             </ng-container>
           </div>
+        </section>
+      </div>
+
+      <div class="nes-modal-backdrop" *ngIf="sourceEditorScope" (click)="closeRichTextSource()">
+        <section class="nes-source-modal" role="dialog" aria-modal="true" aria-label="Rich text source code" (click)="$event.stopPropagation()">
+          <header>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="nes-icon fa fa-code" aria-hidden="true"></i></span>
+              <div>
+                <p>Source code</p>
+                <h3>Edit rich text HTML</h3>
+              </div>
+            </div>
+            <button type="button" aria-label="Close source editor" (click)="closeRichTextSource()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div class="nes-source-body">
+            <p class="nes-muted">Edit the selected text block HTML. Unsafe or unsupported markup is removed when applied.</p>
+            <div class="nes-code-shell">
+              <div class="nes-code-toolbar">
+                <span><i class="nes-icon fa fa-code" aria-hidden="true"></i> HTML source</span>
+                <small>Editable</small>
+              </div>
+              <textarea [ngModel]="sourceEditorValue" (ngModelChange)="sourceEditorValue = $event" spellcheck="false" placeholder="<p>Your content...</p>"></textarea>
+            </div>
+            <div class="nes-import-error" *ngIf="sourceEditorWarning"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ sourceEditorWarning }}</div>
+          </div>
+          <footer class="nes-modal-footer">
+            <button type="button" (click)="closeRichTextSource()">Cancel</button>
+            <button type="button" class="nes-primary" (click)="applyRichTextSource()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Apply source</button>
+          </footer>
         </section>
       </div>
 
@@ -909,9 +1083,15 @@ function createEmailStudioInstanceId(): string {
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
     .nes-tiptap-shell { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
-    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 7px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); }
-    .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
-    .nes-tiptap-toolbar button:hover { background: #eff6ff; }
+    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 7px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); }
+    .nes-tiptap-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 4px; border-right: 1px solid #e2e8f0; }
+    .nes-tiptap-group:last-child { border-right: 0; }
+    .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 31px; border: 1px solid #dbe3ef; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
+    .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; }
+    .nes-tiptap-toolbar select { max-width: 116px; padding: 5px 24px 5px 8px; }
+    .nes-tiptap-toolbar button:hover:not(:disabled), .nes-tiptap-toolbar select:hover { background: #eff6ff; border-color: #bfdbfe; }
+    .nes-tiptap-toolbar button.is-active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    .nes-tiptap-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
     .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
     .nes-tiptap-editor { min-height: 88px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; cursor: text; }
     .nes-tiptap-editor-large { min-height: 620px; }
@@ -920,7 +1100,12 @@ function createEmailStudioInstanceId(): string {
     .nes-tiptap-editor-large .ProseMirror { min-height: 0; }
     .nes-tiptap-editor .ProseMirror > :first-child { margin-top: 0; }
     .nes-tiptap-editor .ProseMirror > :last-child { margin-bottom: 0; }
-    .nes-tiptap-editor .ProseMirror h2 { margin: 0 0 10px; font-size: 22px; line-height: 1.2; }
+    .nes-tiptap-editor .ProseMirror h1 { margin: 0 0 12px; font-size: 30px; line-height: 1.12; letter-spacing: -.03em; }
+    .nes-tiptap-editor .ProseMirror h2 { margin: 0 0 10px; font-size: 24px; line-height: 1.18; }
+    .nes-tiptap-editor .ProseMirror h3 { margin: 0 0 10px; font-size: 20px; line-height: 1.22; }
+    .nes-tiptap-editor .ProseMirror h4 { margin: 0 0 8px; font-size: 18px; line-height: 1.25; }
+    .nes-tiptap-editor .ProseMirror h5 { margin: 0 0 8px; font-size: 16px; line-height: 1.3; }
+    .nes-tiptap-editor .ProseMirror h6 { margin: 0 0 8px; font-size: 14px; line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
     .nes-tiptap-editor .ProseMirror p { margin: 0 0 10px; }
     .nes-tiptap-editor .ProseMirror ul, .nes-tiptap-editor .ProseMirror ol { margin: 0 0 10px 20px; padding: 0; }
     .nes-tiptap-editor .ProseMirror a { color: var(--nes-accent); text-decoration: underline; }
@@ -933,18 +1118,19 @@ function createEmailStudioInstanceId(): string {
     .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
     .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 10%, rgba(37, 99, 235, .16), transparent 32%), rgba(15, 23, 42, .58); backdrop-filter: blur(10px); }
-    .nes-output-modal, .nes-import-modal, .nes-rich-text-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
+    .nes-output-modal, .nes-import-modal, .nes-rich-text-modal, .nes-source-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
     .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); background: #fff; }
     .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
     .nes-rich-text-modal { width: min(1120px, 100%); max-height: min(860px, calc(100vh - 48px)); grid-template-rows: auto minmax(0, 1fr); background: #fff; }
-    .nes-output-modal header, .nes-import-modal header, .nes-rich-text-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
+    .nes-source-modal { width: min(880px, 100%); grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
+    .nes-output-modal header, .nes-import-modal header, .nes-rich-text-modal header, .nes-source-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
     .nes-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .nes-modal-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #bbf7d0; border-radius: 13px; background: linear-gradient(135deg, #ecfdf3, #eff6ff); color: var(--nes-success); box-shadow: 0 10px 22px rgba(22, 163, 74, .12); flex: 0 0 auto; }
-    .nes-output-modal header p, .nes-import-modal header p, .nes-rich-text-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
-    .nes-output-modal header h3, .nes-import-modal header h3, .nes-rich-text-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
+    .nes-output-modal header p, .nes-import-modal header p, .nes-rich-text-modal header p, .nes-source-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
+    .nes-output-modal header h3, .nes-import-modal header h3, .nes-rich-text-modal header h3, .nes-source-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
     .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
-    .nes-modal-actions button, .nes-import-modal header > button, .nes-rich-text-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
-    .nes-modal-actions button:hover, .nes-import-modal header > button:hover, .nes-rich-text-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
+    .nes-modal-actions button, .nes-import-modal header > button, .nes-rich-text-modal header > button, .nes-source-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+    .nes-modal-actions button:hover, .nes-import-modal header > button:hover, .nes-rich-text-modal header > button:hover, .nes-source-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
     .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
     .nes-preview-btn { background: #ecfdf3 !important; color: var(--nes-success) !important; border-color: #bbf7d0 !important; font-weight: 800; }
     .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
@@ -964,6 +1150,10 @@ function createEmailStudioInstanceId(): string {
     .nes-import-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); outline-offset: -2px; }
     .nes-rich-text-modal-body { min-height: 0; padding: 20px; background: linear-gradient(180deg, #f8fafc, #f1f5f9); overflow: auto; }
     .nes-rich-text-modal-body textarea { min-height: 620px; resize: vertical; }
+    .nes-source-body { min-height: 0; padding: 20px; overflow: auto; background: linear-gradient(180deg, #f8fafc, #f1f5f9); }
+    .nes-source-body .nes-muted { margin: 0 0 14px; }
+    .nes-source-body textarea { min-height: 360px; resize: vertical; border: 0; border-radius: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #0f172a; color: #e5e7eb; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03); }
+    .nes-source-body textarea:focus { outline: 2px solid rgba(37, 99, 235, .24); outline-offset: -2px; }
     .nes-import-error { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 10px; background: #fef2f2; color: #b42318; font-size: 13px; }
     .nes-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--nes-border); background: #fff; }
     .nes-warning { background: #fff7ed; color: #9a3412; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 10px; margin: 12px 20px; }
@@ -1012,6 +1202,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   importErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
+  sourceEditorScope: TiptapScope | null = null;
+  sourceEditorNode: EmailNode | null = null;
+  sourceEditorValue = '';
+  sourceEditorWarning = '';
   copyState = '';
   private tiptapInlineEditor?: TiptapEditor;
   private tiptapInlineNodeId?: string;
@@ -1020,6 +1214,17 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
+  readonly tiptapBlockOptions: Array<{ label: string; value: TiptapHeadingValue }> = [
+    { label: 'Paragraph', value: 'paragraph' },
+    { label: 'H1', value: '1' },
+    { label: 'H2', value: '2' },
+    { label: 'H3', value: '3' },
+    { label: 'H4', value: '4' },
+    { label: 'H5', value: '5' },
+    { label: 'H6', value: '6' },
+  ];
+  readonly tiptapFontSizeOptions = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'] as const;
+  readonly tiptapLineHeightOptions = ['1', '1.15', '1.3', '1.5', '1.75', '2'] as const;
   lastMjml = '';
   lastHtml = '';
   previewSrcdoc: SafeHtml | string = '';
@@ -1043,6 +1248,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   onDocumentEscape(): void {
     this.closeTransientMenus();
     if (this.outputModalType) this.closeOutputModal();
+    if (this.sourceEditorScope) this.closeRichTextSource();
     if (this.importModalOpen) this.closeImportModal();
     if (this.expandedRichTextNode) this.closeRichTextModal();
   }
@@ -1555,22 +1761,33 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.updateAttr(node, 'content', this.sanitizeRichTextContent(value));
   }
 
-  runTiptapCommand(scope: 'inline' | 'modal', command: 'bold' | 'italic' | 'heading' | 'bulletList' | 'orderedList' | 'link' | 'insertTable' | 'addColumnAfter' | 'addRowAfter' | 'deleteColumn' | 'deleteRow' | 'deleteTable'): void {
+  private tiptapEditor(scope: TiptapScope): TiptapEditor | undefined {
+    return scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
+  }
+
+  runTiptapCommand(scope: TiptapScope, command: TiptapCommand): void {
     if (this.readonly) return;
-    const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
+    const editor = this.tiptapEditor(scope);
     if (!editor) return;
     const chain = editor.chain().focus();
     if (command === 'bold') chain.toggleBold().run();
     if (command === 'italic') chain.toggleItalic().run();
-    if (command === 'heading') chain.toggleHeading({ level: 2 }).run();
+    if (command === 'underline') chain.toggleUnderline().run();
+    if (command === 'strike') chain.toggleStrike().run();
+    if (command === 'clearFormatting') chain.unsetAllMarks().clearNodes().run();
     if (command === 'bulletList') chain.toggleBulletList().run();
     if (command === 'orderedList') chain.toggleOrderedList().run();
-    if (command === 'insertTable') chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    if (command === 'sinkListItem') chain.sinkListItem('listItem').run();
+    if (command === 'liftListItem') chain.liftListItem('listItem').run();
+    if (command === 'insertTable') this.insertTiptapTable(scope, 3, 3);
     if (command === 'addColumnAfter') chain.addColumnAfter().run();
     if (command === 'addRowAfter') chain.addRowAfter().run();
     if (command === 'deleteColumn') chain.deleteColumn().run();
     if (command === 'deleteRow') chain.deleteRow().run();
     if (command === 'deleteTable') chain.deleteTable().run();
+    if (command === 'undo') chain.undo().run();
+    if (command === 'redo') chain.redo().run();
+    if (command === 'unlink') chain.extendMarkRange('link').unsetLink().run();
     if (command === 'link') {
       const currentHref = String(editor.getAttributes('link')['href'] || '');
       const href = globalThis.prompt?.('Link URL', currentHref || 'https://') ?? null;
@@ -1581,6 +1798,120 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         chain.extendMarkRange('link').setLink({ href: href.trim() }).run();
       }
     }
+  }
+
+  canRunTiptapCommand(scope: TiptapScope, command: TiptapCommand): boolean {
+    const editor = this.tiptapEditor(scope);
+    if (!editor || this.readonly) return false;
+    if (command === 'undo') return editor.can().undo();
+    if (command === 'redo') return editor.can().redo();
+    return true;
+  }
+
+  isTiptapActive(scope: TiptapScope, name: string, attrs?: Record<string, unknown>): boolean {
+    return this.tiptapEditor(scope)?.isActive(name, attrs) ?? false;
+  }
+
+  currentTiptapBlockFormat(scope: TiptapScope): TiptapHeadingValue {
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return 'paragraph';
+    for (const level of [1, 2, 3, 4, 5, 6] as const) {
+      if (editor.isActive('heading', { level })) return String(level) as TiptapHeadingValue;
+    }
+    return 'paragraph';
+  }
+
+  setTiptapBlockFormat(scope: TiptapScope, value: TiptapHeadingValue | string): void {
+    if (this.readonly) return;
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (value === 'paragraph') {
+      chain.setParagraph().run();
+      return;
+    }
+    const level = Number(value);
+    if ([1, 2, 3, 4, 5, 6].includes(level)) {
+      chain.toggleHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
+    }
+  }
+
+  currentTiptapFontSize(scope: TiptapScope): string {
+    const fontSize = this.tiptapEditor(scope)?.getAttributes('textStyle')['fontSize'];
+    return typeof fontSize === 'string' ? fontSize : '';
+  }
+
+  setTiptapFontSize(scope: TiptapScope, size: string): void {
+    if (this.readonly) return;
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    const safeSize = this.tiptapFontSizeOptions.includes(size as (typeof this.tiptapFontSizeOptions)[number]) ? size : '';
+    const chain = editor.chain().focus();
+    if (!safeSize) {
+      chain.setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
+      return;
+    }
+    chain.setMark('textStyle', { fontSize: safeSize }).run();
+  }
+
+  currentTiptapLineHeight(scope: TiptapScope): string {
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return '';
+    const heading = editor.getAttributes('heading')['lineHeight'];
+    const paragraph = editor.getAttributes('paragraph')['lineHeight'];
+    return typeof heading === 'string' ? heading : typeof paragraph === 'string' ? paragraph : '';
+  }
+
+  setTiptapLineHeight(scope: TiptapScope, lineHeight: string): void {
+    if (this.readonly) return;
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    const safeLineHeight = this.tiptapLineHeightOptions.includes(lineHeight as (typeof this.tiptapLineHeightOptions)[number]) ? lineHeight : null;
+    const target = editor.isActive('heading') ? 'heading' : 'paragraph';
+    editor.chain().focus().updateAttributes(target, { lineHeight: safeLineHeight }).run();
+  }
+
+  isTiptapTextAlignActive(scope: TiptapScope, align: TiptapTextAlignValue): boolean {
+    const editor = this.tiptapEditor(scope);
+    return !!editor && (editor.isActive({ textAlign: align }) || (align === 'left' && !editor.isActive({ textAlign: 'center' }) && !editor.isActive({ textAlign: 'right' }) && !editor.isActive({ textAlign: 'justify' })));
+  }
+
+  setTiptapTextAlign(scope: TiptapScope, align: TiptapTextAlignValue): void {
+    if (this.readonly) return;
+    this.tiptapEditor(scope)?.chain().focus().setTextAlign(align).run();
+  }
+
+  insertTiptapTable(scope: TiptapScope, rows: number, cols: number): void {
+    if (this.readonly) return;
+    const safeRows = Math.min(6, Math.max(1, Math.floor(rows)));
+    const safeCols = Math.min(6, Math.max(1, Math.floor(cols)));
+    this.tiptapEditor(scope)?.chain().focus().insertTable({ rows: safeRows, cols: safeCols, withHeaderRow: true }).run();
+  }
+
+  openRichTextSource(scope: TiptapScope): void {
+    if (this.readonly) return;
+    const node = scope === 'modal' ? this.expandedRichTextNode : this.selectedNode;
+    if (!node || node.type !== 'text') return;
+    this.sourceEditorScope = scope;
+    this.sourceEditorNode = node;
+    this.sourceEditorValue = String(node.attrs['content'] || '');
+    this.sourceEditorWarning = '';
+  }
+
+  closeRichTextSource(): void {
+    this.sourceEditorScope = null;
+    this.sourceEditorNode = null;
+    this.sourceEditorValue = '';
+  }
+
+  applyRichTextSource(): void {
+    if (this.readonly || !this.sourceEditorNode) return;
+    const sanitized = this.sanitizeRichTextContent(this.sourceEditorValue);
+    this.sourceEditorWarning = sanitized !== this.sourceEditorValue ? 'Unsafe or unsupported markup was removed.' : '';
+    this.updateAttr(this.sourceEditorNode, 'content', sanitized);
+    const editor = this.sourceEditorScope ? this.tiptapEditor(this.sourceEditorScope) : undefined;
+    editor?.commands.setContent(sanitized || '<p></p>', { emitUpdate: false });
+    this.closeRichTextSource();
   }
 
   guardTiptapBlankMouseDown(event: MouseEvent, scope: 'inline' | 'modal'): void {
@@ -1856,7 +2187,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       content: this.sanitizeRichTextContent(node.attrs['content']),
       editable: !this.readonly,
       extensions: [
-        StarterKit.configure({ heading: { levels: [1, 2] }, link: false }),
+        StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, link: false }),
+        TextStyle,
+        FontSize,
+        LineHeight,
         Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
         Table.configure({ resizable: false }),
         TableRow,
@@ -2473,7 +2807,89 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private readonly supportedMjmlTags = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
 
   private sanitizeRichTextContent(value: unknown): string {
-    return this.sanitizer.sanitize(SecurityContext.HTML, String(value || '')) || '';
+    const raw = String(value || '');
+    if (!raw.trim()) return '';
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${raw}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return '';
+    this.sanitizeRichTextNode(root);
+    return root.innerHTML;
+  }
+
+  private sanitizeRichTextNode(node: Node): void {
+    const allowedTags = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) continue;
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        child.remove();
+        continue;
+      }
+      const element = child as HTMLElement;
+      if (!allowedTags.has(element.tagName)) {
+        if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'IFRAME') {
+          element.remove();
+        } else {
+          const parent = element.parentNode;
+          while (element.firstChild) parent?.insertBefore(element.firstChild, element);
+          element.remove();
+        }
+        continue;
+      }
+      this.sanitizeRichTextElement(element);
+      this.sanitizeRichTextNode(element);
+    }
+  }
+
+  private sanitizeRichTextElement(element: HTMLElement): void {
+    for (const attr of Array.from(element.attributes)) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on')) {
+        element.removeAttribute(attr.name);
+        continue;
+      }
+      if (name === 'style') {
+        const style = this.safeRichTextStyle(attr.value);
+        if (style) element.setAttribute('style', style);
+        else element.removeAttribute('style');
+        continue;
+      }
+      if (element.tagName === 'A' && name === 'href') {
+        const href = attr.value.trim();
+        if (/^(https?:|mailto:|tel:|#|\/)/i.test(href)) element.setAttribute('href', href);
+        else element.removeAttribute('href');
+        continue;
+      }
+      if (element.tagName === 'A' && (name === 'target' || name === 'rel' || name === 'title')) continue;
+      if ((element.tagName === 'TD' || element.tagName === 'TH') && (name === 'colspan' || name === 'rowspan')) {
+        const safeNumber = Math.max(1, Math.min(12, Number.parseInt(attr.value, 10) || 1));
+        element.setAttribute(name, String(safeNumber));
+        continue;
+      }
+      if (name === 'class' && /(^|\s)kicker(\s|$)/.test(attr.value)) {
+        element.setAttribute('class', 'kicker');
+        continue;
+      }
+      element.removeAttribute(attr.name);
+    }
+    if (element.tagName === 'A') {
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+  }
+
+  private safeRichTextStyle(value: string): string {
+    const safe: string[] = [];
+    for (const declaration of value.split(';')) {
+      const [rawProperty, ...rawValueParts] = declaration.split(':');
+      if (!rawProperty || rawValueParts.length === 0) continue;
+      const property = rawProperty.trim().toLowerCase();
+      const rawValue = rawValueParts.join(':').trim();
+      if (!rawValue || /url\s*\(|expression\s*\(|javascript:/i.test(rawValue)) continue;
+      if (property === 'font-size' && /^(1[0-9]|2[0-9]|3[0-9]|4[0-8])px$/.test(rawValue)) safe.push(`font-size: ${rawValue}`);
+      if (property === 'line-height' && /^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(rawValue)) safe.push(`line-height: ${rawValue}`);
+      if (property === 'text-align' && /^(left|center|right|justify)$/.test(rawValue)) safe.push(`text-align: ${rawValue}`);
+    }
+    return safe.join('; ');
   }
 
   private escapeAttr(value: string): string {

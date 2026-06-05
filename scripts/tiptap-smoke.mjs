@@ -52,6 +52,16 @@ try {
 
   const html = await editor.evaluate((node) => node.innerHTML);
   if (!html.includes('Product newsletter')) throw new Error(`Tiptap editor did not load document content: ${html}`);
+  const toolbarText = await studio.locator('.nes-tiptap-toolbar').first().textContent();
+  for (const marker of ['Paragraph', 'H1', 'Undo', 'Redo', 'Size', 'Line', 'Source', 'Table', '2×2', '4×4']) {
+    if (!toolbarText?.includes(marker)) throw new Error(`Tiptap toolbar missing ${marker}: ${toolbarText}`);
+  }
+  await studio.locator('.nes-tiptap-toolbar button', { hasText: 'Source' }).first().click();
+  await studio.locator('.nes-source-modal textarea').waitFor({ state: 'visible', timeout: 15_000 });
+  const sourceValue = await studio.locator('.nes-source-modal textarea').inputValue();
+  if (!sourceValue.includes('Product newsletter')) throw new Error(`Source modal did not load rich text HTML: ${sourceValue}`);
+  await studio.locator('.nes-source-modal button', { hasText: 'Cancel' }).click();
+  await studio.locator('.nes-source-modal').waitFor({ state: 'detached', timeout: 15_000 });
   const legacyEditorCount = await studio.locator('.tox-tinymce, editor').count();
   if (legacyEditorCount !== 0) throw new Error('Default Tiptap mode unexpectedly rendered a legacy editor shell');
 

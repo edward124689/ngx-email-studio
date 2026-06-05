@@ -579,6 +579,86 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('<strong>Make me bold</strong>');
   });
 
+  it('should support expanded Tiptap formatting controls for headings, inline styles, lists, sizing, alignment, and undo', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p>Make me fancy</p>');
+    editor.commands.selectAll();
+    component.setTiptapBlockFormat('inline', '1');
+    expect(textNode.attrs['content']).toContain('<h1>Make me fancy</h1>');
+
+    component.setTiptapBlockFormat('inline', 'paragraph');
+    editor.commands.selectAll();
+    component.runTiptapCommand('inline', 'underline');
+    component.runTiptapCommand('inline', 'strike');
+    expect(textNode.attrs['content']).toContain('<u>');
+    expect(textNode.attrs['content']).toContain('<s>');
+
+    editor.commands.setContent('<p>One</p><p>Two</p>');
+    editor.commands.selectAll();
+    component.runTiptapCommand('inline', 'bulletList');
+    expect(textNode.attrs['content']).toContain('<ul>');
+    expect(textNode.attrs['content']).toContain('<li>');
+
+    editor.commands.setContent('<p>Size me</p>');
+    editor.commands.selectAll();
+    component.setTiptapFontSize('inline', '20px');
+    expect(textNode.attrs['content']).toContain('font-size: 20px');
+
+    component.setTiptapLineHeight('inline', '1.5');
+    expect(textNode.attrs['content']).toContain('line-height: 1.5');
+
+    component.setTiptapTextAlign('inline', 'center');
+    expect(textNode.attrs['content']).toContain('text-align: center');
+
+    component.runTiptapCommand('inline', 'undo');
+    expect(textNode.attrs['content']).not.toContain('text-align: center');
+  });
+
+  it('should render shared Tiptap toolbar controls with active and disabled states', () => {
+    fixture.detectChanges();
+    const toolbar = studioRoot(fixture).querySelector('.nes-tiptap-toolbar') as HTMLElement;
+    expect(toolbar?.textContent).toContain('Paragraph');
+    expect(toolbar?.textContent).toContain('H1');
+    expect(toolbar?.textContent).toContain('Undo');
+    expect(toolbar?.textContent).toContain('Redo');
+    expect(toolbar?.textContent).toContain('U');
+    expect(toolbar?.textContent).toContain('Source');
+    expect(toolbar?.textContent).toContain('2×2');
+    expect(toolbar.querySelector('.nes-tiptap-group')).toBeTruthy();
+    expect(toolbar.querySelector('button[disabled]')?.textContent).toContain('Undo');
+  });
+
+  it('should open, apply, sanitize, and cancel rich text source edits', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+
+    const sourceButton = Array.from(studioRoot(fixture).querySelectorAll<HTMLButtonElement>('.nes-tiptap-toolbar button')).find((button) => button.textContent?.trim() === 'Source');
+    sourceButton?.click();
+    fixture.detectChanges();
+    expect(component.sourceEditorValue).toContain('<p');
+    expect(query(fixture, '.nes-source-modal')).toBeTruthy();
+
+    component.sourceEditorValue = '<h1>Edited source</h1><p onclick="x()">Safe</p><script>alert(1)</script>';
+    component.applyRichTextSource();
+
+    expect(textNode.attrs['content']).toContain('<h1>Edited source</h1>');
+    expect(textNode.attrs['content']).toContain('<p>Safe</p>');
+    expect(textNode.attrs['content']).not.toContain('onclick');
+    expect(textNode.attrs['content']).not.toContain('<script');
+    expect(component.sourceEditorScope).toBeNull();
+
+    const beforeCancel = textNode.attrs['content'];
+    component.openRichTextSource('inline');
+    component.sourceEditorValue = '<p>Discard me</p>';
+    component.closeRichTextSource();
+
+    expect(textNode.attrs['content']).toBe(beforeCancel);
+  });
+
   it('should keep inline Tiptap clicks from opening the large editor modal', () => {
     fixture.detectChanges();
     const editorElement = query<HTMLElement>(fixture, '.nes-tiptap-editor .ProseMirror')!;
