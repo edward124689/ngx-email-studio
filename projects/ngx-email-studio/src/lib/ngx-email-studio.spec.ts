@@ -6,7 +6,7 @@ import { EmailDocument, NgxEmailStudio } from './ngx-email-studio';
 
 function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
   const host = fixture.nativeElement as HTMLElement;
-  return host.shadowRoot || host;
+  return host;
 }
 
 function query<T extends Element = Element>(fixture: ComponentFixture<unknown>, selector: string): T | null {
@@ -19,6 +19,14 @@ function queryAll<T extends Element = Element>(fixture: ComponentFixture<unknown
 
 function studioText<T>(fixture: ComponentFixture<T>): string {
   return (studioRoot(fixture) as HTMLElement | ShadowRoot).textContent || '';
+}
+
+function componentStyleText(): string {
+  const styles = ((NgxEmailStudio as any).ɵcmp?.styles || []) as string[];
+  return styles
+    .join('\n')
+    .replace(/\[_ng(?:content|host)-%COMP%\]/g, '')
+    .replace(/@keyframes _ngcontent-%COMP%_/g, '@keyframes ');
 }
 
 @Component({
@@ -53,10 +61,10 @@ describe('NgxEmailStudio', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render the builder inside a shadow root', () => {
+  it('should render the builder in the light DOM host', () => {
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).shadowRoot).toBeTruthy();
+    expect((fixture.nativeElement as HTMLElement).shadowRoot).toBeNull();
     expect(query(fixture, '.nes-shell')).toBeTruthy();
   });
 
@@ -66,10 +74,10 @@ describe('NgxEmailStudio', () => {
 
     const hosts = hostFixture.nativeElement.querySelectorAll('ngx-email-studio') as NodeListOf<HTMLElement>;
     expect(hosts.length).toBe(2);
-    const firstPaletteId = hosts[0].shadowRoot?.querySelector('.nes-block-list')?.id || '';
-    const secondPaletteId = hosts[1].shadowRoot?.querySelector('.nes-block-list')?.id || '';
-    const firstCanvasId = hosts[0].shadowRoot?.querySelector('.nes-canvas')?.id || '';
-    const secondCanvasId = hosts[1].shadowRoot?.querySelector('.nes-canvas')?.id || '';
+    const firstPaletteId = hosts[0].querySelector('.nes-block-list')?.id || '';
+    const secondPaletteId = hosts[1].querySelector('.nes-block-list')?.id || '';
+    const firstCanvasId = hosts[0].querySelector('.nes-canvas')?.id || '';
+    const secondCanvasId = hosts[1].querySelector('.nes-canvas')?.id || '';
 
     expect(firstPaletteId).toMatch(/^nes-\d+-palette-drop-list$/);
     expect(secondPaletteId).toMatch(/^nes-\d+-palette-drop-list$/);
@@ -183,9 +191,7 @@ describe('NgxEmailStudio', () => {
 
   it('should keep the sidebar, canvas, and inspector in one equal-height scroll frame', () => {
     fixture.detectChanges();
-    const styles = Array.from((fixture.nativeElement.shadowRoot || fixture.nativeElement).querySelectorAll('style') as NodeListOf<HTMLStyleElement>)
-      .map((style) => style.textContent || '')
-      .join('\n');
+    const styles = componentStyleText();
     const compactStyles = styles.replace(/\s+/g, ' ');
 
     expect(compactStyles).toContain('.nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh);');
@@ -197,10 +203,7 @@ describe('NgxEmailStudio', () => {
 
   it('should keep inspector controls readable without horizontal clipping', () => {
     fixture.detectChanges();
-    const styles = Array.from((fixture.nativeElement.shadowRoot || fixture.nativeElement).querySelectorAll('style') as NodeListOf<HTMLStyleElement>)
-      .map((style) => style.textContent || '')
-      .join('\n')
-      .replace(/\s+/g, ' ');
+    const styles = componentStyleText().replace(/\s+/g, ' ');
 
     expect(styles).toContain('clamp(360px, 26vw, 420px)');
     expect(styles).toContain('.nes-properties { border-right: 0; border-left: 1px solid var(--nes-border); overflow-x: hidden; container: nes-inspector / inline-size; }');
@@ -421,7 +424,7 @@ describe('NgxEmailStudio', () => {
   it('should stack columns vertically at 480px and below in preview and exported HTML', () => {
     fixture.detectChanges();
     (component as any).refreshOutputs(false);
-    const styleText = studioText(fixture) + Array.from(document.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const styleText = studioText(fixture) + componentStyleText();
     const html = component.lastHtml;
 
     expect(styleText).toContain('@media (max-width: 480px)');
@@ -553,7 +556,8 @@ describe('NgxEmailStudio', () => {
 
     expect(localFixture.componentInstance.resolvedRichTextEditor).toBe('tinymce');
     expect(localFixture.componentInstance.resolvedUseTinyMce).toBe(true);
-    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeTruthy();
+    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
+    expect(localFixture.componentInstance.tinyMceInit['skin']).toBe('oxide');
   });
 
   it('should update text content from the Tiptap editor', () => {
@@ -899,14 +903,14 @@ describe('NgxEmailStudio', () => {
   it('should keep TinyMCE skin loading enabled so the editor becomes visible after init', () => {
     fixture.componentRef.setInput('config', { richTextEditor: 'tinymce' });
     fixture.detectChanges();
-    expect(query(fixture, 'link[data-nes-tinymce-skin]')).toBeTruthy();
+    expect(query(fixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
     expect(component.tinyMceInit['skin']).toBe('oxide');
     expect(component.tinyMceInit['content_css']).toBe('default');
     expect(component.tinyMceInit['base_url']).toBeTruthy();
     expect(component.largeTinyMceInit['height']).toBe(620);
   });
 
-  it('should not inject TinyMCE skin CSS when TinyMCE is disabled', () => {
+  it('should not inject TinyMCE skin CSS links when TinyMCE is disabled', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('config', { useTinyMce: false });
     localFixture.detectChanges();
@@ -915,7 +919,7 @@ describe('NgxEmailStudio', () => {
     expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
   });
 
-  it('should update the shadow-root TinyMCE skin link when the base URL changes', () => {
+  it('should update the TinyMCE base URL when config changes', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('config', { richTextEditor: 'tinymce' });
     localFixture.detectChanges();
@@ -924,8 +928,8 @@ describe('NgxEmailStudio', () => {
     localFixture.componentInstance.ngOnChanges({ config: {} as any });
     localFixture.detectChanges();
 
-    const skinLink = query<HTMLLinkElement>(localFixture, 'link[data-nes-tinymce-skin]');
-    expect(skinLink?.href).toBe('https://cdn.example.test/tinymce/skins/ui/oxide/skin.min.css');
+    expect(localFixture.componentInstance.tinyMceInit['base_url']).toBe('https://cdn.example.test/tinymce');
+    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
   });
 
   it('should ignore unsafe TinyMCE base URL protocols', () => {
@@ -935,11 +939,9 @@ describe('NgxEmailStudio', () => {
     localFixture.detectChanges();
 
     const safeBaseUrl = localFixture.componentInstance.tinyMceInit['base_url'] as string;
-    const skinLink = query<HTMLLinkElement>(localFixture, 'link[data-nes-tinymce-skin]');
     expect(safeBaseUrl).not.toContain('data:');
     expect(safeBaseUrl.endsWith('/tinymce')).toBe(true);
-    expect(skinLink?.href).not.toContain('data:');
-    expect(skinLink?.href.endsWith('/tinymce/skins/ui/oxide/skin.min.css')).toBe(true);
+    expect(query(localFixture, 'link[data-nes-tinymce-skin]')).toBeFalsy();
   });
 
   it('should accept relative TinyMCE base URLs after normalizing them', () => {
@@ -957,28 +959,29 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const paletteIcon = query<HTMLElement>(fixture, '.nes-block-icon .nes-icon');
-    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const componentStyles = componentStyleText();
     expect(paletteIcon).toBeTruthy();
     expect(paletteIcon?.className).toContain('fa-');
     expect(query(fixture, '.nes-block-icon .fa')).toBeTruthy();
-    expect(shadowStyles).toContain('mask: var(--nes-icon-mask)');
-    expect(shadowStyles).toContain('data:image/svg+xml');
+    expect(componentStyles).toContain('mask: var(--nes-icon-mask)');
+    expect(componentStyles).toContain('data:image/svg+xml');
   });
 
   it('should avoid broad drag-time highlights behind the dragged item', () => {
     fixture.detectChanges();
 
-    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
-    expect(shadowStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
-    expect(shadowStyles).toMatch(/\.nes-render-column\.cdk-drop-list-dragging \.nes-drop-hit-pad,\s*\.nes-render-section\.cdk-drop-list-dragging \.nes-drop-hit-pad \{\s*opacity:\s*0;\s*background:\s*transparent;\s*\}/);
-    expect(shadowStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
-    expect(shadowStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
+    const componentStyles = componentStyleText();
+    const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
+    expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
+    expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
+    expect(componentStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
+    expect(componentStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
 
   it('should prevent native browser text selection only while dragging on the canvas', () => {
     fixture.detectChanges();
 
-    const shadowStyles = Array.from(studioRoot(fixture).querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const componentStyles = componentStyleText();
     let cleared = 0;
     const originalGetSelection = globalThis.getSelection;
     Object.defineProperty(globalThis, 'getSelection', {
@@ -996,14 +999,15 @@ describe('NgxEmailStudio', () => {
       Object.defineProperty(globalThis, 'getSelection', { configurable: true, value: originalGetSelection });
     }
 
-    expect(shadowStyles).toMatch(/\.nes-canvas \{[^}]*box-sizing:\s*border-box;\s*\}/);
-    expect(shadowStyles).not.toMatch(/\.nes-canvas \{[^}]*user-select/);
-    expect(shadowStyles).toMatch(/\.nes-shell\.is-dragging \.nes-canvas,\s*\.nes-shell\.is-dragging \.nes-canvas \*,\s*\.cdk-drag-preview,\s*\.cdk-drag-preview \* \{\s*user-select:\s*none;\s*-webkit-user-select:\s*none;\s*\}/);
+    expect(componentStyles).toMatch(/\.nes-canvas \{[^}]*box-sizing:\s*border-box;\s*\}/);
+    expect(componentStyles).not.toMatch(/\.nes-canvas \{[^}]*user-select/);
+    const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
+    expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-canvas, .nes-shell.is-dragging .nes-canvas *, .cdk-drag-preview, .cdk-drag-preview * { user-select: none; -webkit-user-select: none; }');
     expect(cleared).toBe(2);
   });
 
 
-  it('should render CDK drag sources inside the shadow root for parent-container previews', () => {
+  it('should render CDK drag sources inside the light DOM host for parent-container previews', () => {
     fixture.detectChanges();
 
     const drags = queryAll<HTMLElement>(fixture, '.cdk-drag');
@@ -1012,34 +1016,20 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, '.nes-node.cdk-drag')).toBeTruthy();
   });
 
-  it('should isolate builder styles from hostile host CSS', () => {
-    const hostileStyle = document.createElement('style');
-    hostileStyle.textContent = `
-      button { padding: 0 !important; border-radius: 0 !important; }
-      div { display: flex !important; }
-      img { border-radius: 999px !important; }
-      * { box-sizing: content-box !important; }
-    `;
-    document.head.appendChild(hostileStyle);
-    try {
-      const hostileFixture = TestBed.createComponent(HostileCssHostComponent);
-      hostileFixture.detectChanges();
+  it('should render component styles in the light DOM host', () => {
+    const hostFixture = TestBed.createComponent(HostileCssHostComponent);
+    hostFixture.detectChanges();
 
-      const host = hostileFixture.nativeElement.querySelector('ngx-email-studio') as HTMLElement;
-      const root = host.shadowRoot!;
-      expect(root).toBeTruthy();
-      const builder = root.querySelector('.nes-builder') as HTMLElement;
-      const button = root.querySelector('.nes-toolbar button') as HTMLButtonElement;
-      const shadowStyles = Array.from(root.querySelectorAll('style')).map((style) => style.textContent || '').join('\n');
+    const host = hostFixture.nativeElement.querySelector('ngx-email-studio') as HTMLElement;
+    expect(host.shadowRoot).toBeNull();
+    const builder = host.querySelector('.nes-builder') as HTMLElement;
+    const button = host.querySelector('.nes-toolbar button') as HTMLButtonElement;
+    const styles = componentStyleText();
 
-      expect(builder).toBeTruthy();
-      expect(button).toBeTruthy();
-      expect(shadowStyles).toMatch(/\.nes-builder\s*{[\s\S]*display:\s*grid;/);
-      expect(shadowStyles).toMatch(/button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
-      expect(shadowStyles).not.toContain('box-sizing: content-box');
-    } finally {
-      hostileStyle.remove();
-    }
+    expect(builder).toBeTruthy();
+    expect(button).toBeTruthy();
+    expect(styles).toMatch(/\.nes-builder\s*{[\s\S]*display:\s*grid;/);
+    expect(styles).toMatch(/button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
   });
 
   it('should simplify the header and render an internal logo icon', () => {

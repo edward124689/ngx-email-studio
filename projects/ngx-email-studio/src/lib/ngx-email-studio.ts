@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SecurityContext, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EditorModule, TINYMCE_SCRIPT_SRC } from '@tinymce/tinymce-angular';
@@ -84,7 +84,6 @@ function resolveTinyMceScriptSrc(): string {
 @Component({
   selector: 'ngx-email-studio',
   standalone: true,
-  encapsulation: ViewEncapsulation.ShadowDom,
   imports: [CommonModule, FormsModule, DragDropModule, EditorModule],
   providers: [
     { provide: TINYMCE_SCRIPT_SRC, useFactory: resolveTinyMceScriptSrc },
@@ -1076,7 +1075,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   ngAfterViewInit(): void {
-    this.ensureTinyMceSkinInShadowRoot();
+    this.ensureTinyMceSkinLoaded();
     this.syncTiptapEditors();
   }
 
@@ -1178,7 +1177,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (changes['config']) {
       this.tinyMceInit = this.createTinyMceInit();
       this.largeTinyMceInit = this.createTinyMceInit(620);
-      this.ensureTinyMceSkinInShadowRoot();
+      this.ensureTinyMceSkinLoaded();
       this.destroyTiptapEditors();
     }
 
@@ -1920,12 +1919,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       if (event.button !== 0) return;
       const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
       if (!proseMirror) return;
-      pendingTextClick = this.tiptapTextSelectionFromPoint(proseMirror, editor, event.clientX, event.clientY);
+      const isStructuredTarget = this.isTiptapStructuredEditorTarget(event.target);
+      pendingTextClick = isStructuredTarget ? undefined : this.tiptapTextSelectionFromPoint(proseMirror, editor, event.clientX, event.clientY);
+      if (pendingTextClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        editor.view.focus();
+        editor.commands.setTextSelection(pendingTextClick.pos);
+        return;
+      }
       const contentBottom = this.tiptapContentBottom(proseMirror);
       const isBlankPanelClick = event.target === element || event.clientY > contentBottom + 4;
       const isWhitespaceInsideEditorClick =
         proseMirror.contains(event.target as Node) &&
-        !this.isTiptapStructuredEditorTarget(event.target) &&
+        !isStructuredTarget &&
         !this.isPointInTiptapTextRect(proseMirror, event.clientX, event.clientY);
       if (isBlankPanelClick || isWhitespaceInsideEditorClick) {
         pendingTextClick = undefined;
@@ -1934,24 +1941,24 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         editor.view.focus();
       }
     };
-    const restoreShadowTextClick = (event: MouseEvent) => {
+    const restoreTextClick = (event: MouseEvent) => {
       if (!pendingTextClick) return;
-      const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
+      const textClick = pendingTextClick;
+      const movement = Math.hypot(event.clientX - textClick.x, event.clientY - textClick.y);
+      const restore = () => {
+        editor.view.focus();
+        editor.commands.setTextSelection(textClick.pos);
+      };
       if (movement <= 4) {
-        const pos = pendingTextClick.pos;
-        const restore = () => {
-          editor.view.focus();
-          editor.commands.setTextSelection(pos);
-        };
         restore();
-        globalThis.requestAnimationFrame?.(restore);
+        requestAnimationFrame(restore);
         setTimeout(restore, 0);
       }
       pendingTextClick = undefined;
     };
     element.addEventListener('pointerdown', guardPointer, true);
     element.addEventListener('mousedown', guardPointer, true);
-    element.addEventListener('click', restoreShadowTextClick, false);
+    element.addEventListener('click', restoreTextClick, false);
   }
 
   private isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {
@@ -1981,6 +1988,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number } | undefined {
+    if (!this.isPointInTiptapTextRect(proseMirror, clientX, clientY)) return undefined;
     const documentRef = proseMirror.ownerDocument;
     const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
@@ -1990,19 +1998,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       while (walker.nextNode()) {
         const node = walker.currentNode;
         const text = node.textContent || '';
-        let lastOffsetOnLine: number | undefined;
         for (let index = 0; index < text.length; index += 1) {
           range.setStart(node, index);
           range.setEnd(node, index + 1);
           const rects = Array.from(range.getClientRects());
           for (const rect of rects) {
             if (clientY < rect.top - 3 || clientY > rect.bottom + 3) continue;
-            lastOffsetOnLine = index + 1;
             if (clientX <= rect.left + rect.width / 2) return this.tiptapSelectionAtDomOffset(editor, node, index, clientX, clientY);
             if (clientX <= rect.right + 3) return this.tiptapSelectionAtDomOffset(editor, node, index + 1, clientX, clientY);
           }
         }
-        if (lastOffsetOnLine !== undefined) return this.tiptapSelectionAtDomOffset(editor, node, lastOffsetOnLine, clientX, clientY);
+      }
+      const caretRange = documentRef.caretRangeFromPoint?.(clientX, clientY);
+      if (caretRange?.startContainer && proseMirror.contains(caretRange.startContainer)) {
+        return this.tiptapSelectionAtDomOffset(editor, caretRange.startContainer, caretRange.startOffset, clientX, clientY);
       }
       return undefined;
     } finally {
@@ -2051,29 +2060,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
 
   private componentRoot(): ParentNode {
-    return this.hostRef.nativeElement.shadowRoot || this.hostRef.nativeElement;
+    return this.hostRef.nativeElement;
   }
 
-  private ensureTinyMceSkinInShadowRoot(): void {
-    const root = this.hostRef.nativeElement.shadowRoot;
-    const doc = globalThis.document;
-    if (!root || !doc) return;
-    const existing = root.querySelector('link[data-nes-tinymce-skin]') as HTMLLinkElement | null;
-    if (!this.resolvedUseTinyMce) {
-      existing?.remove();
-      return;
-    }
-    const tinyMceBaseUrl = this.resolveConfiguredTinyMceBaseUrl();
-    const href = `${tinyMceBaseUrl}/skins/ui/oxide/skin.min.css`;
-    if (existing) {
-      if (existing.href !== href) existing.href = href;
-      return;
-    }
-    const link = doc.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    link.setAttribute('data-nes-tinymce-skin', 'true');
-    root.appendChild(link);
+  private ensureTinyMceSkinLoaded(): void {
+    // TinyMCE skin CSS is loaded globally in light DOM mode via TinyMCE base_url/content_css.
+    // This hook remains as a lifecycle synchronization point for provider changes.
   }
 
   private createTinyMceInit(height = 240): Record<string, unknown> {
@@ -2100,7 +2092,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
           setCursorLocation?: (node: Node, offset?: number) => void;
         };
       }) => {
-        this.ensureTinyMceSkinInShadowRoot();
+        this.ensureTinyMceSkinLoaded();
         const reveal = () => {
           const run = () => editor.getContainer?.()?.style.removeProperty('visibility');
           if (typeof globalThis.requestAnimationFrame === 'function') {

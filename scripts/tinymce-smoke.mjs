@@ -46,7 +46,7 @@ try {
   await studio.locator('.nes-shell').waitFor({ state: 'visible', timeout: 30_000 });
   await studio.locator('[data-node-id="hero_text"], [data-node-id="summary_text"], .nes-render-text').first().click({ timeout: 15_000 });
 
-  // TinyMCE should initialize inside the Shadow DOM and expose a visible toolbar.
+  // TinyMCE should initialize in the light DOM and expose a visible toolbar.
   await studio.locator('.tox-tinymce').first().waitFor({ state: 'visible', timeout: 30_000 });
   await studio.locator('.tox-edit-area iframe').first().waitFor({ state: 'visible', timeout: 30_000 });
 
@@ -87,7 +87,7 @@ try {
   if (typedResult.scrollTop < beforeEnterScroll - 20) throw new Error(`TinyMCE typing after Enter jumped upward: before=${beforeEnterScroll}, after=${typedResult.scrollTop}`);
   if (!/<p>XYZ<\/p>\s*$/.test(typedResult.html)) throw new Error(`TinyMCE typed text did not stay at the new bottom paragraph: ${typedResult.html.slice(0, 120)} ... ${typedResult.html.slice(-160)}`);
 
-  // Exercise a real TinyMCE dropdown/popover. This catches Shadow DOM skin/popup regressions
+  // Exercise a real TinyMCE dropdown/popover. This catches skin/popup regressions
   // without relying on a specific translated toolbar label.
   const toolbarButtons = studio.locator('.tox button:not([aria-disabled="true"]), .tox [role="button"]:not([aria-disabled="true"])');
   const buttonCount = await toolbarButtons.count();
@@ -96,7 +96,7 @@ try {
   for (let i = 0; i < Math.min(buttonCount, 12); i += 1) {
     await toolbarButtons.nth(i).click({ timeout: 5_000 });
     try {
-      await studio.locator('.tox-toolbar__overflow, .tox-menu, .tox-collection, .tox-pop').first().waitFor({ state: 'visible', timeout: 1_500 });
+      await page.locator('.tox-toolbar__overflow, .tox-menu, .tox-collection, .tox-pop').first().waitFor({ state: 'visible', timeout: 1_500 });
       dropdownOpened = true;
       break;
     } catch {
@@ -107,7 +107,7 @@ try {
   const overflowTrigger = studio.locator('.tox-toolbar__overflow button[aria-haspopup="true"]').first();
   if (await overflowTrigger.count()) {
     await overflowTrigger.click({ timeout: 5_000 });
-    await studio.locator('.tox-collection, .tox-menu, .tox-pop').first().waitFor({ state: 'visible', timeout: 5_000 });
+    await page.locator('.tox-collection, .tox-menu, .tox-pop').first().waitFor({ state: 'visible', timeout: 5_000 });
   }
   await page.keyboard.press('Escape');
 

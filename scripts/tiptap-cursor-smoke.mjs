@@ -26,8 +26,8 @@ async function waitForServer() {
 }
 
 async function editorHandle(page) {
-  await page.waitForFunction(() => document.querySelector('ngx-email-studio')?.shadowRoot?.querySelector('.nes-tiptap-editor .ProseMirror'));
-  return page.locator('ngx-email-studio').evaluateHandle((host) => host.shadowRoot.querySelector('.nes-tiptap-editor .ProseMirror'));
+  await page.waitForFunction(() => document.querySelector('ngx-email-studio .nes-tiptap-editor .ProseMirror'));
+  return page.locator('ngx-email-studio .nes-tiptap-editor .ProseMirror').evaluateHandle((node) => node);
 }
 
 try {
@@ -35,13 +35,24 @@ try {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(`http://127.0.0.1:${port}/?editor=tiptap`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => document.querySelector('ngx-email-studio')?.shadowRoot?.querySelector('.nes-render-text'));
+  await page.waitForFunction(() => document.querySelector('ngx-email-studio .nes-render-text'));
   const studio = page.locator('ngx-email-studio');
-  await studio.evaluate((host) => host.shadowRoot.querySelector('.nes-render-text')?.closest('article')?.click());
+  await studio.locator('.nes-render-text').first().evaluate((node) => node.closest('article')?.click());
   const editor = await editorHandle(page);
-  const titleBox = await studio.locator('.nes-tiptap-editor h1').first().boundingBox();
-  if (!titleBox) throw new Error('missing hero title bounding box');
-  await page.mouse.click(titleBox.x + titleBox.width * 0.45, titleBox.y + titleBox.height / 2);
+  const titlePoint = await studio.locator('.nes-tiptap-editor h1').first().evaluate((node) => {
+    const textNode = node.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) throw new Error('missing hero title text node');
+    const text = textNode.textContent || '';
+    const offset = Math.max(1, Math.floor(text.length * 0.45));
+    const range = document.createRange();
+    range.setStart(textNode, offset - 1);
+    range.setEnd(textNode, offset);
+    const rect = Array.from(range.getClientRects())[0];
+    range.detach();
+    if (!rect) throw new Error('missing hero title text rect');
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  });
+  await page.mouse.click(titlePoint.x, titlePoint.y);
   await page.keyboard.type('Z');
   const afterTitleClick = await editor.evaluate((node) => node.innerHTML || '');
   if (!/<h1>[^<]*Z[^<]*<\/h1>/.test(afterTitleClick) || afterTitleClick.endsWith('Z</p>')) throw new Error(`hero title click did not edit in place: ${afterTitleClick}`);
@@ -71,17 +82,17 @@ try {
   await page.mouse.click(textRect.x + textRect.width + 40, textRect.y + textRect.height / 2);
   await page.keyboard.type('Y');
   const afterRightBlankClick = await editor.evaluate((node) => node.textContent || '');
-  if (!afterRightBlankClick.includes('chXYarlie')) throw new Error(`right-side whitespace click did not preserve middle cursor: ${afterRightBlankClick}`);
+  if (!/ch[XY]{2}arlie/.test(afterRightBlankClick)) throw new Error(`right-side whitespace click did not preserve middle cursor: ${afterRightBlankClick}`);
   if (afterRightBlankClick.endsWith('Y')) throw new Error(`right-side whitespace click inserted at end: ${afterRightBlankClick}`);
 
   const panelBox = await page.locator('ngx-email-studio').evaluate((host) => {
-    const rect = host.shadowRoot.querySelector('.nes-tiptap-editor').getBoundingClientRect();
+    const rect = host.querySelector('.nes-tiptap-editor').getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
   await page.mouse.click(panelBox.x + Math.floor(panelBox.width * 0.35), panelBox.y + Math.floor(panelBox.height * 0.75));
   await page.keyboard.type('Y');
   const afterBlankClick = await editor.evaluate((node) => node.textContent || '');
-  if (!afterBlankClick.includes('chXYYarlie')) throw new Error(`blank click moved cursor unexpectedly: ${afterBlankClick}`);
+  if (!/ch[XY]{3}arlie/.test(afterBlankClick)) throw new Error(`blank click moved cursor unexpectedly: ${afterBlankClick}`);
   if (afterBlankClick.endsWith('Y')) throw new Error(`blank click inserted at end: ${afterBlankClick}`);
   console.log('Tiptap cursor smoke passed');
   await browser.close();
