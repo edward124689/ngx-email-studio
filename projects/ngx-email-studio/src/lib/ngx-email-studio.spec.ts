@@ -61,6 +61,55 @@ describe('NgxEmailStudio', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should put Save at the right side and allow hosts to hide it', () => {
+    fixture.detectChanges();
+    const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Export', 'Save']);
+    expect(actions.at(-1)?.classList.contains('nes-save-trigger')).toBe(true);
+
+    const hiddenFixture = TestBed.createComponent(NgxEmailStudio);
+    hiddenFixture.componentRef.setInput('showSave', false);
+    hiddenFixture.detectChanges();
+    expect(query(hiddenFixture, '.nes-save-trigger')).toBeNull();
+
+    const configHiddenFixture = TestBed.createComponent(NgxEmailStudio);
+    configHiddenFixture.componentRef.setInput('config', { showSave: false });
+    configHiddenFixture.detectChanges();
+    expect(query(configHiddenFixture, '.nes-save-trigger')).toBeNull();
+  });
+
+  it('should emit structured save and change payloads', () => {
+    fixture.detectChanges();
+    const saveSpy = vi.fn();
+    const changeSpy = vi.fn();
+    component.save.subscribe(saveSpy);
+    component.change.subscribe(changeSpy);
+
+    query<HTMLButtonElement>(fixture, '.nes-save-trigger')?.click();
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    expect(saveSpy.mock.calls[0][0]).toEqual({ mjml: expect.stringContaining('<mjml>'), html: { html: expect.stringContaining('<!doctype html>') } });
+    expect(changeSpy).not.toHaveBeenCalled();
+
+    const textNode = component.emailDocument.body[0]?.children?.[0] || component.emailDocument.body[0];
+    component.updateAttr(textNode, 'content', '<p>Callback copy</p>');
+    expect(changeSpy).toHaveBeenCalledTimes(1);
+    expect(changeSpy.mock.calls[0][0]).toEqual({ mjml: expect.stringContaining('Callback copy'), html: { html: expect.stringContaining('Callback copy') } });
+  });
+
+  it('should use an input MJML default value as the initial editable document', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const inputMjml = '<mjml><mj-body background-color="#101827" width="720px"><mj-section background-color="#ffffff"><mj-column><mj-text align="center"><h1>Input MJML hero</h1><p>Loaded from host input.</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+    localFixture.componentRef.setInput('mjml', inputMjml);
+    localFixture.detectChanges();
+    const localComponent = localFixture.componentInstance;
+
+    expect(studioText(localFixture)).toContain('Input MJML hero');
+    expect(localComponent.emailDocument.attrs?.['backgroundColor']).toBe('#101827');
+    expect(localComponent.emailWidthCss).toBe('720px');
+    expect(localComponent.lastMjml).toContain('Input MJML hero');
+    expect(localComponent.lastHtml).toContain('Input MJML hero');
+  });
+
   it('should render the builder in the light DOM host', () => {
     fixture.detectChanges();
 
@@ -1203,11 +1252,11 @@ describe('NgxEmailStudio', () => {
     expect(component.exportMenuOpen).toBe(false);
   });
 
-  it('should keep toolbar actions ordered as Import, Save, Export with a decorated export menu', () => {
+  it('should keep toolbar actions ordered as Import, Export, Save with a decorated export menu', () => {
     fixture.detectChanges();
 
     const actionButtons = queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions .nes-export-trigger');
-    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Save', 'Export']);
+    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Export', 'Save']);
 
     const exportButton = query<HTMLButtonElement>(fixture, '.nes-export-trigger')!;
     exportButton.click();

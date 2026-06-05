@@ -33,10 +33,19 @@ export type TiptapCommand =
   | 'toggleHeaderColumn'
   | 'toggleHeaderCell';
 
+export interface EmailStudioResult {
+  mjml: string;
+  html: {
+    html: string;
+  };
+}
+
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
   richTextEditor?: RichTextEditorMode;
   showHtmlPreview?: boolean;
+  /** Show the top-right Save button. Defaults to true. */
+  showSave?: boolean;
   title?: string;
   breadcrumb?: string;
   brandLabel?: string;

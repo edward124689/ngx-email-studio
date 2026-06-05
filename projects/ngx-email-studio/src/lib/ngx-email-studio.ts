@@ -22,6 +22,7 @@ import {
   EmailSizeUnit,
   EmailStudioConfig,
   EmailStudioError,
+  EmailStudioResult,
   PaletteBlockType,
   PaletteItem,
   RichTextEditorMode,
@@ -49,6 +50,7 @@ export type {
   EmailSizeUnit,
   EmailStudioConfig,
   EmailStudioError,
+  EmailStudioResult,
   PaletteBlockType,
   PaletteItem,
   RichTextEditorMode,
@@ -85,7 +87,6 @@ function createEmailStudioInstanceId(): string {
         </div>
         <div class="nes-actions">
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
-          <button type="button" class="nes-primary" (click)="exportHtml()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
               <i class="nes-icon fa fa-download" aria-hidden="true"></i>
@@ -97,6 +98,7 @@ function createEmailStudioInstanceId(): string {
               <button type="button" role="menuitem" (click)="openOutputModal('html')"><i class="nes-icon fa fa-external-link" aria-hidden="true"></i><span>HTML output</span></button>
             </div>
           </div>
+          <button type="button" class="nes-primary nes-save-trigger" *ngIf="resolvedShowSave" (click)="saveDocument()"><i class="nes-icon fa fa-floppy-o" aria-hidden="true"></i> Save</button>
         </div>
       </header>
 
@@ -849,11 +851,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
   @Input() readonly = false;
+  @Input() showSave?: boolean;
   @Input() config?: EmailStudioConfig | null = DEFAULT_EMAIL_STUDIO_CONFIG;
 
   @Output() mjmlChange = new EventEmitter<string>();
   @Output() documentChange = new EventEmitter<EmailDocument>();
   @Output() htmlExport = new EventEmitter<string>();
+  @Output() save = new EventEmitter<EmailStudioResult>();
+  @Output() change = new EventEmitter<EmailStudioResult>();
   @Output() error = new EventEmitter<EmailStudioError>();
 
   palette: PaletteItem[] = [
@@ -994,6 +999,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   get resolvedUseTiptap(): boolean {
     return this.resolvedRichTextEditor === 'tiptap';
+  }
+
+  get resolvedShowSave(): boolean {
+    return this.showSave ?? this.effectiveConfig.showSave !== false;
   }
 
   get previewWidth(): number {
@@ -1657,6 +1666,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.htmlExport.emit(this.lastHtml);
   }
 
+  saveDocument(): void {
+    this.save.emit(this.currentResult());
+  }
+
+  private currentResult(): EmailStudioResult {
+    this.lastMjml = this.compileMjml(this.emailDocument);
+    this.lastHtml = this.renderHtml(this.emailDocument);
+    return { mjml: this.lastMjml, html: { html: this.lastHtml } };
+  }
+
   private setCopyState(state: string): void {
     this.copyState = state;
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
@@ -1753,13 +1772,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private refreshOutputs(emit: boolean): void {
     this.lastMjml = this.compileMjml(this.emailDocument);
+    this.lastHtml = this.renderHtml(this.emailDocument);
     if (this.effectiveConfig.showHtmlPreview !== false) {
-      this.lastHtml = this.renderHtml(this.emailDocument);
       this.previewSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.lastHtml);
     }
     if (emit) {
       this.documentChange.emit(this.emailDocument);
       this.mjmlChange.emit(this.lastMjml);
+      this.change.emit({ mjml: this.lastMjml, html: { html: this.lastHtml } });
     }
   }
 

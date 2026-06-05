@@ -42,7 +42,7 @@ Optional Font Awesome 4.7 CSS for icons:
 
 ```ts
 import { Component } from '@angular/core';
-import { NgxEmailStudio, EmailDocument } from 'ngx-email-studio';
+import { NgxEmailStudio, EmailStudioResult } from 'ngx-email-studio';
 
 @Component({
   selector: 'app-email-builder',
@@ -50,25 +50,25 @@ import { NgxEmailStudio, EmailDocument } from 'ngx-email-studio';
   imports: [NgxEmailStudio],
   template: `
     <ngx-email-studio
-      [document]="document"
+      [mjml]="initialMjml"
       [previewSize]="'desktop'"
-      (mjmlChange)="onMjmlChange($event)"
-      (htmlExport)="onHtmlExport($event)"
+      [showSave]="true"
+      (save)="onSave($event)"
+      (change)="onChange($event)"
     />
   `,
 })
 export class EmailBuilderPage {
-  document: EmailDocument = {
-    version: '0.0.1',
-    body: [],
-  };
+  initialMjml = '<mjml><mj-body><mj-section><mj-column><mj-text><h1>Hello</h1></mj-text></mj-column></mj-section></mj-body></mjml>';
 
-  onMjmlChange(mjml: string): void {
-    console.log(mjml);
+  onSave(result: EmailStudioResult): void {
+    // { mjml: string, html: { html: string } }
+    console.log(result);
   }
 
-  onHtmlExport(html: string): void {
-    console.log(html);
+  onChange(result: EmailStudioResult): void {
+    // Emits after edits; separate from explicit Save clicks.
+    console.log(result);
   }
 }
 ```
@@ -79,19 +79,22 @@ export class EmailBuilderPage {
 
 | Input | Type | Description |
 | --- | --- | --- |
-| `mjml` | `string` | MJML string to import into the editor. |
-| `document` | `EmailDocument` | Internal document model. Recommended for app state. |
+| `mjml` | `string` | MJML string to import into the editor as the initial/default editable document. |
+| `document` | `EmailDocument` | Internal document model. Optional for apps that manage builder JSON state directly. |
 | `previewSize` | `'desktop' \| 'tablet' \| 'mobile' \| number` | Preview width preset or custom pixel width. |
 | `readonly` | `boolean` | Disables drag/drop edits when true. |
-| `config` | `EmailStudioConfig` | Editor options, including `richTextEditor: 'tiptap' | 'plain'`. |
+| `showSave` | `boolean` | Shows/hides the top-right Save button. Defaults to `true`; can also be set through `config.showSave`. |
+| `config` | `EmailStudioConfig` | Editor options, including `richTextEditor: 'tiptap' | 'plain'` and `showSave`. |
 
 ### Outputs
 
 | Output | Type | Description |
 | --- | --- | --- |
-| `mjmlChange` | `string` | Emits the current MJML output. |
+| `save` | `EmailStudioResult` | Emits only when the Save button is clicked. Payload shape: `{ mjml: string, html: { html: string } }`. |
+| `change` | `EmailStudioResult` | Emits after any builder edit/import/change, separately from explicit Save clicks. Same payload shape as `save`. |
+| `mjmlChange` | `string` | Backwards-compatible MJML-only change output. |
 | `documentChange` | `EmailDocument` | Emits the internal document model after edits. |
-| `htmlExport` | `string` | Emits generated frontend HTML output. |
+| `htmlExport` | `string` | Backwards-compatible HTML-only output. |
 | `error` | `EmailStudioError` | Emits import/export errors. |
 
 ## Supported Blocks in 0.0.1
