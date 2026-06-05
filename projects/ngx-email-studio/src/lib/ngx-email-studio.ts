@@ -1105,9 +1105,9 @@ function createEmailStudioInstanceId(): string {
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
     .nes-tiptap-shell { overflow: visible; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
     .nes-tiptap-toolbar { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 9px; border-bottom: 1px solid #e2e8f0; border-radius: 14px 14px 0 0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.85); overflow: visible; }
-    .nes-tiptap-row-break { flex-basis: 100%; width: 0; height: 0; margin: 0; }
-    .nes-tiptap-group { position: relative; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.78); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); overflow: visible; }
-    .nes-tiptap-table-group { max-width: 100%; row-gap: 4px; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92)); }
+    .nes-tiptap-row-break { flex: 0 0 100%; width: 0; height: 0; margin: 0; }
+    .nes-tiptap-group { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; flex-wrap: nowrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.78); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); overflow: visible; }
+    .nes-tiptap-table-group { max-width: none; row-gap: 0; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92)); }
     .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 30px; border: 1px solid transparent; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 850; color: #334155; }
     .nes-tiptap-toolbar button { min-width: 30px; padding: 5px 7px; }
     .nes-tiptap-toolbar select { max-width: 106px; padding: 5px 22px 5px 8px; background: linear-gradient(180deg, #fff, #f8fafc); border-color: #dbe3ef; }

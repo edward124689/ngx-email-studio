@@ -62,6 +62,19 @@ try {
   }
   const rowBreakCount = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-row-break').count();
   if (rowBreakCount < 2) throw new Error(`Tiptap toolbar row breaks missing: ${rowBreakCount}`);
+  const groupLayout = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-group').evaluateAll((groups) => groups.map((group) => {
+    const style = getComputedStyle(group);
+    const childTops = Array.from(group.children)
+      .filter((child) => !child.classList.contains('nes-tiptap-row-break'))
+      .map((child) => Math.round(child.getBoundingClientRect().top));
+    return {
+      className: group.className,
+      flexWrap: style.flexWrap,
+      rows: new Set(childTops).size,
+    };
+  }));
+  const wrappedGroups = groupLayout.filter((group) => group.flexWrap !== 'nowrap' || group.rows > 1);
+  if (wrappedGroups.length) throw new Error(`Tiptap control groups should not wrap internally: ${JSON.stringify(wrappedGroups)}`);
   const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
   if (!tooltipContent.includes('Bold')) throw new Error(`Tiptap icon hover label CSS missing: ${tooltipContent}`);
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();
