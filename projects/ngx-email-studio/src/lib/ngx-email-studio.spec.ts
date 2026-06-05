@@ -473,6 +473,28 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('background:#7d5454');
   });
 
+  it('should preserve large rich text font sizes used by email hero headings', () => {
+    const source = '<mjml><mj-body><mj-section><mj-column><mj-text color="#55575d" font-family="Arial, sans-serif" font-size="13px" line-height="22px" padding-bottom="5px" padding-top="25px" padding="10px 25px"><p style="line-height: 60px; text-align: center; margin: 10px 0;font-size:55px;color:#fcfcfc;font-family:\'Times New Roman\',Helvetica,Arial,sans-serif"><b>Black Friday</b></p></mj-text></mj-column></mj-section></mj-body></mjml>';
+    const imported = (component as any).parseMjml(source) as EmailDocument;
+    const text = findImportedNode(imported.body, 'text');
+    expect(String(text?.attrs['content'])).toContain('font-size: 55px');
+    const mjml = (component as any).compileMjml(imported) as string;
+    expect(mjml).toContain('font-size: 55px');
+    expect(mjml).toContain('padding="25px 25px 5px 25px"');
+  });
+
+  it('should import, render, and export MJML button font color and center alignment', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-button align="center" color="#000000" background-color="#ffffff" border-radius="3px" href="https://example.com" padding="20px 25px">Shop Now</mj-button></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const button = findImportedNode(imported.body, 'button');
+    expect(button?.attrs['align']).toBe('center');
+    expect(button?.attrs['color']).toBe('#000000');
+    expect(button?.attrs['backgroundColor']).toBe('#ffffff');
+    expect((component as any).compileMjml(imported)).toContain('<mj-button href="https://example.com" background-color="#ffffff" color="#000000" border-radius="3px" align="center" padding="20px 25px 20px 25px">Shop Now</mj-button>');
+    const html = (component as any).renderHtml(imported) as string;
+    expect(html).toContain('text-align:center;');
+    expect(html).toContain('color:#000000;');
+  });
+
   it('should apply button background color to the button element, not the outer block background', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const localComponent = localFixture.componentInstance;

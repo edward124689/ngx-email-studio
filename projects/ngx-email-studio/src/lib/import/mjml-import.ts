@@ -183,6 +183,14 @@ function importedTextStyleAttrs(element: Element): Record<string, string> {
   };
 }
 
+function importedButtonColor(element: Element): string {
+  const direct = importedColor(element.getAttribute('color'));
+  if (direct) return direct;
+  const styledChild = Array.from(element.querySelectorAll('[style]')).find((child) => /(^|;)\s*color\s*:/i.test(child.getAttribute('style') || ''));
+  const match = styledChild?.getAttribute('style')?.match(/(^|;)\s*color\s*:\s*([^;]+)/i);
+  return importedColor(match?.[2] || '') || '#ffffff';
+}
+
 function parseMjmlBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
   switch (element.tagName.toLowerCase()) {
     case 'mj-text':
@@ -200,8 +208,9 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
         label: element.textContent || 'Button',
         href: element.getAttribute('href') || '#',
         backgroundColor: importedColor(element.getAttribute('background-color')) || '#7c3aed',
+        color: importedButtonColor(element),
         borderRadius: parseButtonBorderRadius(element.getAttribute('border-radius')),
-        align: safeAlign(element.getAttribute('align')),
+        align: element.hasAttribute('align') ? safeAlign(element.getAttribute('align')) : 'center',
         ...importedPaddingAttrs(element),
       });
     case 'mj-divider':

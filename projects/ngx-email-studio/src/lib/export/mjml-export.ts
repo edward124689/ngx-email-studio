@@ -49,7 +49,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}" border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}"${buttonColorAttr(node)} border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
     }
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
@@ -77,6 +77,11 @@ function textTypographyAttrs(node: EmailNode): string {
   const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
   const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']);
   return `${color ? ` color="${escapeAttr(color)}"` : ''}${fontFamily ? ` font-family="${escapeAttr(fontFamily)}"` : ''}${fontSize ? ` font-size="${escapeAttr(fontSize)}"` : ''}${lineHeight ? ` line-height="${escapeAttr(lineHeight)}"` : ''}`;
+}
+
+function buttonColorAttr(node: EmailNode): string {
+  const color = colorAttrValue(node.attrs['color']);
+  return color ? ` color="${escapeAttr(color)}"` : '';
 }
 
 function paddingAttr(node: EmailNode): string {

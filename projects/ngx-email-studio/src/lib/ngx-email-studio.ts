@@ -885,7 +885,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" [style.width]="imageWidthCss(node)" />
         </div>
         <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)" [style.padding]="contentPaddingCss(node, 24)">
-          <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
+          <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.color]="buttonTextColorCss(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
@@ -1415,6 +1415,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   buttonBorderRadiusCss(node: EmailNode): string {
     return `${this.buttonBorderRadiusValue(node)}px`;
+  }
+
+  buttonTextColorCss(node: EmailNode): string {
+    return normalizeColorValue(node.attrs['color']) || '#ffffff';
+  }
+
+  sectionPaddingValue(section: EmailNode, key: 'padding' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft', fallback = 0): number {
+    return sectionPaddingValue(section, key);
   }
 
   rowRatioLabel(row: EmailNode): string {

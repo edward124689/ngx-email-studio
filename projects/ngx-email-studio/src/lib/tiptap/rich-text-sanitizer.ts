@@ -78,7 +78,7 @@ function safeRichTextStyle(value: string): string {
     const property = rawProperty.trim().toLowerCase();
     const rawValue = rawValueParts.join(':').trim();
     if (!rawValue || /url\s*\(|expression\s*\(|javascript:/i.test(rawValue)) continue;
-    if (property === 'font-size' && /^(1[0-9]|2[0-9]|3[0-9]|4[0-8])px$/.test(rawValue)) safe.push(`font-size: ${rawValue}`);
+    if (property === 'font-size' && /^(1[2-9]|[2-6][0-9]|7[0-2])px$/.test(rawValue)) safe.push(`font-size: ${rawValue}`);
     if (property === 'line-height' && (/^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(rawValue) || /^([1-9]|[1-6][0-9])px$/.test(rawValue))) safe.push(`line-height: ${rawValue}`);
     if (property === 'text-align' && /^(left|center|right|justify)$/.test(rawValue)) safe.push(`text-align: ${rawValue}`);
     if (property === 'color' && safeColor(rawValue)) safe.push(`color: ${rawValue}`);

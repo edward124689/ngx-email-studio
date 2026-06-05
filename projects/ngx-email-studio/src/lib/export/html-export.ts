@@ -171,7 +171,7 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
+      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:${escapeAttr(buttonTextColorCss(node))};text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
     }
     case 'divider':
       return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
@@ -197,6 +197,10 @@ function textTypographyStyle(node: EmailNode): string {
   const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
   const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']) || '1.6';
   return `${fontFamily ? `font-family:${escapeAttr(fontFamily)};` : ''}${fontSize ? `font-size:${escapeAttr(fontSize)};` : ''}line-height:${escapeAttr(lineHeight)};color:${escapeAttr(color)};`;
+}
+
+function buttonTextColorCss(node: EmailNode): string {
+  return colorAttrValue(node.attrs['color']) || '#ffffff';
 }
 
 function autoColumnWidth(row: EmailNode): string {

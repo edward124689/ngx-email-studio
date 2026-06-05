@@ -15,7 +15,7 @@ export function normalizeColorValue(value: unknown): string {
 
 export function normalizeCssSizeValue(value: unknown): string {
   const raw = String(value ?? '').trim();
-  return /^([1-9]|[1-6][0-9])px$/.test(raw) ? raw : '';
+  return /^(1[2-9]|[2-6][0-9]|7[0-2])px$/.test(raw) ? raw : '';
 }
 
 export function normalizeLineHeightValue(value: unknown): string {
