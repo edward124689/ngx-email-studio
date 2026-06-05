@@ -32,6 +32,20 @@ export function normalizeFontFamilyValue(value: unknown): string {
   return /^[a-zA-Z0-9\s,'"\-]+$/.test(raw) && /[a-zA-Z]/.test(raw) && raw.length <= 120 ? raw : '';
 }
 
+export function normalizeHtmlIdValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  return /^[A-Za-z][A-Za-z0-9_:\-.]{0,63}$/.test(raw) ? raw : '';
+}
+
+export function normalizeHtmlClassValue(value: unknown): string {
+  const tokens = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => /^[A-Za-z_][A-Za-z0-9_:\-]{0,63}$/.test(token));
+  return tokens.slice(0, 16).join(' ');
+}
+
 export function colorAttrValue(value: unknown): string {
   return normalizeColorValue(value);
 }

@@ -8,7 +8,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 
-import { normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHtmlClassValue, normalizeHtmlIdValue, normalizeLineHeightValue } from '../export/export-utils';
 
 function inlineTypographyStyle(attributes: Record<string, unknown>): string {
   const style: string[] = [];
@@ -101,6 +101,35 @@ const BlockTypography = Extension.create({
   },
 });
 
+const HtmlIdentityAttributes = Extension.create({
+  name: 'htmlIdentityAttributes',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading', 'textStyle', 'bulletList', 'orderedList', 'listItem', 'link', 'table', 'tableRow', 'tableHeader', 'tableCell'],
+        attributes: {
+          htmlId: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeHtmlIdValue(element.getAttribute('id')) || null,
+            renderHTML: (attributes: Record<string, unknown>) => {
+              const id = normalizeHtmlIdValue(attributes['htmlId']);
+              return id ? { id } : {};
+            },
+          },
+          htmlClass: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeHtmlClassValue(element.getAttribute('class')) || null,
+            renderHTML: (attributes: Record<string, unknown>) => {
+              const className = normalizeHtmlClassValue(attributes['htmlClass']);
+              return className ? { class: className } : {};
+            },
+          },
+        },
+      },
+    ];
+  },
+});
+
 function tableCellStyle(attributes: Record<string, unknown>): string {
   const style: string[] = [];
   for (const property of ['backgroundColor', 'borderColor', 'borderWidth', 'borderStyle', 'width', 'height', 'padding']) {
@@ -176,6 +205,7 @@ export const TIPTAP_EXTENSIONS = [
   TextStyle,
   InlineTypography,
   BlockTypography,
+  HtmlIdentityAttributes,
   Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
   Table.configure({ resizable: true, cellMinWidth: 48 }),
   TableRow,

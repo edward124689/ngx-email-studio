@@ -967,6 +967,28 @@ describe('NgxEmailStudio', () => {
     expect(component.lastMjml).toContain('Arial');
   });
 
+  it('should keep safe rich-text class and id attributes through Tiptap edits and exports', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p class="kicker product-newsletter" id="hero-kicker">Product newsletter</p><h1 class="hero-title" id="hero-title">Launch a polished campaign in minutes</h1><p class="intro-copy">Compose responsive MJML emails.</p>');
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    editor.commands.insertContent('!');
+
+    expect(textNode.attrs['content']).toContain('id="hero-kicker"');
+    expect(textNode.attrs['content']).toContain('class="kicker product-newsletter"');
+    expect(textNode.attrs['content']).toContain('id="hero-title"');
+    expect(textNode.attrs['content']).toContain('class="hero-title"');
+    expect(textNode.attrs['content']).toContain('<p class="intro-copy">Compose responsive MJML emails.!</p>');
+    expect(component.lastMjml).toContain('id="hero-kicker"');
+    expect(component.lastMjml).toContain('class="kicker product-newsletter"');
+    expect(component.lastMjml).toContain('id="hero-title"');
+    expect(component.lastMjml).toContain('class="hero-title"');
+    expect(component.lastHtml).toContain('class="intro-copy"');
+  });
+
   it('should update text content from the Tiptap editor', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;
@@ -1071,11 +1093,11 @@ describe('NgxEmailStudio', () => {
     expect(component.sourceEditorValue).toContain('<p');
     expect(query(fixture, '.nes-source-modal')).toBeTruthy();
 
-    component.sourceEditorValue = '<h1>Edited source</h1><p onclick="x()">Safe</p><script>alert(1)</script>';
+    component.sourceEditorValue = '<h1 class="headline" id="headline-1">Edited source</h1><p class="safe-copy" onclick="x()">Safe</p><script>alert(1)</script>';
     component.applyRichTextSource();
 
-    expect(textNode.attrs['content']).toContain('<h1>Edited source</h1>');
-    expect(textNode.attrs['content']).toContain('<p>Safe</p>');
+    expect(textNode.attrs['content']).toContain('<h1 class="headline" id="headline-1">Edited source</h1>');
+    expect(textNode.attrs['content']).toContain('<p class="safe-copy">Safe</p>');
     expect(textNode.attrs['content']).not.toContain('onclick');
     expect(textNode.attrs['content']).not.toContain('<script');
     expect(component.sourceEditorScope).toBeNull();

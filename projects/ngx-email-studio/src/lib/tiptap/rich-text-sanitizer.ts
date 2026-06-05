@@ -1,4 +1,4 @@
-import { normalizeColorValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
 
 const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
@@ -61,8 +61,16 @@ function sanitizeRichTextElement(element: HTMLElement): void {
       element.setAttribute(name, String(safeNumber));
       continue;
     }
-    if (name === 'class' && /(^|\s)kicker(\s|$)/.test(attr.value)) {
-      element.setAttribute('class', 'kicker');
+    if (name === 'id') {
+      const id = normalizeHtmlIdValue(attr.value);
+      if (id) element.setAttribute('id', id);
+      else element.removeAttribute(attr.name);
+      continue;
+    }
+    if (name === 'class') {
+      const className = normalizeHtmlClassValue(attr.value);
+      if (className) element.setAttribute('class', className);
+      else element.removeAttribute(attr.name);
       continue;
     }
     element.removeAttribute(attr.name);
