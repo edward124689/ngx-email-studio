@@ -836,8 +836,8 @@ function createEmailStudioInstanceId(): string {
         <div *ngSwitchCase="'image'" class="nes-render-image-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)">
           <img class="nes-render-image" [src]="node.attrs['src']" [alt]="node.attrs['alt'] || ''" />
         </div>
-        <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)">
-          <a class="nes-render-button">{{ node.attrs['label'] }}</a>
+        <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)">
+          <a class="nes-render-button" [style.background]="backgroundFor(node)">{{ node.attrs['label'] }}</a>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>

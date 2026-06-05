@@ -228,14 +228,35 @@ describe('NgxEmailStudio', () => {
     expect(component.contentAlign(textNode!)).toBe('center');
     expect(component.isAlignableContent({ id: 'divider_1', type: 'divider', attrs: {} })).toBe(false);
   });
-
-  it('should reflect content module background colors on the editable canvas preview', () => {
+  it('should apply content module background colors to the editable canvas preview', () => {
+    fixture.detectChanges();
     const textNode = component.emailDocument.body[0].children?.[0];
     expect(textNode?.type).toBe('text');
 
     component.updateAttr(textNode!, 'backgroundColor', '#7d5454');
     expect(component.backgroundFor(textNode!)).toBe('#7d5454');
     expect(component.lastHtml).toContain('background:#7d5454');
+  });
+
+  it('should apply button background color to the button element, not the outer block background', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const buttonNode = { id: 'button_target', type: 'button' as const, attrs: { label: 'Target CTA', href: '#', backgroundColor: '#ff5500' } };
+    localComponent.emailDocument = {
+      version: '0.0.1',
+      attrs: { backgroundColor: '#f3f4f6', contentBackgroundColor: '#ffffff', width: 100, widthUnit: '%', maxWidth: 600, maxWidthUnit: 'px' },
+      body: [{ id: 'section_target', type: 'section', attrs: { backgroundColor: '#ffffff' }, children: [buttonNode] }],
+    };
+    localFixture.detectChanges();
+
+    const wrapper = query<HTMLElement>(localFixture, '.nes-render-button-wrap');
+    const button = query<HTMLElement>(localFixture, '.nes-render-button');
+    expect(wrapper?.getAttribute('style') || '').not.toContain('#ff5500');
+    expect(wrapper?.style.background).toBe('');
+    expect(button?.getAttribute('style') || '').toContain('background');
+    expect(button?.style.background).toBe('rgb(255, 85, 0)');
+    expect((localComponent as any).compileMjml(localComponent.emailDocument)).toContain('<mj-button href="#" background-color="#ff5500">Target CTA</mj-button>');
+    expect((localComponent as any).renderHtml(localComponent.emailDocument)).toContain('display:inline-block;background:#ff5500;');
   });
 
   it('should keep the sidebar, canvas, and inspector in one equal-height scroll frame', () => {
