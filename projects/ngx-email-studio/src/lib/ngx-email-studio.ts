@@ -5,8 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
 
+import { NgxEmailStudioImportModal } from './components/import-modal.component';
+import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
+import { dimensionCss, dimensionUnit, dimensionValue, isAlignableContent as isAlignableEmailContent, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign } from './export/export-utils';
+import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
 import {
@@ -26,10 +30,14 @@ import {
   TiptapScope,
   TiptapTextAlignValue,
 } from './models';
+import { buildSandboxedPreviewShell, fallbackCopyToClipboard as fallbackCopyOutputToClipboard } from './output/output-utils';
 import { sanitizeRichTextContent as sanitizeRichTextHtml } from './tiptap/rich-text-sanitizer';
-import { TIPTAP_EXTENSIONS } from './tiptap/tiptap-extensions';
+import { createTiptapEditor as createManagedTiptapEditor, syncTiptapContent as syncManagedTiptapContent } from './tiptap/tiptap-controller';
 import { TIPTAP_BLOCK_OPTIONS, TIPTAP_FONT_SIZE_OPTIONS, TIPTAP_LINE_HEIGHT_OPTIONS } from './tiptap/tiptap-options';
+import { colorPickerValue as getColorPickerValue, dimensionUnitFromCss as parseDimensionUnitFromCss, dimensionValueFromCss as parseDimensionValueFromCss, backgroundFor as getBackgroundFor, containedCssSize as getContainedCssSize, plainText as toPlainText } from './view/document-view';
+import { countOutlineNodes, outlineIcon as getOutlineIcon, outlineLabel as getOutlineLabel, outlineMeta as getOutlineMeta } from './view/outline-view';
 import { createColumn as createTreeColumn, createNode as createTreeNode, createSectionWithChildren as createTreeSectionWithChildren, createStarterDocument as createTreeStarterDocument, defaultDocumentAttrs as getDefaultDocumentAttrs } from './tree/block-factory';
+import { canDropIntoContainer as canDropIntoTreeContainer, collectContainerDropListIds as collectTreeContainerDropListIds, isContentModule as isTreeContentModule, isEmailNode as isTreeEmailNode, isPaletteItem as isTreePaletteItem, normalizeNestedDropNode as normalizeTreeNestedDropNode, wrapForRootDrop as wrapTreeForRootDrop } from './tree/drop-utils';
 import { elementChildren as getElementChildren, findNode as findTreeNode, findNodeLocation as findTreeNodeLocation, nodeContainsId as treeNodeContainsId, reseedIds as reseedTreeIds } from './tree/node-utils';
 
 export type {
@@ -62,7 +70,7 @@ function createEmailStudioInstanceId(): string {
   selector: 'ngx-email-studio',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, DragDropModule],
+  imports: [CommonModule, FormsModule, DragDropModule, NgxEmailStudioImportModal, NgxEmailStudioOutputModal],
   providers: [
     { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
@@ -520,38 +528,14 @@ function createEmailStudioInstanceId(): string {
         </aside>
       </main>
 
-      <div class="nes-modal-backdrop" *ngIf="importModalOpen" (click)="closeImportModal()">
-        <section class="nes-import-modal" role="dialog" aria-modal="true" aria-label="Import MJML" (click)="$event.stopPropagation()">
-          <header>
-            <div class="nes-modal-heading">
-              <span class="nes-modal-icon"><i class="nes-icon fa fa-upload" aria-hidden="true"></i></span>
-              <div>
-                <p>Import MJML</p>
-                <h3>Paste MJML to import</h3>
-              </div>
-            </div>
-            <button type="button" aria-label="Close import modal" (click)="closeImportModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
-          </header>
-          <div class="nes-import-body">
-            <div class="nes-modal-intro">
-              <strong>Supported import subset</strong>
-              <p class="nes-muted">Rows, columns, text, images, buttons, dividers, and spacers will be converted into editable blocks.</p>
-            </div>
-            <div class="nes-code-shell">
-              <div class="nes-code-toolbar">
-                <span><i class="nes-icon fa fa-code" aria-hidden="true"></i> MJML source</span>
-                <small>Editable</small>
-              </div>
-              <textarea [ngModel]="mjmlDraft" (ngModelChange)="mjmlDraft = $event" spellcheck="false" placeholder="<mjml>...</mjml>"></textarea>
-            </div>
-            <div class="nes-import-error" *ngIf="importErrorMessage"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ importErrorMessage }}</div>
-          </div>
-          <footer class="nes-modal-footer">
-            <button type="button" (click)="closeImportModal()">Cancel</button>
-            <button type="button" class="nes-primary" (click)="importMjml()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Import MJML</button>
-          </footer>
-        </section>
-      </div>
+      <ngx-email-studio-import-modal
+        *ngIf="importModalOpen"
+        [draft]="mjmlDraft"
+        [errorMessage]="importErrorMessage"
+        (draftChange)="mjmlDraft = $event"
+        (close)="closeImportModal()"
+        (importMjml)="importMjml()"
+      />
 
       <div class="nes-modal-backdrop" *ngIf="expandedRichTextNode" (click)="closeRichTextModal()">
         <section class="nes-rich-text-modal" role="dialog" aria-modal="true" aria-label="Rich text editor" (click)="$event.stopPropagation()">
@@ -662,34 +646,17 @@ function createEmailStudioInstanceId(): string {
         </section>
       </div>
 
-      <div class="nes-modal-backdrop" *ngIf="outputModalType" (click)="closeOutputModal()">
-        <section class="nes-output-modal" role="dialog" aria-modal="true" [attr.aria-label]="outputModalTitle" (click)="$event.stopPropagation()">
-          <header>
-            <div class="nes-modal-heading">
-              <span class="nes-modal-icon"><i class="nes-icon fa fa-download" aria-hidden="true"></i></span>
-              <div>
-                <p>Export output</p>
-                <h3>{{ outputModalTitle }}</h3>
-              </div>
-            </div>
-            <div class="nes-modal-actions">
-              <button type="button" class="nes-preview-btn" *ngIf="outputModalType === 'html'" (click)="previewHtmlOutput()"><i class="nes-icon fa fa-external-link" aria-hidden="true"></i> Preview</button>
-              <button type="button" class="nes-copy-btn" (click)="copyOutputToClipboard()"><i class="nes-icon fa fa-copy" aria-hidden="true"></i> {{ copyState || 'Copy' }}</button>
-              <button type="button" aria-label="Close export modal" (click)="closeOutputModal()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
-            </div>
-          </header>
-          <div *ngIf="emailDocument.unsupported?.length" class="nes-warning">
-            Unsupported MJML preserved as warning: {{ emailDocument.unsupported?.join(', ') }}
-          </div>
-          <div class="nes-code-shell nes-output-code">
-            <div class="nes-code-toolbar">
-              <span><i class="nes-icon fa fa-code" aria-hidden="true"></i> {{ outputModalType === 'html' ? 'Generated HTML' : 'Generated MJML' }}</span>
-              <small>Read-only</small>
-            </div>
-            <pre>{{ outputModalContent }}</pre>
-          </div>
-        </section>
-      </div>
+      <ngx-email-studio-output-modal
+        *ngIf="outputModalType"
+        [type]="outputModalType"
+        [title]="outputModalTitle"
+        [content]="outputModalContent"
+        [copyState]="copyState"
+        [unsupported]="emailDocument.unsupported || []"
+        (close)="closeOutputModal()"
+        (preview)="previewHtmlOutput()"
+        (copy)="copyOutputToClipboard()"
+      />
     </section>
 
     <ng-template #outlineTreeNode let-node="node" let-depth="depth" let-indexPath="indexPath">
@@ -950,11 +917,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   get emailWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'width', 100, '%');
+    return dimensionCss(this.documentAttrs, 'width', 100, '%');
   }
 
   get emailMaxWidthCss(): string {
-    return this.dimensionCss(this.documentAttrs, 'maxWidth', 600, 'px');
+    return dimensionCss(this.documentAttrs, 'maxWidth', 600, 'px');
   }
 
   get emailCanvasWidthCss(): string {
@@ -1133,42 +1100,23 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   outlineLabel(node: EmailNode): string {
-    if (node.type === 'section') return 'Section';
-    if (node.type === 'row') return `MJML ${node.children?.length || 1} columns`;
-    if (node.type === 'text') return this.plainText(String(node.attrs['content'] || 'Text')).slice(0, 28) || 'Text paragraph';
-    if (node.type === 'image') return 'Image placeholder';
-    if (node.type === 'button') return String(node.attrs['label'] || 'CTA button');
-    if (node.type === 'divider') return 'Divider';
-    if (node.type === 'spacer') return 'Spacer';
-    return node.type;
+    return getOutlineLabel(node);
   }
 
   outlineMeta(node: EmailNode): string {
-    const childCount = node.children?.length || 0;
-    if (node.type === 'row') return `${childCount || 1} column${(childCount || 1) === 1 ? '' : 's'}`;
-    if (node.type === 'column') return `${childCount} nested block${childCount === 1 ? '' : 's'}`;
-    if (node.type === 'section') return childCount ? `${childCount} nested block${childCount === 1 ? '' : 's'}` : 'container';
-    return node.type;
+    return getOutlineMeta(node);
   }
 
   outlineIcon(node: EmailNode): string {
-    if (node.type === 'row') return 'fa-columns';
-    if (node.type === 'column') return 'fa-window-maximize';
-    if (node.type === 'section') return 'fa-object-group';
-    if (node.type === 'text') return 'fa-font';
-    if (node.type === 'image') return 'fa-picture-o';
-    if (node.type === 'button') return 'fa-mouse-pointer';
-    if (node.type === 'divider') return 'fa-minus';
-    if (node.type === 'spacer') return 'fa-arrows-v';
-    return 'fa-square-o';
+    return getOutlineIcon(node);
   }
 
   get totalOutlineNodes(): number {
-    return 1 + this.countOutlineNodes(this.emailDocument.body);
+    return 1 + countOutlineNodes(this.emailDocument.body);
   }
 
   private countOutlineNodes(nodes: EmailNode[]): number {
-    return nodes.reduce((count, node) => count + 1 + this.countOutlineNodes(node.children || []), 0);
+    return countOutlineNodes(nodes);
   }
 
   setPreviewSize(size: EmailPreviewSize): void {
@@ -1199,57 +1147,47 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   colorPickerValue(value: unknown): string {
-    const color = String(value || '').trim();
-    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#ffffff';
+    return getColorPickerValue(value);
   }
 
   dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {
-    const raw = attrs[key];
-    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : fallback;
-    const parsed = Number.parseFloat(String(raw || ''));
-    return Number.isFinite(parsed) ? parsed : fallback;
+    return dimensionValue(attrs, key, fallback);
   }
 
   dimensionUnit(attrs: Record<string, string | number | boolean>, key: string, fallback: EmailSizeUnit): EmailSizeUnit {
-    const unitValue = attrs[`${key}Unit`];
-    if (unitValue === 'px' || unitValue === '%') return unitValue;
-    const raw = String(attrs[key] || '');
-    if (raw.trim().endsWith('%')) return '%';
-    if (raw.trim().endsWith('px')) return 'px';
-    return fallback;
+    return dimensionUnit(attrs, key, fallback);
   }
 
   sectionWidthCss(section: EmailNode): string {
-    return this.dimensionCss(section.attrs, 'width', 100, '%');
+    return dimensionCss(section.attrs, 'width', 100, '%');
   }
 
   sectionMaxWidthCss(section: EmailNode): string {
-    return this.dimensionCss(section.attrs, 'maxWidth', 600, 'px');
+    return dimensionCss(section.attrs, 'maxWidth', 600, 'px');
   }
 
   columnWidthCss(column: EmailNode, fallback = 100, fallbackUnit: EmailSizeUnit = '%'): string {
-    return this.dimensionCss(column.attrs, 'width', fallback, fallbackUnit);
+    return dimensionCss(column.attrs, 'width', fallback, fallbackUnit);
   }
 
   columnMaxWidthCss(column: EmailNode): string {
-    return this.dimensionCss(column.attrs, 'maxWidth', 600, 'px');
+    return dimensionCss(column.attrs, 'maxWidth', 600, 'px');
   }
 
   dimensionValueFromCss(value: string): number {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : 100;
+    return parseDimensionValueFromCss(value);
   }
 
   dimensionUnitFromCss(value: string): EmailSizeUnit {
-    return value.trim().endsWith('%') ? '%' : 'px';
+    return parseDimensionUnitFromCss(value);
   }
 
   paddingUnit(section: EmailNode): EmailSizeUnit {
-    return section.attrs['paddingUnit'] === '%' ? '%' : 'px';
+    return sectionPaddingUnit(section);
   }
 
   paddingValue(section: EmailNode, key: 'padding' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft'): number {
-    return this.dimensionValue(section.attrs, key, this.dimensionValue(section.attrs, 'padding', 16));
+    return sectionPaddingValue(section, key);
   }
 
   updateSectionPaddingAll(section: EmailNode, value: number): void {
@@ -1272,25 +1210,19 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   sectionPaddingCss(section: EmailNode): string {
-    const unit = this.paddingUnit(section);
-    const top = this.paddingValue(section, 'paddingTop');
-    const right = this.paddingValue(section, 'paddingRight');
-    const bottom = this.paddingValue(section, 'paddingBottom');
-    const left = this.paddingValue(section, 'paddingLeft');
-    return `${top}${unit} ${right}${unit} ${bottom}${unit} ${left}${unit}`;
+    return sectionPaddingToCss(section);
   }
 
   isAlignableContent(node: EmailNode): boolean {
-    return node.type === 'text' || node.type === 'image' || node.type === 'button';
+    return isAlignableEmailContent(node);
   }
 
   contentAlign(node: EmailNode): 'left' | 'center' | 'right' {
-    const align = String(node.attrs['align'] || 'left').toLowerCase();
-    return align === 'center' || align === 'right' ? align : 'left';
+    return getContentAlign(node);
   }
 
   backgroundFor(node: EmailNode): string {
-    return String(node.attrs['backgroundColor'] || '#ffffff');
+    return getBackgroundFor(node.attrs);
   }
 
   setRowColumns(row: EmailNode, count: number): void {
@@ -1609,7 +1541,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     }
     const html = this.lastHtml || this.renderHtml(this.emailDocument);
     previewWindow.document.open();
-    previewWindow.document.write(this.buildSandboxedPreviewShell(html));
+    previewWindow.document.write(buildSandboxedPreviewShell(html));
     previewWindow.document.close();
   }
 
@@ -1623,21 +1555,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.htmlExport.emit(this.lastHtml);
   }
 
-  private buildSandboxedPreviewShell(html: string): string {
-    return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Email preview</title>
-    <style>html,body{margin:0;width:100%;height:100%;background:#f3f4f6;}iframe{display:block;width:100%;height:100%;border:0;background:#fff;}</style>
-  </head>
-  <body>
-    <iframe title="Email preview" sandbox="" srcdoc="${this.escapeAttr(html)}"></iframe>
-  </body>
-</html>`;
-  }
-
   private setCopyState(state: string): void {
     this.copyState = state;
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
@@ -1645,20 +1562,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private fallbackCopyToClipboard(content: string): boolean {
-    const doc = globalThis.document;
-    if (!doc?.body || !doc.execCommand) return false;
-    const textarea = doc.createElement('textarea');
-    textarea.value = content;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    doc.body.appendChild(textarea);
-    try {
-      textarea.select();
-      return doc.execCommand('copy');
-    } finally {
-      doc.body.removeChild(textarea);
-    }
+    return fallbackCopyOutputToClipboard(content);
   }
 
   private emitDocument(): void {
@@ -1667,24 +1571,21 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private isPaletteItem(value: unknown): value is PaletteItem {
-    return !!value && typeof value === 'object' && 'type' in value && 'label' in value && 'description' in value;
+    return isTreePaletteItem(value);
   }
 
   private isEmailNode(value: unknown): value is EmailNode {
-    return !!value && typeof value === 'object' && 'id' in value && 'type' in value && 'attrs' in value;
+    return isTreeEmailNode(value);
   }
 
   private canDropIntoContainer(data: unknown, containerId?: string): boolean {
-    if (containerId === this.paletteDropListId) return false;
-    if (!containerId) return true;
-    if (this.isPaletteItem(data)) return true;
-    if (!this.isEmailNode(data)) return false;
-    if (containerId === this.rootDropListId) return true;
-
-    const targetContainer = this.findNodeByDropListId(containerId);
-    if (!targetContainer || (targetContainer.type !== 'section' && targetContainer.type !== 'column')) return false;
-    if (data.id === targetContainer.id || this.nodeContainsId(data, targetContainer.id)) return false;
-    return this.isContentModule(data);
+    return canDropIntoTreeContainer({
+      data,
+      containerId,
+      paletteDropListId: this.paletteDropListId,
+      rootDropListId: this.rootDropListId,
+      findTargetContainer: (dropListId) => this.findNodeByDropListId(dropListId),
+    });
   }
 
   private findNodeByDropListId(dropListId: string): EmailNode | undefined {
@@ -1698,22 +1599,19 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private isContentModule(node: EmailNode): boolean {
-    return node.type === 'text' || node.type === 'image' || node.type === 'button' || node.type === 'divider' || node.type === 'spacer';
+    return isTreeContentModule(node);
   }
 
   private collectContainerDropListIds(nodes: EmailNode[]): string[] {
-    return nodes.flatMap((node) => {
-      const ids = node.type === 'column' || node.type === 'section' ? [this.dropListIdFor(node)] : [];
-      return [...ids, ...this.collectContainerDropListIds(node.children || [])];
-    });
+    return collectTreeContainerDropListIds(nodes, (node) => this.dropListIdFor(node));
   }
 
   private plainText(value: string): string {
-    return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return toPlainText(value);
   }
 
   private containedCssSize(value: string): string {
-    return value.endsWith('%') ? value : `min(100%, ${value})`;
+    return getContainedCssSize(value);
   }
 
   private scrollNodeIntoStage(id: string): void {
@@ -1816,147 +1714,20 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private createTiptapEditor(element: HTMLElement, node: EmailNode, scope: 'inline' | 'modal'): TiptapEditor {
-    const editor = new TiptapEditor({
+    return createManagedTiptapEditor({
       element,
-      content: this.sanitizeRichTextContent(node.attrs['content']),
+      node,
       editable: !this.readonly,
-      extensions: TIPTAP_EXTENSIONS,
-      onUpdate: ({ editor }) => {
+      onUpdate: (editor) => {
         const currentNode = scope === 'modal' ? this.expandedRichTextNode : this.findNode(this.tiptapInlineNodeId);
         if (!currentNode || currentNode.type !== 'text') return;
         this.updateAttr(currentNode, 'content', editor.getHTML());
       },
     });
-    this.installTiptapBlankClickGuard(element, editor);
-    return editor;
-  }
-
-  private installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
-    let pendingTextClick: { x: number; y: number; pos: number } | undefined;
-    const guardPointer = (event: MouseEvent) => {
-      if (event.button !== 0) return;
-      const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
-      if (!proseMirror) return;
-      const isStructuredTarget = this.isTiptapStructuredEditorTarget(event.target);
-      pendingTextClick = isStructuredTarget ? undefined : this.tiptapTextSelectionFromPoint(proseMirror, editor, event.clientX, event.clientY);
-      if (pendingTextClick) {
-        event.preventDefault();
-        event.stopPropagation();
-        editor.view.focus();
-        editor.commands.setTextSelection(pendingTextClick.pos);
-        return;
-      }
-      const contentBottom = this.tiptapContentBottom(proseMirror);
-      const isBlankPanelClick = event.target === element || event.clientY > contentBottom + 4;
-      const isWhitespaceInsideEditorClick =
-        proseMirror.contains(event.target as Node) &&
-        !isStructuredTarget &&
-        !this.isPointInTiptapTextRect(proseMirror, event.clientX, event.clientY);
-      if (isBlankPanelClick || isWhitespaceInsideEditorClick) {
-        pendingTextClick = undefined;
-        event.preventDefault();
-        event.stopPropagation();
-        editor.view.focus();
-      }
-    };
-    const restoreTextClick = (event: MouseEvent) => {
-      if (!pendingTextClick) return;
-      const textClick = pendingTextClick;
-      const movement = Math.hypot(event.clientX - textClick.x, event.clientY - textClick.y);
-      const restore = () => {
-        editor.view.focus();
-        editor.commands.setTextSelection(textClick.pos);
-      };
-      if (movement <= 4) {
-        restore();
-        requestAnimationFrame(restore);
-        setTimeout(restore, 0);
-      }
-      pendingTextClick = undefined;
-    };
-    element.addEventListener('pointerdown', guardPointer, true);
-    element.addEventListener('mousedown', guardPointer, true);
-    element.addEventListener('click', restoreTextClick, false);
-  }
-
-  private isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof Element)) return false;
-    return Boolean(target.closest('table, td, th, img, hr, a'));
-  }
-
-  private isPointInTiptapTextRect(proseMirror: HTMLElement, clientX: number, clientY: number): boolean {
-    const documentRef = proseMirror.ownerDocument;
-    const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
-    });
-    const range = documentRef.createRange();
-    try {
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        range.selectNodeContents(node);
-        const rects = Array.from(range.getClientRects());
-        if (rects.some((rect) => clientY >= rect.top - 3 && clientY <= rect.bottom + 3 && clientX >= rect.left - 3 && clientX <= rect.right + 3)) {
-          return true;
-        }
-      }
-      return false;
-    } finally {
-      range.detach();
-    }
-  }
-
-  private tiptapTextSelectionFromPoint(proseMirror: HTMLElement, editor: TiptapEditor, clientX: number, clientY: number): { x: number; y: number; pos: number } | undefined {
-    if (!this.isPointInTiptapTextRect(proseMirror, clientX, clientY)) return undefined;
-    const documentRef = proseMirror.ownerDocument;
-    const walker = documentRef.createTreeWalker(proseMirror, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => (node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
-    });
-    const range = documentRef.createRange();
-    try {
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const text = node.textContent || '';
-        for (let index = 0; index < text.length; index += 1) {
-          range.setStart(node, index);
-          range.setEnd(node, index + 1);
-          const rects = Array.from(range.getClientRects());
-          for (const rect of rects) {
-            if (clientY < rect.top - 3 || clientY > rect.bottom + 3) continue;
-            if (clientX <= rect.left + rect.width / 2) return this.tiptapSelectionAtDomOffset(editor, node, index, clientX, clientY);
-            if (clientX <= rect.right + 3) return this.tiptapSelectionAtDomOffset(editor, node, index + 1, clientX, clientY);
-          }
-        }
-      }
-      const caretRange = documentRef.caretRangeFromPoint?.(clientX, clientY);
-      if (caretRange?.startContainer && proseMirror.contains(caretRange.startContainer)) {
-        return this.tiptapSelectionAtDomOffset(editor, caretRange.startContainer, caretRange.startOffset, clientX, clientY);
-      }
-      return undefined;
-    } finally {
-      range.detach();
-    }
-  }
-
-  private tiptapSelectionAtDomOffset(editor: TiptapEditor, node: Node, offset: number, x: number, y: number): { x: number; y: number; pos: number } | undefined {
-    try {
-      return { x, y, pos: editor.view.posAtDOM(node, offset) };
-    } catch {
-      return undefined;
-    }
-  }
-
-  private tiptapContentBottom(proseMirror: HTMLElement): number {
-    const children = Array.from(proseMirror.children) as HTMLElement[];
-    const visibleChildren = children.filter((child) => child.getClientRects().length > 0);
-    if (!visibleChildren.length) return proseMirror.getBoundingClientRect().top;
-    return Math.max(...visibleChildren.map((child) => child.getBoundingClientRect().bottom));
   }
 
   private syncTiptapContent(editor: TiptapEditor, node: EmailNode): void {
-    const nextContent = this.sanitizeRichTextContent(node.attrs['content']);
-    const currentContent = this.sanitizeRichTextContent(editor.getHTML());
-    if (currentContent !== nextContent) editor.commands.setContent(nextContent, { emitUpdate: false });
-    editor.setEditable(!this.readonly, false);
+    syncManagedTiptapContent(editor, node, !this.readonly);
   }
 
   private destroyTiptapEditors(): void {
@@ -1989,18 +1760,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private wrapForRootDrop(node: EmailNode, containerId?: string): EmailNode {
-    if (containerId !== this.rootDropListId) return node;
-    if (node.type === 'row' || node.type === 'section') return node;
-    return this.createSectionWithChildren([node]);
+    return wrapTreeForRootDrop(node, containerId === this.rootDropListId, (children) => this.createSectionWithChildren(children));
   }
 
   private normalizeNestedDropNode(node: EmailNode): EmailNode {
-    if (node.type === 'section') {
-      const child = node.children?.[0];
-      return child ? structuredClone(child) : this.createNode('text');
-    }
-    if (node.type === 'row') return this.createNode('text');
-    return node;
+    return normalizeTreeNestedDropNode(node, () => this.createNode('text'));
   }
 
   private createSectionWithChildren(children: EmailNode[], attrs: Record<string, string | number | boolean> = {}): EmailNode {
@@ -2028,180 +1792,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private renderHtml(document: EmailDocument): string {
-    const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
-    const bodyBackground = this.escapeAttr(String(attrs['backgroundColor'] || '#f3f4f6'));
-    const emailBackground = this.escapeAttr(String(attrs['contentBackgroundColor'] || '#ffffff'));
-    const emailWidth = this.dimensionCss(attrs, 'width', 100, '%');
-    const emailMaxWidth = this.dimensionCss(attrs, 'maxWidth', 600, 'px');
-    const emailWidthAttr = this.dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
-    const outlookWidth = this.escapeAttr(this.outlookHtmlWidth(attrs));
-    const rows = document.body.map((node) => this.nodeToHtml(node, 6)).join('\n');
-    return [
-      '<!doctype html>',
-      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">',
-      '  <head>',
-      '    <title>Email Export</title>',
-      '    <!--[if !mso]><!-->',
-      '    <meta http-equiv="X-UA-Compatible" content="IE=edge">',
-      '    <!--<![endif]-->',
-      '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">',
-      '    <meta name="viewport" content="width=device-width, initial-scale=1">',
-      '    <style type="text/css">',
-      '      #outlook a { padding:0; }',
-      '      body { margin:0; padding:0; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }',
-      '      table, td { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }',
-      '      img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }',
-      '      p { display:block; margin:13px 0; }',
-      '    </style>',
-      '    <!--[if mso]>',
-      '    <noscript>',
-      '      <xml>',
-      '        <o:OfficeDocumentSettings>',
-      '          <o:AllowPNG/>',
-      '          <o:PixelsPerInch>96</o:PixelsPerInch>',
-      '        </o:OfficeDocumentSettings>',
-      '      </xml>',
-      '    </noscript>',
-      '    <![endif]-->',
-      '    <!--[if lte mso 11]>',
-      '    <style type="text/css">',
-      '      .nes-email-outlook-fix { width:100% !important; }',
-      '    </style>',
-      '    <![endif]-->',
-      '    <style type="text/css">',
-      '      @media only screen and (max-width:480px) {',
-      '        .nes-email-column { display:block !important; width:100% !important; max-width:100% !important; }',
-      '      }',
-      '      @media only screen and (min-width:480px) {',
-      '        .nes-email-column { display:table-cell !important; }',
-      '      }',
-      '    </style>',
-      '  </head>',
-      `  <body style="margin:0;padding:0;background:${bodyBackground};word-spacing:normal;">`,
-      `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="background:${bodyBackground};padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
-      '      <tr>',
-      '        <td align="center">',
-      `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-      `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};background:${emailBackground};border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
-      rows,
-      '          </table>',
-      '          <!--[if mso | IE]></td></tr></table><![endif]-->',
-      '        </td>',
-      '      </tr>',
-      '    </table>',
-      '  </body>',
-      '</html>',
-    ].join('\n');
-  }
-
-  private nodeToHtml(node: EmailNode, depth = 0): string {
-    if (node.type === 'row') return this.rowToHtml(node, depth);
-    if (node.type === 'column') return [this.indent('<tr>', depth), this.columnToHtml(node, this.autoColumnWidth(node), depth + 1), this.indent('</tr>', depth)].join('\n');
-    if (node.type === 'section') return this.sectionToHtml(node, depth);
-    return this.blockToHtmlRow(node, depth);
-  }
-
-  private rowToHtml(row: EmailNode, depth = 0): string {
-    const columns = (row.children || []).filter((child) => child.type === 'column');
-    const width = this.autoColumnWidth(row);
-    const cells = columns.map((column) => this.columnToHtml(column, width, depth + 4)).join('\n');
-    return [
-      this.indent('<tr>', depth),
-      this.indent(`<td style="padding:0;background:${this.escapeAttr(String(row.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth + 2),
-      this.indent('<tr>', depth + 3),
-      cells,
-      this.indent('</tr>', depth + 3),
-      this.indent('</table>', depth + 2),
-      this.indent('</td>', depth + 1),
-      this.indent('</tr>', depth),
-    ].join('\n');
-  }
-
-  private sectionToHtml(section: EmailNode, depth = 0): string {
-    const content = (section.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 2)).join('\n');
-    return [
-      this.indent('<tr>', depth),
-      this.indent(`<td align="center" style="padding:0;background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};">`, depth + 1),
-      this.indent(`<table role="presentation" border="0" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${this.escapeAttr(this.sectionWidthCss(section))};max-width:${this.escapeAttr(this.sectionMaxWidthCss(section))};background:${this.escapeAttr(String(section.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
-      this.indent('<tr>', depth + 3),
-      this.indent(`<td style="padding:${this.escapeAttr(this.sectionPaddingCss(section))};">`, depth + 4),
-      content,
-      this.indent('</td>', depth + 4),
-      this.indent('</tr>', depth + 3),
-      this.indent('</table>', depth + 2),
-      this.indent('</td>', depth + 1),
-      this.indent('</tr>', depth),
-    ].join('\n');
-  }
-
-  private columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): string {
-    const fallbackValue = Number.parseFloat(fallbackWidth);
-    const fallbackUnit: EmailSizeUnit = fallbackWidth.trim().endsWith('%') ? '%' : 'px';
-    const width = this.columnWidthCss(column, Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit);
-    const maxWidth = this.columnMaxWidthCss(column);
-    const content = (column.children || []).map((child) => this.blockToHtmlCellContent(child, depth + 1)).join('\n');
-    return [
-      this.indent(`<td class="nes-email-column nes-email-outlook-fix" width="${this.escapeAttr(this.dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${this.escapeAttr(width)};max-width:${this.escapeAttr(maxWidth)};padding:16px;background:${this.escapeAttr(String(column.attrs['backgroundColor'] || '#ffffff'))};border-collapse:collapse;">`, depth),
-      content,
-      this.indent('</td>', depth),
-    ].join('\n');
-  }
-
-  private blockToHtmlRow(node: EmailNode, depth = 0): string {
-    switch (node.type) {
-      case 'row':
-        return this.rowToHtml(node, depth);
-      case 'column':
-        return [this.indent('<tr>', depth), this.columnToHtml(node, '100%', depth + 1), this.indent('</tr>', depth)].join('\n');
-      default:
-        return [this.indent('<tr>', depth), this.indent('<td>', depth + 1), this.blockToHtmlCellContent(node, depth + 2), this.indent('</td>', depth + 1), this.indent('</tr>', depth)].join('\n');
-    }
-  }
-
-  private blockToHtmlCellContent(node: EmailNode, depth = 0): string {
-    switch (node.type) {
-      case 'row':
-        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.rowToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
-      case 'column':
-        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.indent('<tr>', depth + 1), this.columnToHtml(node, '100%', depth + 2), this.indent('</tr>', depth + 1), this.indent('</table>', depth)].join('\n');
-      case 'section':
-        return [this.indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth), this.sectionToHtml(node, depth + 1), this.indent('</table>', depth)].join('\n');
-      case 'text':
-        return this.indent(`<div style="padding:20px;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#ffffff'))};line-height:1.6;color:#1f2937;text-align:${this.escapeAttr(this.contentAlign(node))};">${this.sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
-      case 'image':
-        return this.indent(`<div style="text-align:${this.escapeAttr(this.contentAlign(node))};"><img src="${this.escapeAttr(String(node.attrs['src'] || ''))}" alt="${this.escapeAttr(String(node.attrs['alt'] || ''))}" style="display:inline-block;max-width:100%;width:100%;height:auto;border:0;" /></div>`, depth);
-      case 'button':
-        return this.indent(`<div style="padding:24px;text-align:${this.escapeAttr(this.contentAlign(node))};"><a href="${this.escapeAttr(String(node.attrs['href'] || '#'))}" style="display:inline-block;background:${this.escapeAttr(String(node.attrs['backgroundColor'] || '#7c3aed'))};color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:bold;">${this.escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
-      case 'divider':
-        return this.indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${this.escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
-      case 'spacer': {
-        const height = Number(node.attrs['height'] || 24);
-        return this.indent(`<div style="height:${height}px;line-height:${height}px;font-size:0;">&nbsp;</div>`, depth);
-      }
-      default:
-        return '';
-    }
-  }
-
-  private dimensionCss(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {
-    return `${this.dimensionValue(attrs, key, fallback)}${this.dimensionUnit(attrs, key, fallbackUnit)}`;
-  }
-
-  private dimensionHtmlWidthAttr(attrs: Record<string, string | number | boolean>, key: string, fallback: number, fallbackUnit: EmailSizeUnit): string {
-    const value = this.dimensionValue(attrs, key, fallback);
-    const unit = this.dimensionUnit(attrs, key, fallbackUnit);
-    return unit === 'px' ? String(value) : `${value}%`;
-  }
-
-  private outlookHtmlWidth(attrs: Record<string, string | number | boolean>): string {
-    if (this.dimensionUnit(attrs, 'maxWidth', 'px') === 'px') return String(this.dimensionValue(attrs, 'maxWidth', 600));
-    if (this.dimensionUnit(attrs, 'width', '%') === 'px') return String(this.dimensionValue(attrs, 'width', 600));
-    return '600';
-  }
-
-  private indent(value: string, depth: number): string {
-    return `${'  '.repeat(depth)}${value}`;
+    return renderHtmlDocument(document);
   }
 
   private findNode(id?: string): EmailNode | undefined {
@@ -2241,7 +1832,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private bodyMjmlAttrs(document: EmailDocument): string {
     const attrs = { ...this.defaultDocumentAttrs(), ...(document.attrs || {}) };
     const background = attrs['backgroundColor'] ? ` background-color="${this.escapeAttr(String(attrs['backgroundColor']))}"` : '';
-    const width = attrs['width'] ? ` width="${this.escapeAttr(this.dimensionCss(attrs, 'width', 100, '%'))}"` : '';
+    const width = attrs['width'] ? ` width="${this.escapeAttr(dimensionCss(attrs, 'width', 100, '%'))}"` : '';
     return `${background}${width}`;
   }
 
