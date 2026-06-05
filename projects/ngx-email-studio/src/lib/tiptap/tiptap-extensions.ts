@@ -8,8 +8,34 @@ import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 
-const FontSize = Extension.create({
-  name: 'fontSize',
+import { normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from '../export/export-utils';
+
+function inlineTypographyStyle(attributes: Record<string, unknown>): string {
+  const style: string[] = [];
+  const fontSize = normalizeCssSizeValue(attributes['fontSize']);
+  const color = normalizeColorValue(attributes['color']);
+  const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
+  if (fontSize) style.push(`font-size: ${fontSize}`);
+  if (color) style.push(`color: ${color}`);
+  if (fontFamily) style.push(`font-family: ${fontFamily}`);
+  return style.join('; ');
+}
+
+function blockTypographyStyle(attributes: Record<string, unknown>): string {
+  const style: string[] = [];
+  const lineHeight = normalizeLineHeightValue(attributes['lineHeight']);
+  const fontSize = normalizeCssSizeValue(attributes['fontSize']);
+  const color = normalizeColorValue(attributes['color']);
+  const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
+  if (lineHeight) style.push(`line-height: ${lineHeight}`);
+  if (fontSize) style.push(`font-size: ${fontSize}`);
+  if (color) style.push(`color: ${color}`);
+  if (fontFamily) style.push(`font-family: ${fontFamily}`);
+  return style.join('; ');
+}
+
+const InlineTypography = Extension.create({
+  name: 'inlineTypography',
   addGlobalAttributes() {
     return [
       {
@@ -17,11 +43,21 @@ const FontSize = Extension.create({
         attributes: {
           fontSize: {
             default: null,
-            parseHTML: (element: HTMLElement) => element.style.fontSize || null,
+            parseHTML: (element: HTMLElement) => normalizeCssSizeValue(element.style.fontSize) || null,
             renderHTML: (attributes: Record<string, unknown>) => {
-              const fontSize = typeof attributes['fontSize'] === 'string' ? attributes['fontSize'] : '';
-              return fontSize ? { style: `font-size: ${fontSize}` } : {};
+              const style = inlineTypographyStyle(attributes);
+              return style ? { style } : {};
             },
+          },
+          color: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeColorValue(element.style.color) || null,
+            renderHTML: () => ({}),
+          },
+          fontFamily: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeFontFamilyValue(element.style.fontFamily) || null,
+            renderHTML: () => ({}),
           },
         },
       },
@@ -29,8 +65,8 @@ const FontSize = Extension.create({
   },
 });
 
-const LineHeight = Extension.create({
-  name: 'lineHeight',
+const BlockTypography = Extension.create({
+  name: 'blockTypography',
   addGlobalAttributes() {
     return [
       {
@@ -38,11 +74,26 @@ const LineHeight = Extension.create({
         attributes: {
           lineHeight: {
             default: null,
-            parseHTML: (element: HTMLElement) => element.style.lineHeight || null,
+            parseHTML: (element: HTMLElement) => normalizeLineHeightValue(element.style.lineHeight) || null,
             renderHTML: (attributes: Record<string, unknown>) => {
-              const lineHeight = typeof attributes['lineHeight'] === 'string' ? attributes['lineHeight'] : '';
-              return lineHeight ? { style: `line-height: ${lineHeight}` } : {};
+              const style = blockTypographyStyle(attributes);
+              return style ? { style } : {};
             },
+          },
+          fontSize: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeCssSizeValue(element.style.fontSize) || null,
+            renderHTML: () => ({}),
+          },
+          color: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeColorValue(element.style.color) || null,
+            renderHTML: () => ({}),
+          },
+          fontFamily: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeFontFamilyValue(element.style.fontFamily) || null,
+            renderHTML: () => ({}),
           },
         },
       },
@@ -123,8 +174,8 @@ const StyledTableHeader = TableHeader.extend({
 export const TIPTAP_EXTENSIONS = [
   StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, link: false }),
   TextStyle,
-  FontSize,
-  LineHeight,
+  InlineTypography,
+  BlockTypography,
   Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
   Table.configure({ resizable: true, cellMinWidth: 48 }),
   TableRow,

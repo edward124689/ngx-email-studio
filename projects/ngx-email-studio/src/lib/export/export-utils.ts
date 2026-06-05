@@ -10,7 +10,11 @@ export function escapeHtml(value: string): string {
 
 export function normalizeColorValue(value: unknown): string {
   const color = String(value ?? '').trim();
-  return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : '';
+  const hex = color.match(/^#([0-9a-fA-F]{6})$/);
+  if (hex) return `#${hex[1].toLowerCase()}`;
+  const rgb = color.match(/^rgb\(\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/i);
+  if (!rgb) return '';
+  return `#${[rgb[1], rgb[2], rgb[3]].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`;
 }
 
 export function normalizeCssSizeValue(value: unknown): string {

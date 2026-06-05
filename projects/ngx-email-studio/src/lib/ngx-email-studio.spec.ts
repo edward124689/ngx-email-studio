@@ -943,6 +943,30 @@ describe('NgxEmailStudio', () => {
     expect(component.currentTiptapBlockFormat('inline')).toBe('paragraph');
   });
 
+  it('should keep paragraph font-size color and font-family when editing imported styled MJML text in Tiptap', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p style="line-height: 60px; text-align: center; margin: 10px 0; font-size: 55px; color: #fcfcfc; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif"><strong>Black Friday</strong></p>');
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    editor.commands.insertContent('1');
+
+    expect(textNode.attrs['content']).toContain('Black Friday1');
+    expect(textNode.attrs['content']).toContain('font-size: 55px');
+    expect(textNode.attrs['content']).toContain('color: #fcfcfc');
+    expect(textNode.attrs['content']).toContain('Times New Roman');
+    expect(textNode.attrs['content']).toContain('Helvetica');
+    expect(textNode.attrs['content']).toContain('Arial');
+    expect(textNode.attrs['content']).toContain('line-height: 60px');
+    expect(component.lastMjml).toContain('font-size: 55px');
+    expect(component.lastMjml).toContain('color: #fcfcfc');
+    expect(component.lastMjml).toContain('Times New Roman');
+    expect(component.lastMjml).toContain('Helvetica');
+    expect(component.lastMjml).toContain('Arial');
+  });
+
   it('should update text content from the Tiptap editor', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;
@@ -1106,14 +1130,14 @@ describe('NgxEmailStudio', () => {
     component.setTiptapCellStyle('inline', 'height', '64px');
     component.setTiptapCellStyle('inline', 'padding', '12px');
 
-    expect(textNode.attrs['content']).toContain('background-color: rgb(254, 243, 199)');
-    expect(textNode.attrs['content']).toContain('border-color: rgb(37, 99, 235)');
+    expect(textNode.attrs['content']).toContain('background-color: #fef3c7');
+    expect(textNode.attrs['content']).toContain('border-color: #2563eb');
     expect(textNode.attrs['content']).toContain('border-width: 2px');
     expect(textNode.attrs['content']).toContain('border-style: dashed');
     expect(textNode.attrs['content']).toContain('width: 180px');
     expect(textNode.attrs['content']).toContain('height: 64px');
     expect(textNode.attrs['content']).toContain('padding: 12px');
-    expect(component.lastMjml).toContain('background-color: rgb(254, 243, 199)');
+    expect(component.lastMjml).toContain('background-color: #fef3c7');
     expect(component.lastHtml).toContain('border-style: dashed');
   });
 

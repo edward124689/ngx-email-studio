@@ -2016,13 +2016,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const blockFormat = ([1, 2, 3, 4, 5, 6] as const).find((level) => editor.isActive('heading', { level }));
     const headingLineHeight = editor.getAttributes('heading')['lineHeight'];
     const paragraphLineHeight = editor.getAttributes('paragraph')['lineHeight'];
-    const fontSize = editor.getAttributes('textStyle')['fontSize'];
+    const textStyleFontSize = editor.getAttributes('textStyle')['fontSize'];
+    const headingFontSize = editor.getAttributes('heading')['fontSize'];
+    const paragraphFontSize = editor.getAttributes('paragraph')['fontSize'];
     const tableCellAttrs = editor.getAttributes('tableCell');
     const tableHeaderAttrs = editor.getAttributes('tableHeader');
     const textAlign = (['center', 'right', 'justify'] as const).find((align) => editor.isActive({ textAlign: align })) || 'left';
     return {
       blockFormat: blockFormat ? String(blockFormat) as TiptapHeadingValue : 'paragraph',
-      fontSize: typeof fontSize === 'string' ? fontSize : '',
+      fontSize: typeof textStyleFontSize === 'string' ? textStyleFontSize : typeof headingFontSize === 'string' ? headingFontSize : typeof paragraphFontSize === 'string' ? paragraphFontSize : '',
       lineHeight: typeof headingLineHeight === 'string' ? headingLineHeight : typeof paragraphLineHeight === 'string' ? paragraphLineHeight : '',
       activeMarks: {
         bold: editor.isActive('bold'),

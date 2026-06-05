@@ -10,5 +10,5 @@ export const TIPTAP_BLOCK_OPTIONS: Array<{ label: string; value: TiptapHeadingVa
   { label: 'H6', value: '6' },
 ];
 
-export const TIPTAP_FONT_SIZE_OPTIONS = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'] as const;
+export const TIPTAP_FONT_SIZE_OPTIONS = Array.from({ length: 61 }, (_, index) => `${index + 12}px`);
 export const TIPTAP_LINE_HEIGHT_OPTIONS = ['1', '1.15', '1.3', '1.5', '1.75', '2'] as const;

@@ -1,3 +1,5 @@
+import { normalizeColorValue } from '../export/export-utils';
+
 const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
 export function sanitizeRichTextContent(value: unknown): string {
@@ -81,11 +83,12 @@ function safeRichTextStyle(value: string): string {
     if (property === 'font-size' && /^(1[2-9]|[2-6][0-9]|7[0-2])px$/.test(rawValue)) safe.push(`font-size: ${rawValue}`);
     if (property === 'line-height' && (/^(1|1\.15|1\.3|1\.5|1\.75|2)$/.test(rawValue) || /^([1-9]|[1-6][0-9])px$/.test(rawValue))) safe.push(`line-height: ${rawValue}`);
     if (property === 'text-align' && /^(left|center|right|justify)$/.test(rawValue)) safe.push(`text-align: ${rawValue}`);
-    if (property === 'color' && safeColor(rawValue)) safe.push(`color: ${rawValue}`);
+    const normalizedColor = normalizeColorValue(rawValue);
+    if (property === 'color' && normalizedColor) safe.push(`color: ${normalizedColor}`);
     if (property === 'font-family' && safeFontFamily(rawValue)) safe.push(`font-family: ${rawValue}`);
     if ((property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
-    if (property === 'background-color' && safeColor(rawValue)) safe.push(`background-color: ${rawValue}`);
-    if (property === 'border-color' && safeColor(rawValue)) safe.push(`border-color: ${rawValue}`);
+    if (property === 'background-color' && normalizedColor) safe.push(`background-color: ${normalizedColor}`);
+    if (property === 'border-color' && normalizedColor) safe.push(`border-color: ${normalizedColor}`);
     if (property === 'border-width' && /^(0|[1-9][0-9]?)px$/.test(rawValue)) safe.push(`border-width: ${rawValue}`);
     if (property === 'border-style' && /^(solid|dashed|dotted|double|none)$/.test(rawValue)) safe.push(`border-style: ${rawValue}`);
     if (property === 'width' && /^(auto|100%|[1-9][0-9]{0,2}px|[1-9][0-9]?%)$/.test(rawValue)) safe.push(`width: ${rawValue}`);
@@ -95,9 +98,6 @@ function safeRichTextStyle(value: string): string {
   return safe.join('; ');
 }
 
-function safeColor(value: string): boolean {
-  return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value) || /^rgb\(\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*,\s*(25[0-5]|2[0-4]\d|1?\d?\d)\s*\)$/.test(value);
-}
 
 function safeFontFamily(value: string): boolean {
   return /^[a-zA-Z0-9\s,'"\-]+$/.test(value) && /[a-zA-Z]/.test(value) && value.length <= 120;
