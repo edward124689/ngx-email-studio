@@ -17,7 +17,8 @@ export function createTiptapEditor(args: {
     extensions: TIPTAP_EXTENSIONS,
     onUpdate: ({ editor }) => args.onUpdate(editor),
   });
-  installTiptapBlankClickGuard(args.element, editor);
+  const cleanupBlankClickGuard = installTiptapBlankClickGuard(args.element, editor);
+  editor.on('destroy', cleanupBlankClickGuard);
   return editor;
 }
 
@@ -28,7 +29,7 @@ export function syncTiptapContent(editor: TiptapEditor, node: EmailNode, editabl
   editor.setEditable(editable, false);
 }
 
-export function installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): void {
+export function installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): () => void {
   let pendingTextClick: { x: number; y: number; pos: number; moved: boolean } | undefined;
   const guardPointer = (event: MouseEvent) => {
     if (event.button !== 0) return;
@@ -85,6 +86,14 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   element.ownerDocument.addEventListener('pointermove', trackTextDrag, true);
   element.ownerDocument.addEventListener('mousemove', trackTextDrag, true);
   element.addEventListener('click', restoreTextClick, false);
+  return () => {
+    pendingTextClick = undefined;
+    element.removeEventListener('pointerdown', guardPointer, true);
+    element.removeEventListener('mousedown', guardPointer, true);
+    element.ownerDocument.removeEventListener('pointermove', trackTextDrag, true);
+    element.ownerDocument.removeEventListener('mousemove', trackTextDrag, true);
+    element.removeEventListener('click', restoreTextClick, false);
+  };
 }
 
 export function isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {

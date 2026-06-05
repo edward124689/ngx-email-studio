@@ -806,6 +806,36 @@ describe('NgxEmailStudio', () => {
     expect(query(localFixture, 'textarea')).toBeTruthy();
   });
 
+  it('should remove Tiptap document-level listeners when editors are destroyed', () => {
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+    fixture.detectChanges();
+    expect((component as any).tiptapInlineEditor).toBeTruthy();
+
+    component.ngOnDestroy();
+
+    expect(removeSpy).toHaveBeenCalledWith('pointermove', expect.any(Function), true);
+    expect(removeSpy).toHaveBeenCalledWith('mousemove', expect.any(Function), true);
+    removeSpy.mockRestore();
+  });
+
+  it('should update and reset Tiptap toolbar snapshot state outside live editor reads', async () => {
+    fixture.detectChanges();
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p>Snapshot state</p>');
+    editor.commands.selectAll();
+    component.runTiptapCommand('inline', 'bold');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    expect(component.isTiptapActive('inline', 'bold')).toBe(true);
+
+    component.ngOnDestroy();
+
+    expect(component.isTiptapActive('inline', 'bold')).toBe(false);
+    expect(component.currentTiptapBlockFormat('inline')).toBe('paragraph');
+  });
+
   it('should update text content from the Tiptap editor', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;
@@ -890,7 +920,14 @@ describe('NgxEmailStudio', () => {
     expect(toolbar.querySelector('.nes-tiptap-table-btn .fa-table')).toBeTruthy();
     expect(toolbar.querySelectorAll('.nes-tiptap-row-break').length).toBe(2);
     expect(toolbar.querySelector('.nes-tiptap-table-group')).toBeTruthy();
-    expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(true);
+    expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(false);
+
+    const readonlyFixture = TestBed.createComponent(NgxEmailStudio);
+    readonlyFixture.componentRef.setInput('readonly', true);
+    readonlyFixture.detectChanges();
+    const readonlyToolbar = studioRoot(readonlyFixture).querySelector('.nes-tiptap-toolbar')!;
+    expect(readonlyToolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(true);
+    expect(readonlyToolbar.querySelector('button[aria-label="Redo"]')?.hasAttribute('disabled')).toBe(true);
   });
 
   it('should open, apply, sanitize, and cancel rich text source edits', () => {

@@ -68,6 +68,28 @@ function createEmailStudioInstanceId(): string {
   return `nes-${nextEmailStudioInstanceId}`;
 }
 
+interface TiptapToolbarState {
+  blockFormat: TiptapHeadingValue;
+  fontSize: string;
+  lineHeight: string;
+  activeMarks: Record<string, boolean>;
+  activeBlocks: Record<string, boolean>;
+  textAlign: TiptapTextAlignValue;
+  cellStyles: Record<string, string>;
+}
+
+function defaultTiptapToolbarState(): TiptapToolbarState {
+  return {
+    blockFormat: 'paragraph',
+    fontSize: '',
+    lineHeight: '',
+    activeMarks: {},
+    activeBlocks: {},
+    textAlign: 'left',
+    cellStyles: {},
+  };
+}
+
 @Component({
   selector: 'ngx-email-studio',
   standalone: true,
@@ -351,8 +373,8 @@ function createEmailStudioInstanceId(): string {
                         <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('inline', $event)">
                           <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                         </select>
-                        <button type="button" (mousedown)="$event.preventDefault()" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" [disabled]="!canRunTiptapCommand('inline', 'undo')" (click)="runTiptapCommand('inline', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
-                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'redo')" (click)="runTiptapCommand('inline', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" [disabled]="readonly" (click)="runTiptapCommand('inline', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('inline', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bold')" (click)="runTiptapCommand('inline', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
@@ -599,8 +621,8 @@ function createEmailStudioInstanceId(): string {
                     <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('modal', $event)">
                       <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                     </select>
-                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'undo')" (click)="runTiptapCommand('modal', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
-                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'redo')" (click)="runTiptapCommand('modal', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('modal', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('modal', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bold')" (click)="runTiptapCommand('modal', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
@@ -908,6 +930,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private tiptapInlineNodeId?: string;
   private tiptapModalEditor?: TiptapEditor;
   private tiptapModalNodeId?: string;
+  private tiptapToolbarState: Record<TiptapScope, TiptapToolbarState> = {
+    inline: defaultTiptapToolbarState(),
+    modal: defaultTiptapToolbarState(),
+  };
+  private tiptapToolbarStateTimers: Partial<Record<TiptapScope, ReturnType<typeof setTimeout>>> = {};
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
@@ -1541,16 +1568,13 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   isTiptapActive(scope: TiptapScope, name: string, attrs?: Record<string, unknown>): boolean {
-    return this.tiptapEditor(scope)?.isActive(name, attrs) ?? false;
+    const state = this.tiptapToolbarState[scope];
+    if (attrs?.['textAlign']) return state.textAlign === attrs['textAlign'];
+    return !!(state.activeMarks[name] || state.activeBlocks[name]);
   }
 
   currentTiptapBlockFormat(scope: TiptapScope): TiptapHeadingValue {
-    const editor = this.tiptapEditor(scope);
-    if (!editor) return 'paragraph';
-    for (const level of [1, 2, 3, 4, 5, 6] as const) {
-      if (editor.isActive('heading', { level })) return String(level) as TiptapHeadingValue;
-    }
-    return 'paragraph';
+    return this.tiptapToolbarState[scope].blockFormat;
   }
 
   setTiptapBlockFormat(scope: TiptapScope, value: TiptapHeadingValue | string): void {
@@ -1569,8 +1593,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   currentTiptapFontSize(scope: TiptapScope): string {
-    const fontSize = this.tiptapEditor(scope)?.getAttributes('textStyle')['fontSize'];
-    return typeof fontSize === 'string' ? fontSize : '';
+    return this.tiptapToolbarState[scope].fontSize;
   }
 
   setTiptapFontSize(scope: TiptapScope, size: string): void {
@@ -1587,11 +1610,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   currentTiptapLineHeight(scope: TiptapScope): string {
-    const editor = this.tiptapEditor(scope);
-    if (!editor) return '';
-    const heading = editor.getAttributes('heading')['lineHeight'];
-    const paragraph = editor.getAttributes('paragraph')['lineHeight'];
-    return typeof heading === 'string' ? heading : typeof paragraph === 'string' ? paragraph : '';
+    return this.tiptapToolbarState[scope].lineHeight;
   }
 
   setTiptapLineHeight(scope: TiptapScope, lineHeight: string): void {
@@ -1604,8 +1623,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   isTiptapTextAlignActive(scope: TiptapScope, align: TiptapTextAlignValue): boolean {
-    const editor = this.tiptapEditor(scope);
-    return !!editor && (editor.isActive({ textAlign: align }) || (align === 'left' && !editor.isActive({ textAlign: 'center' }) && !editor.isActive({ textAlign: 'right' }) && !editor.isActive({ textAlign: 'justify' })));
+    return this.tiptapToolbarState[scope].textAlign === align;
   }
 
   setTiptapTextAlign(scope: TiptapScope, align: TiptapTextAlignValue): void {
@@ -1631,10 +1649,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   currentTiptapCellStyle(scope: TiptapScope, name: string): string {
-    const editor = this.tiptapEditor(scope);
-    if (!editor) return '';
-    const value = editor.getAttributes('tableCell')[name] || editor.getAttributes('tableHeader')[name];
-    return typeof value === 'string' ? value : '';
+    return this.tiptapToolbarState[scope].cellStyles[name] || '';
   }
 
   setTiptapCellStyle(scope: TiptapScope, name: string, value: string): void {
@@ -1919,7 +1934,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private createTiptapEditor(element: HTMLElement, node: EmailNode, scope: 'inline' | 'modal'): TiptapEditor {
-    return createManagedTiptapEditor({
+    const editor = createManagedTiptapEditor({
       element,
       node,
       editable: !this.readonly,
@@ -1927,29 +1942,93 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         const currentNode = scope === 'modal' ? this.expandedRichTextNode : this.findNode(this.tiptapInlineNodeId);
         if (!currentNode || currentNode.type !== 'text') return;
         this.updateAttr(currentNode, 'content', editor.getHTML());
+        this.scheduleTiptapToolbarState(scope);
       },
     });
+    editor.on('selectionUpdate', () => this.scheduleTiptapToolbarState(scope));
+    editor.on('transaction', () => this.scheduleTiptapToolbarState(scope));
+    this.scheduleTiptapToolbarState(scope);
+    return editor;
   }
 
   private syncTiptapContent(editor: TiptapEditor, node: EmailNode): void {
     syncManagedTiptapContent(editor, node, !this.readonly);
   }
 
+  private scheduleTiptapToolbarState(scope: TiptapScope): void {
+    if (this.tiptapToolbarStateTimers[scope]) return;
+    this.tiptapToolbarStateTimers[scope] = setTimeout(() => {
+      this.tiptapToolbarStateTimers[scope] = undefined;
+      const editor = this.tiptapEditor(scope);
+      this.tiptapToolbarState[scope] = editor ? this.collectTiptapToolbarState(editor) : defaultTiptapToolbarState();
+    }, 0);
+  }
+
+  private collectTiptapToolbarState(editor: TiptapEditor): TiptapToolbarState {
+    const blockFormat = ([1, 2, 3, 4, 5, 6] as const).find((level) => editor.isActive('heading', { level }));
+    const headingLineHeight = editor.getAttributes('heading')['lineHeight'];
+    const paragraphLineHeight = editor.getAttributes('paragraph')['lineHeight'];
+    const fontSize = editor.getAttributes('textStyle')['fontSize'];
+    const tableCellAttrs = editor.getAttributes('tableCell');
+    const tableHeaderAttrs = editor.getAttributes('tableHeader');
+    const textAlign = (['center', 'right', 'justify'] as const).find((align) => editor.isActive({ textAlign: align })) || 'left';
+    return {
+      blockFormat: blockFormat ? String(blockFormat) as TiptapHeadingValue : 'paragraph',
+      fontSize: typeof fontSize === 'string' ? fontSize : '',
+      lineHeight: typeof headingLineHeight === 'string' ? headingLineHeight : typeof paragraphLineHeight === 'string' ? paragraphLineHeight : '',
+      activeMarks: {
+        bold: editor.isActive('bold'),
+        italic: editor.isActive('italic'),
+        underline: editor.isActive('underline'),
+        strike: editor.isActive('strike'),
+      },
+      activeBlocks: {
+        bulletList: editor.isActive('bulletList'),
+        orderedList: editor.isActive('orderedList'),
+      },
+      textAlign,
+      cellStyles: {
+        backgroundColor: this.stringAttr(tableCellAttrs['backgroundColor'] || tableHeaderAttrs['backgroundColor']),
+        borderColor: this.stringAttr(tableCellAttrs['borderColor'] || tableHeaderAttrs['borderColor']),
+        borderWidth: this.stringAttr(tableCellAttrs['borderWidth'] || tableHeaderAttrs['borderWidth']),
+        borderStyle: this.stringAttr(tableCellAttrs['borderStyle'] || tableHeaderAttrs['borderStyle']),
+        width: this.stringAttr(tableCellAttrs['width'] || tableHeaderAttrs['width']),
+        height: this.stringAttr(tableCellAttrs['height'] || tableHeaderAttrs['height']),
+        padding: this.stringAttr(tableCellAttrs['padding'] || tableHeaderAttrs['padding']),
+      },
+    };
+  }
+
+  private stringAttr(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+  }
+
   private destroyTiptapEditors(): void {
     this.destroyTiptapInlineEditor();
     this.destroyTiptapModalEditor();
+    this.clearTiptapToolbarStateTimer('inline');
+    this.clearTiptapToolbarStateTimer('modal');
+  }
+
+  private clearTiptapToolbarStateTimer(scope: TiptapScope): void {
+    const timer = this.tiptapToolbarStateTimers[scope];
+    if (timer) clearTimeout(timer);
+    this.tiptapToolbarStateTimers[scope] = undefined;
+    this.tiptapToolbarState[scope] = defaultTiptapToolbarState();
   }
 
   private destroyTiptapInlineEditor(): void {
     this.tiptapInlineEditor?.destroy();
     this.tiptapInlineEditor = undefined;
     this.tiptapInlineNodeId = undefined;
+    this.clearTiptapToolbarStateTimer('inline');
   }
 
   private destroyTiptapModalEditor(): void {
     this.tiptapModalEditor?.destroy();
     this.tiptapModalEditor = undefined;
     this.tiptapModalNodeId = undefined;
+    this.clearTiptapToolbarStateTimer('modal');
   }
 
 
