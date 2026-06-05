@@ -632,6 +632,8 @@ describe('NgxEmailStudio', () => {
     expect(toolbar.querySelector('button[aria-label="Underline"] .fa-underline')).toBeTruthy();
     expect(toolbar.querySelector('button[aria-label="Edit HTML source"] .fa-code')).toBeTruthy();
     expect(toolbar.querySelector('.nes-tiptap-table-btn .fa-table')).toBeTruthy();
+    expect(toolbar.querySelectorAll('.nes-tiptap-row-break').length).toBe(2);
+    expect(toolbar.querySelector('.nes-tiptap-table-group')).toBeTruthy();
     expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(true);
   });
 
@@ -1058,6 +1060,10 @@ describe('NgxEmailStudio', () => {
     expect(styles).toContain('.fa-bold');
     expect(styles).toContain('.fa-table');
     expect(styles).toContain('.nes-tiptap-source-btn');
+    expect(styles).toContain('.nes-tiptap-row-break');
+    expect(styles).toContain('.nes-tiptap-table-group');
+    expect(styles).toContain('content: attr(aria-label)');
+    expect(styles).toContain('.nes-tiptap-icon-btn:hover:not(:disabled)::after');
   });
 
   it('should simplify the header and render an internal logo icon', () => {

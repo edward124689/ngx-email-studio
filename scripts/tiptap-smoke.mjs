@@ -60,6 +60,10 @@ try {
     const count = await studio.locator(`.nes-tiptap-toolbar button[aria-label="${label}"] .nes-icon`).count();
     if (count === 0) throw new Error(`Tiptap icon button missing ${label}`);
   }
+  const rowBreakCount = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-row-break').count();
+  if (rowBreakCount < 2) throw new Error(`Tiptap toolbar row breaks missing: ${rowBreakCount}`);
+  const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
+  if (!tooltipContent.includes('Bold')) throw new Error(`Tiptap icon hover label CSS missing: ${tooltipContent}`);
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();
   await studio.locator('.nes-source-modal textarea').waitFor({ state: 'visible', timeout: 15_000 });
   const sourceValue = await studio.locator('.nes-source-modal textarea').inputValue();

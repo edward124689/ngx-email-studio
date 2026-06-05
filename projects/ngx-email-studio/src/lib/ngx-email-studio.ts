@@ -424,6 +424,7 @@ function createEmailStudioInstanceId(): string {
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Strikethrough" title="Strikethrough" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'strike')" (click)="runTiptapCommand('inline', 'strike')"><i class="nes-icon fa fa-strikethrough" aria-hidden="true"></i></button>
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'clearFormatting')"><i class="nes-icon fa fa-eraser" aria-hidden="true"></i></button>
                       </div>
+                      <span class="nes-tiptap-row-break" aria-hidden="true"></span>
                       <div class="nes-tiptap-group">
                         <select aria-label="Font size" [ngModel]="currentTiptapFontSize('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('inline', $event)">
                           <option value="">Size</option>
@@ -451,7 +452,8 @@ function createEmailStudioInstanceId(): string {
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
                         <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('inline')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                       </div>
-                      <div class="nes-tiptap-group">
+                      <span class="nes-tiptap-row-break" aria-hidden="true"></span>
+                      <div class="nes-tiptap-group nes-tiptap-table-group">
                         <button type="button" class="nes-tiptap-table-btn" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)"><i class="nes-icon fa fa-table" aria-hidden="true"></i><span>Table</span></button>
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 2, 2)">2×2</button>
                         <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">3×3</button>
@@ -661,6 +663,7 @@ function createEmailStudioInstanceId(): string {
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Strikethrough" title="Strikethrough" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'strike')" (click)="runTiptapCommand('modal', 'strike')"><i class="nes-icon fa fa-strikethrough" aria-hidden="true"></i></button>
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'clearFormatting')"><i class="nes-icon fa fa-eraser" aria-hidden="true"></i></button>
                   </div>
+                  <span class="nes-tiptap-row-break" aria-hidden="true"></span>
                   <div class="nes-tiptap-group">
                     <select aria-label="Font size" [ngModel]="currentTiptapFontSize('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('modal', $event)">
                       <option value="">Size</option>
@@ -688,7 +691,8 @@ function createEmailStudioInstanceId(): string {
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
                     <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('modal')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                   </div>
-                  <div class="nes-tiptap-group">
+                  <span class="nes-tiptap-row-break" aria-hidden="true"></span>
+                  <div class="nes-tiptap-group nes-tiptap-table-group">
                     <button type="button" class="nes-tiptap-table-btn" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)"><i class="nes-icon fa fa-table" aria-hidden="true"></i><span>Table</span></button>
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 2, 2)">2×2</button>
                     <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">3×3</button>
@@ -1099,14 +1103,21 @@ function createEmailStudioInstanceId(): string {
     .nes-padding-grid label { margin: 0; gap: 5px; font-size: 12px; }
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
-    .nes-tiptap-shell { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
-    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.85); }
-    .nes-tiptap-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.72); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
-    .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 32px; border: 1px solid transparent; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 850; color: #334155; }
-    .nes-tiptap-toolbar button { min-width: 32px; padding: 6px 8px; }
-    .nes-tiptap-toolbar select { max-width: 118px; padding: 5px 25px 5px 9px; background: linear-gradient(180deg, #fff, #f8fafc); border-color: #dbe3ef; }
-    .nes-tiptap-icon-btn { width: 32px; padding: 0 !important; }
+    .nes-tiptap-shell { overflow: visible; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+    .nes-tiptap-toolbar { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 9px; border-bottom: 1px solid #e2e8f0; border-radius: 14px 14px 0 0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.85); overflow: visible; }
+    .nes-tiptap-row-break { flex-basis: 100%; width: 0; height: 0; margin: 0; }
+    .nes-tiptap-group { position: relative; display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.78); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); overflow: visible; }
+    .nes-tiptap-table-group { max-width: 100%; row-gap: 4px; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92)); }
+    .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 30px; border: 1px solid transparent; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 850; color: #334155; }
+    .nes-tiptap-toolbar button { min-width: 30px; padding: 5px 7px; }
+    .nes-tiptap-toolbar select { max-width: 106px; padding: 5px 22px 5px 8px; background: linear-gradient(180deg, #fff, #f8fafc); border-color: #dbe3ef; }
+    .nes-tiptap-toolbar select[aria-label="Font size"], .nes-tiptap-toolbar select[aria-label="Line height"] { max-width: 82px; }
+    .nes-tiptap-icon-btn { position: relative; width: 30px; padding: 0 !important; overflow: visible; }
     .nes-tiptap-icon-btn .nes-icon { --nes-icon-size: 15px; }
+    .nes-tiptap-icon-btn::before { content: ''; position: absolute; left: 50%; bottom: calc(100% + 3px); width: 7px; height: 7px; border-radius: 1px; background: #0f172a; transform: translate(-50%, 6px) rotate(45deg); opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 20; }
+    .nes-tiptap-icon-btn::after { content: attr(aria-label); position: absolute; left: 50%; bottom: calc(100% + 7px); max-width: 160px; padding: 5px 8px; border-radius: 8px; background: #0f172a; color: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .2); font-size: 11px; font-weight: 850; line-height: 1.15; letter-spacing: -.01em; white-space: nowrap; transform: translate(-50%, 5px); opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 21; }
+    .nes-tiptap-icon-btn:hover:not(:disabled)::before, .nes-tiptap-icon-btn:focus-visible:not(:disabled)::before, .nes-tiptap-icon-btn:hover:not(:disabled)::after, .nes-tiptap-icon-btn:focus-visible:not(:disabled)::after { opacity: 1; transform: translate(-50%, 0) rotate(45deg); }
+    .nes-tiptap-icon-btn:hover:not(:disabled)::after, .nes-tiptap-icon-btn:focus-visible:not(:disabled)::after { transform: translate(-50%, 0); }
     .nes-tiptap-table-btn { gap: 6px; padding-inline: 9px !important; background: #f8fafc !important; border-color: #dbe3ef !important; }
     .nes-tiptap-chip-btn { min-width: auto !important; padding-inline: 8px !important; font-size: 11px !important; }
     .nes-tiptap-source-btn { color: #0f766e !important; }
