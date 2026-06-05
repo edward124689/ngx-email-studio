@@ -53,10 +53,14 @@ try {
   const html = await editor.evaluate((node) => node.innerHTML);
   if (!html.includes('Product newsletter')) throw new Error(`Tiptap editor did not load document content: ${html}`);
   const toolbarText = await studio.locator('.nes-tiptap-toolbar').first().textContent();
-  for (const marker of ['Paragraph', 'H1', 'Undo', 'Redo', 'Size', 'Line', 'Source', 'Table', '2×2', '4×4']) {
+  for (const marker of ['Paragraph', 'H1', 'Size', 'Line', 'Table', '2×2', '4×4']) {
     if (!toolbarText?.includes(marker)) throw new Error(`Tiptap toolbar missing ${marker}: ${toolbarText}`);
   }
-  await studio.locator('.nes-tiptap-toolbar button', { hasText: 'Source' }).first().click();
+  for (const label of ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Bullet list', 'Align center', 'Add link', 'Edit HTML source']) {
+    const count = await studio.locator(`.nes-tiptap-toolbar button[aria-label="${label}"] .nes-icon`).count();
+    if (count === 0) throw new Error(`Tiptap icon button missing ${label}`);
+  }
+  await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();
   await studio.locator('.nes-source-modal textarea').waitFor({ state: 'visible', timeout: 15_000 });
   const sourceValue = await studio.locator('.nes-source-modal textarea').inputValue();
   if (!sourceValue.includes('Product newsletter')) throw new Error(`Source modal did not load rich text HTML: ${sourceValue}`);

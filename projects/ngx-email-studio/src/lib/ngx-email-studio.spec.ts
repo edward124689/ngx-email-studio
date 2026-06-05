@@ -623,20 +623,23 @@ describe('NgxEmailStudio', () => {
     const toolbar = studioRoot(fixture).querySelector('.nes-tiptap-toolbar') as HTMLElement;
     expect(toolbar?.textContent).toContain('Paragraph');
     expect(toolbar?.textContent).toContain('H1');
-    expect(toolbar?.textContent).toContain('Undo');
-    expect(toolbar?.textContent).toContain('Redo');
-    expect(toolbar?.textContent).toContain('U');
-    expect(toolbar?.textContent).toContain('Source');
     expect(toolbar?.textContent).toContain('2×2');
     expect(toolbar.querySelector('.nes-tiptap-group')).toBeTruthy();
-    expect(toolbar.querySelector('button[disabled]')?.textContent).toContain('Undo');
+    expect(toolbar.querySelector('button[aria-label="Undo"] .fa-undo')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Redo"] .fa-repeat')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Bold"] .fa-bold')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Italic"] .fa-italic')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Underline"] .fa-underline')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Edit HTML source"] .fa-code')).toBeTruthy();
+    expect(toolbar.querySelector('.nes-tiptap-table-btn .fa-table')).toBeTruthy();
+    expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(true);
   });
 
   it('should open, apply, sanitize, and cancel rich text source edits', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;
 
-    const sourceButton = Array.from(studioRoot(fixture).querySelectorAll<HTMLButtonElement>('.nes-tiptap-toolbar button')).find((button) => button.textContent?.trim() === 'Source');
+    const sourceButton = studioRoot(fixture).querySelector<HTMLButtonElement>('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]');
     sourceButton?.click();
     fixture.detectChanges();
     expect(component.sourceEditorValue).toContain('<p');
@@ -1051,6 +1054,10 @@ describe('NgxEmailStudio', () => {
     expect(styles).toMatch(/\.nes-builder\s*{[\s\S]*display:\s*grid;/);
     expect(styles).toMatch(/ngx-email-studio button\s*{[\s\S]*border:\s*1px solid var\(--nes-border\);/);
     expect(styles).toMatch(/ngx-email-studio input,\s*ngx-email-studio textarea,\s*ngx-email-studio select/);
+    expect(styles).toContain('.nes-tiptap-icon-btn');
+    expect(styles).toContain('.fa-bold');
+    expect(styles).toContain('.fa-table');
+    expect(styles).toContain('.nes-tiptap-source-btn');
   });
 
   it('should simplify the header and render an internal logo icon', () => {

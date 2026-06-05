@@ -414,15 +414,15 @@ function createEmailStudioInstanceId(): string {
                         <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('inline', $event)">
                           <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                         </select>
-                        <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'undo')" (click)="runTiptapCommand('inline', 'undo')">Undo</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'redo')" (click)="runTiptapCommand('inline', 'redo')">Redo</button>
+                        <button type="button" (mousedown)="$event.preventDefault()" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" [disabled]="!canRunTiptapCommand('inline', 'undo')" (click)="runTiptapCommand('inline', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'redo')" (click)="runTiptapCommand('inline', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bold')" (click)="runTiptapCommand('inline', 'bold')"><strong>B</strong></button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'italic')" (click)="runTiptapCommand('inline', 'italic')"><em>I</em></button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'underline')" (click)="runTiptapCommand('inline', 'underline')"><u>U</u></button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'strike')" (click)="runTiptapCommand('inline', 'strike')"><s>S</s></button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'clearFormatting')">Clear</button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bold')" (click)="runTiptapCommand('inline', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Italic" title="Italic" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'italic')" (click)="runTiptapCommand('inline', 'italic')"><i class="nes-icon fa fa-italic" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Underline" title="Underline" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'underline')" (click)="runTiptapCommand('inline', 'underline')"><i class="nes-icon fa fa-underline" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Strikethrough" title="Strikethrough" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'strike')" (click)="runTiptapCommand('inline', 'strike')"><i class="nes-icon fa fa-strikethrough" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'clearFormatting')"><i class="nes-icon fa fa-eraser" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
                         <select aria-label="Font size" [ngModel]="currentTiptapFontSize('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('inline', $event)">
@@ -435,32 +435,32 @@ function createEmailStudioInstanceId(): string {
                         </select>
                       </div>
                       <div class="nes-tiptap-group">
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bulletList')" (click)="runTiptapCommand('inline', 'bulletList')">• List</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'orderedList')" (click)="runTiptapCommand('inline', 'orderedList')">1. List</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'liftListItem')">Outdent</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'sinkListItem')">Indent</button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Bullet list" title="Bullet list" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bulletList')" (click)="runTiptapCommand('inline', 'bulletList')"><i class="nes-icon fa fa-list-ul" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Ordered list" title="Ordered list" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'orderedList')" (click)="runTiptapCommand('inline', 'orderedList')"><i class="nes-icon fa fa-list-ol" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Outdent" title="Outdent" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'liftListItem')"><i class="nes-icon fa fa-outdent" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Indent" title="Indent" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'sinkListItem')"><i class="nes-icon fa fa-indent" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'left')" (click)="setTiptapTextAlign('inline', 'left')">Left</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'center')" (click)="setTiptapTextAlign('inline', 'center')">Center</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'right')" (click)="setTiptapTextAlign('inline', 'right')">Right</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'justify')" (click)="setTiptapTextAlign('inline', 'justify')">Justify</button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Align left" title="Align left" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'left')" (click)="setTiptapTextAlign('inline', 'left')"><i class="nes-icon fa fa-align-left" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Align center" title="Align center" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'center')" (click)="setTiptapTextAlign('inline', 'center')"><i class="nes-icon fa fa-align-center" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Align right" title="Align right" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'right')" (click)="setTiptapTextAlign('inline', 'right')"><i class="nes-icon fa fa-align-right" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Justify" title="Justify" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('inline', 'justify')" (click)="setTiptapTextAlign('inline', 'justify')"><i class="nes-icon fa fa-align-justify" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')">Link</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'unlink')">Unlink</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('inline')">Source</button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Add link" title="Add link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')"><i class="nes-icon fa fa-link" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('inline')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">Table</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 2, 2)">2×2</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">3×3</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 4, 4)">4×4</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
-                        <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')">Del table</button>
+                        <button type="button" class="nes-tiptap-table-btn" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)"><i class="nes-icon fa fa-table" aria-hidden="true"></i><span>Table</span></button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 2, 2)">2×2</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 3, 3)">3×3</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 4 by 4 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('inline', 4, 4)">4×4</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Add column" title="Add column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addColumnAfter')">+ Col</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Add row" title="Add row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'addRowAfter')">+ Row</button>
+                        <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete column" title="Delete column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteColumn')">− Col</button>
+                        <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteRow')">− Row</button>
+                        <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
                       </div>
                     </div>
                     <div class="nes-tiptap-editor" [attr.data-tiptap-editor]="node.id" (mousedown)="guardTiptapBlankMouseDown($event, 'inline')" (click)="$event.stopPropagation()"></div>
@@ -651,15 +651,15 @@ function createEmailStudioInstanceId(): string {
                     <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('modal', $event)">
                       <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                     </select>
-                    <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'undo')" (click)="runTiptapCommand('modal', 'undo')">Undo</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'redo')" (click)="runTiptapCommand('modal', 'redo')">Redo</button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'undo')" (click)="runTiptapCommand('modal', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'redo')" (click)="runTiptapCommand('modal', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bold')" (click)="runTiptapCommand('modal', 'bold')"><strong>B</strong></button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'italic')" (click)="runTiptapCommand('modal', 'italic')"><em>I</em></button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'underline')" (click)="runTiptapCommand('modal', 'underline')"><u>U</u></button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'strike')" (click)="runTiptapCommand('modal', 'strike')"><s>S</s></button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'clearFormatting')">Clear</button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bold')" (click)="runTiptapCommand('modal', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Italic" title="Italic" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'italic')" (click)="runTiptapCommand('modal', 'italic')"><i class="nes-icon fa fa-italic" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Underline" title="Underline" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'underline')" (click)="runTiptapCommand('modal', 'underline')"><i class="nes-icon fa fa-underline" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Strikethrough" title="Strikethrough" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'strike')" (click)="runTiptapCommand('modal', 'strike')"><i class="nes-icon fa fa-strikethrough" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'clearFormatting')"><i class="nes-icon fa fa-eraser" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
                     <select aria-label="Font size" [ngModel]="currentTiptapFontSize('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapFontSize('modal', $event)">
@@ -672,32 +672,32 @@ function createEmailStudioInstanceId(): string {
                     </select>
                   </div>
                   <div class="nes-tiptap-group">
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bulletList')" (click)="runTiptapCommand('modal', 'bulletList')">• List</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'orderedList')" (click)="runTiptapCommand('modal', 'orderedList')">1. List</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'liftListItem')">Outdent</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'sinkListItem')">Indent</button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Bullet list" title="Bullet list" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bulletList')" (click)="runTiptapCommand('modal', 'bulletList')"><i class="nes-icon fa fa-list-ul" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Ordered list" title="Ordered list" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'orderedList')" (click)="runTiptapCommand('modal', 'orderedList')"><i class="nes-icon fa fa-list-ol" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Outdent" title="Outdent" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'liftListItem')"><i class="nes-icon fa fa-outdent" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Indent" title="Indent" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'sinkListItem')"><i class="nes-icon fa fa-indent" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'left')" (click)="setTiptapTextAlign('modal', 'left')">Left</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'center')" (click)="setTiptapTextAlign('modal', 'center')">Center</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'right')" (click)="setTiptapTextAlign('modal', 'right')">Right</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'justify')" (click)="setTiptapTextAlign('modal', 'justify')">Justify</button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Align left" title="Align left" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'left')" (click)="setTiptapTextAlign('modal', 'left')"><i class="nes-icon fa fa-align-left" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Align center" title="Align center" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'center')" (click)="setTiptapTextAlign('modal', 'center')"><i class="nes-icon fa fa-align-center" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Align right" title="Align right" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'right')" (click)="setTiptapTextAlign('modal', 'right')"><i class="nes-icon fa fa-align-right" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Justify" title="Justify" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapTextAlignActive('modal', 'justify')" (click)="setTiptapTextAlign('modal', 'justify')"><i class="nes-icon fa fa-align-justify" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')">Link</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'unlink')">Unlink</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('modal')">Source</button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Add link" title="Add link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')"><i class="nes-icon fa fa-link" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('modal')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">Table</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 2, 2)">2×2</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">3×3</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 4, 4)">4×4</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
-                    <button type="button" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')">Del table</button>
+                    <button type="button" class="nes-tiptap-table-btn" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)"><i class="nes-icon fa fa-table" aria-hidden="true"></i><span>Table</span></button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 2 by 2 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 2, 2)">2×2</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 3 by 3 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 3, 3)">3×3</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Insert 4 by 4 table" (mousedown)="$event.preventDefault()" (click)="insertTiptapTable('modal', 4, 4)">4×4</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Add column" title="Add column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addColumnAfter')">+ Col</button>
+                    <button type="button" class="nes-tiptap-chip-btn" aria-label="Add row" title="Add row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'addRowAfter')">+ Row</button>
+                    <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete column" title="Delete column" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteColumn')">− Col</button>
+                    <button type="button" class="nes-tiptap-chip-btn nes-tiptap-danger-btn" aria-label="Delete row" title="Delete row" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteRow')">− Row</button>
+                    <button type="button" class="nes-tiptap-icon-btn nes-tiptap-danger-btn" aria-label="Delete table" title="Delete table" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'deleteTable')"><i class="nes-icon fa fa-trash" aria-hidden="true"></i></button>
                   </div>
                 </div>
                 <div class="nes-tiptap-editor nes-tiptap-editor-large" [attr.data-tiptap-modal-editor]="richTextNode.id" (mousedown)="guardTiptapBlankMouseDown($event, 'modal')" (click)="$event.stopPropagation()"></div>
@@ -942,6 +942,23 @@ function createEmailStudioInstanceId(): string {
     .fa-minus { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 11h16v2H4v-2Z'/%3E%3C/svg%3E"); }
     .fa-arrows-v { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m12 2 5 5-1.4 1.4L13 5.8v12.4l2.6-2.6L17 17l-5 5-5-5 1.4-1.4 2.6 2.6V5.8L8.4 8.4 7 7l5-5Z'/%3E%3C/svg%3E"); }
     .fa-square-o { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v14H5V5Zm2 2v10h10V7H7Z'/%3E%3C/svg%3E"); }
+    .fa-undo { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 7h7a6 6 0 1 1 0 12H8v-2h6a4 4 0 1 0 0-8H7v4L2 8l5-5v4Z'/%3E%3C/svg%3E"); }
+    .fa-repeat { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M17 7h-7a6 6 0 1 0 0 12h6v-2h-6a4 4 0 1 1 0-8h7v4l5-5-5-5v4Z'/%3E%3C/svg%3E"); }
+    .fa-bold { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 4h7a5 5 0 0 1 2.5 9.33A5.25 5.25 0 0 1 14 23H7V4Zm4 8h3a2 2 0 1 0 0-4h-3v4Zm0 7h3.2a2.5 2.5 0 0 0 0-5H11v5Z'/%3E%3C/svg%3E"); }
+    .fa-italic { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 4h9v2h-3.2l-3.6 12H16v2H7v-2h3.1l3.6-12H10V4Z'/%3E%3C/svg%3E"); }
+    .fa-underline { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 4h3v7a3 3 0 0 0 6 0V4h3v7a6 6 0 0 1-12 0V4Zm0 16h12v2H6v-2Z'/%3E%3C/svg%3E"); }
+    .fa-strikethrough { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 11h14v2H5v-2Zm3-4a5 5 0 0 1 8.7-3.35l-1.6 1.2A3 3 0 0 0 10.2 8c0 .9.5 1.4 1.6 1.8H8.6A4.3 4.3 0 0 1 8 7Zm7.6 7.2c.3.5.4 1 .4 1.8 0 2.7-2.2 4.5-5.4 4.5A6.5 6.5 0 0 1 6 18.8l1.5-1.4a4.5 4.5 0 0 0 3.2 1.2c1.4 0 2.3-.6 2.3-1.6 0-.8-.4-1.2-1.4-1.6l-2.2-.8h6.2Z'/%3E%3C/svg%3E"); }
+    .fa-eraser { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m14.5 3 6.5 6.5L10.5 20H4l-3-3L14.5 3Zm0 2.8L5.8 14.5l3.7 3.7 8.7-8.7-3.7-3.7ZM6 18h3.7l-5.2-5.2L2.8 14.5 6 18ZM13 22h9v2h-9v-2Z'/%3E%3C/svg%3E"); }
+    .fa-list-ul { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6.5A1.5 1.5 0 1 1 4 3.5a1.5 1.5 0 0 1 0 3Zm0 7A1.5 1.5 0 1 1 4 10.5a1.5 1.5 0 0 1 0 3Zm0 7A1.5 1.5 0 1 1 4 17.5a1.5 1.5 0 0 1 0 3ZM8 5h13v2H8V5Zm0 7h13v2H8v-2Zm0 7h13v2H8v-2Z'/%3E%3C/svg%3E"); }
+    .fa-list-ol { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 3h2v5H3V6h1V5H3V3Zm0 7h3v2H4v1h2v2H3v-3h2v-1H3v-1Zm0 7h3v5H3v-2h2v-1H3v-2Zm6-12h12v2H9V5Zm0 7h12v2H9v-2Zm0 7h12v2H9v-2Z'/%3E%3C/svg%3E"); }
+    .fa-indent { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5h18v2H3V5Zm8 4h10v2H11V9Zm0 4h10v2H11v-2ZM3 19h18v2H3v-2Zm0-9 5 3-5 3v-6Z'/%3E%3C/svg%3E"); }
+    .fa-outdent { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5h18v2H3V5Zm8 4h10v2H11V9Zm0 4h10v2H11v-2ZM3 19h18v2H3v-2Zm5-9v6l-5-3 5-3Z'/%3E%3C/svg%3E"); }
+    .fa-align-center { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v2H5V5Zm3 4h8v2H8V9Zm-3 4h14v2H5v-2Zm3 4h8v2H8v-2Z'/%3E%3C/svg%3E"); }
+    .fa-align-right { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v2H5V5Zm4 4h10v2H9V9Zm-4 4h14v2H5v-2Zm6 4h8v2h-8v-2Z'/%3E%3C/svg%3E"); }
+    .fa-align-justify { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5h14v2H5V5Zm0 4h14v2H5V9Zm0 4h14v2H5v-2Zm0 4h14v2H5v-2Z'/%3E%3C/svg%3E"); }
+    .fa-link { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10.6 13.4a2 2 0 0 0 2.8 0l3.6-3.6a2 2 0 1 0-2.8-2.8l-1.4 1.4-1.4-1.4 1.4-1.4a4 4 0 0 1 5.7 5.7l-3.6 3.6a4 4 0 0 1-5.7 0l1.4-1.5Zm2.8-2.8a2 2 0 0 0-2.8 0L7 14.2A2 2 0 1 0 9.8 17l1.4-1.4 1.4 1.4-1.4 1.4a4 4 0 1 1-5.7-5.7l3.6-3.6a4 4 0 0 1 5.7 0l-1.4 1.5Z'/%3E%3C/svg%3E"); }
+    .fa-unlink { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m4.7 3.3 16 16-1.4 1.4-16-16 1.4-1.4Zm5.4 9.7a2 2 0 0 0 3.3.4l1.4 1.4a4 4 0 0 1-6.1-.5l1.4-1.3Zm3.8-3.8a4 4 0 0 1 5.6 5.6l-1.4-1.4a2 2 0 0 0-2.8-2.8l-1.4-1.4ZM7.2 14.2A2 2 0 0 0 10 17l1.4-1.4 1.4 1.4-1.4 1.4a4 4 0 1 1-5.7-5.7l.8-.8 1.4 1.4-.7.9Zm7-7.2-1.4 1.4L11.4 7l1.4-1.4a4 4 0 0 1 5.2-.4l-1.5 1.5a2 2 0 0 0-2.3.3Z'/%3E%3C/svg%3E"); }
+    .fa-table { --nes-icon-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4h18v16H3V4Zm2 2v3h14V6H5Zm0 5v7h4v-7H5Zm6 0v7h8v-7h-8Z'/%3E%3C/svg%3E"); }
     .nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh); border: 1px solid var(--nes-border); border-radius: 22px; background: #f1f5f9; overflow: hidden; box-shadow: 0 24px 80px rgba(15, 23, 42, .08); }
     .nes-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 22px; background: #fff; border-bottom: 1px solid var(--nes-border); }
     .nes-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -1083,15 +1100,20 @@ function createEmailStudioInstanceId(): string {
     .nes-field-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .nes-expand-editor { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 8px; color: var(--nes-accent); font-size: 12px; font-weight: 800; }
     .nes-tiptap-shell { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
-    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 7px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); }
-    .nes-tiptap-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 2px 4px; border-right: 1px solid #e2e8f0; }
-    .nes-tiptap-group:last-child { border-right: 0; }
-    .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 31px; border: 1px solid #dbe3ef; background: #fff; border-radius: 8px; font-size: 12px; font-weight: 800; color: #334155; }
-    .nes-tiptap-toolbar button { min-width: 34px; padding: 6px 8px; }
-    .nes-tiptap-toolbar select { max-width: 116px; padding: 5px 24px 5px 8px; }
-    .nes-tiptap-toolbar button:hover:not(:disabled), .nes-tiptap-toolbar select:hover { background: #eff6ff; border-color: #bfdbfe; }
-    .nes-tiptap-toolbar button.is-active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
-    .nes-tiptap-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+    .nes-tiptap-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.85); }
+    .nes-tiptap-group { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 11px; background: rgba(255,255,255,.72); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
+    .nes-tiptap-toolbar button, .nes-tiptap-toolbar select { min-height: 32px; border: 1px solid transparent; background: transparent; border-radius: 8px; font-size: 12px; font-weight: 850; color: #334155; }
+    .nes-tiptap-toolbar button { min-width: 32px; padding: 6px 8px; }
+    .nes-tiptap-toolbar select { max-width: 118px; padding: 5px 25px 5px 9px; background: linear-gradient(180deg, #fff, #f8fafc); border-color: #dbe3ef; }
+    .nes-tiptap-icon-btn { width: 32px; padding: 0 !important; }
+    .nes-tiptap-icon-btn .nes-icon { --nes-icon-size: 15px; }
+    .nes-tiptap-table-btn { gap: 6px; padding-inline: 9px !important; background: #f8fafc !important; border-color: #dbe3ef !important; }
+    .nes-tiptap-chip-btn { min-width: auto !important; padding-inline: 8px !important; font-size: 11px !important; }
+    .nes-tiptap-source-btn { color: #0f766e !important; }
+    .nes-tiptap-danger-btn { color: #b42318 !important; }
+    .nes-tiptap-toolbar button:hover:not(:disabled), .nes-tiptap-toolbar select:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--nes-accent); box-shadow: 0 6px 14px rgba(37, 99, 235, .10); transform: translateY(-1px); }
+    .nes-tiptap-toolbar button.is-active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; box-shadow: inset 0 0 0 1px rgba(147, 197, 253, .35), 0 6px 14px rgba(37, 99, 235, .10); }
+    .nes-tiptap-toolbar button:disabled { opacity: .38; cursor: not-allowed; filter: grayscale(.25); }
     .nes-tiptap-separator { width: 1px; min-height: 24px; margin: 0 3px; background: #dbe3ef; }
     .nes-tiptap-editor { min-height: 88px; padding: 12px 14px; color: #172033; line-height: 1.6; outline: none; cursor: text; }
     .nes-tiptap-editor-large { min-height: 620px; }
