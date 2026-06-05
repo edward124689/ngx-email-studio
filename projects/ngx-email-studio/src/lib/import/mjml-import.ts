@@ -54,19 +54,13 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
       if (columns.length === 0) return;
 
       const parsedColumns = columns.map((column) => parseColumn(column, unsupported, idFactory)).filter((column): column is EmailNode => !!column);
-      if (parsedColumns.length === 1 && (parsedColumns[0].children?.length || 0) === 1) {
-        const onlyChild = parsedColumns[0].children?.[0];
-        if (onlyChild) {
-          nodes.push(
-            createSectionWithChildren(idFactory, [onlyChild], {
-              ...importedBackgroundColorAttrs(section),
-            }),
-          );
+      if (parsedColumns.length === 1) {
+        const children = parsedColumns[0].children || [];
+        if (children.length) {
+          nodes.push(createSectionWithChildren(idFactory, children, importedContainerAttrs(section)));
         }
       } else {
-        const row = createNode(idFactory, 'row', {
-          ...importedBackgroundColorAttrs(section),
-        });
+        const row = createNode(idFactory, 'row', importedContainerAttrs(section));
         row.children = parsedColumns;
         nodes.push(row);
       }
@@ -95,8 +89,15 @@ function parseColumn(column: Element, unsupported: string[], idFactory: EmailNod
     .filter((node): node is EmailNode => !!node);
 
   return createColumn(idFactory, children, column.getAttribute('width') || '50%', {
-    ...importedBackgroundColorAttrs(column),
+    ...importedContainerAttrs(column),
   });
+}
+
+function importedContainerAttrs(element: Element): Record<string, string | number | boolean> {
+  return {
+    ...importedBackgroundColorAttrs(element),
+    ...importedPaddingAttrs(element),
+  };
 }
 
 function importedBackgroundColorAttrs(element: Element): { backgroundColor?: string } {
@@ -121,15 +122,64 @@ function importedDimensionAttrs(value: string | null, key: string): Record<strin
   return { [key]: parsed, [`${key}Unit`]: raw.endsWith('%') ? '%' : 'px' };
 }
 
+function importedPaddingAttrs(element: Element): Record<string, string | number | boolean> {
+  const shorthand = parsePaddingParts(element.getAttribute('padding'));
+  const unit = shorthand.unit || paddingUnitFromValue(element.getAttribute('padding-top')) || paddingUnitFromValue(element.getAttribute('padding-right')) || paddingUnitFromValue(element.getAttribute('padding-bottom')) || paddingUnitFromValue(element.getAttribute('padding-left')) || 'px';
+  const attrs: Record<string, string | number | boolean> = {};
+  if (shorthand.parts.length) {
+    const [top, right, bottom, left] = expandPaddingParts(shorthand.parts);
+    attrs['paddingTop'] = top;
+    attrs['paddingRight'] = right;
+    attrs['paddingBottom'] = bottom;
+    attrs['paddingLeft'] = left;
+    attrs['paddingUnit'] = unit;
+  }
+  (['top', 'right', 'bottom', 'left'] as const).forEach((side) => {
+    const value = parseDimensionPart(element.getAttribute(`padding-${side}`));
+    if (!value) return;
+    attrs[`padding${side[0].toUpperCase()}${side.slice(1)}`] = value.value;
+    attrs['paddingUnit'] = value.unit;
+  });
+  return attrs;
+}
+
+function parsePaddingParts(value: string | null): { parts: number[]; unit: '%' | 'px' | '' } {
+  const raw = String(value || '').trim();
+  if (!raw) return { parts: [], unit: '' };
+  const values = raw.split(/\s+/).map((part) => parseDimensionPart(part)).filter((part): part is { value: number; unit: '%' | 'px' } => !!part);
+  if (!values.length) return { parts: [], unit: '' };
+  return { parts: values.map((part) => part.value), unit: values.some((part) => part.unit === '%') ? '%' : 'px' };
+}
+
+function expandPaddingParts(parts: number[]): [number, number, number, number] {
+  const [top = 0, right = top, bottom = top, left = right] = parts;
+  return [top, right, bottom, left];
+}
+
+function parseDimensionPart(value: string | null): { value: number; unit: '%' | 'px' } | undefined {
+  const raw = String(value || '').trim();
+  if (!raw) return undefined;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+  return { value: parsed, unit: raw.endsWith('%') ? '%' : 'px' };
+}
+
+function paddingUnitFromValue(value: string | null): '%' | 'px' | '' {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return raw.endsWith('%') ? '%' : 'px';
+}
+
 function parseMjmlBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
   switch (element.tagName.toLowerCase()) {
     case 'mj-text':
-      return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')) });
+      return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')), ...importedPaddingAttrs(element) });
     case 'mj-image':
       return createNode(idFactory, 'image', {
         src: element.getAttribute('src') || '',
         alt: element.getAttribute('alt') || '',
         align: safeAlign(element.getAttribute('align')),
+        ...importedPaddingAttrs(element),
         ...importedDimensionAttrs(element.getAttribute('width'), 'width'),
       });
     case 'mj-button':
@@ -139,6 +189,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
         backgroundColor: importedColor(element.getAttribute('background-color')) || '#7c3aed',
         borderRadius: parseButtonBorderRadius(element.getAttribute('border-radius')),
         align: safeAlign(element.getAttribute('align')),
+        ...importedPaddingAttrs(element),
       });
     case 'mj-divider':
       return createNode(idFactory, 'divider', { borderColor: element.getAttribute('border-color') || '#d0d5dd' });

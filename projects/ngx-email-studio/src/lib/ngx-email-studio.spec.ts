@@ -361,11 +361,29 @@ describe('NgxEmailStudio', () => {
     expect(html).toContain('text-align:center;');
     expect(html).toContain('text-align:right;');
     expect(html).toContain('text-align:left;');
-    const importedColumn = imported.body[0].children?.[0];
-    expect(importedColumn?.type).toBe('column');
-    expect(importedColumn?.children?.[0].attrs['align']).toBe('right');
-    expect(importedColumn?.children?.[1].attrs['align']).toBe('center');
-    expect(importedColumn?.children?.[2].attrs['align']).toBe('left');
+    const importedSection = imported.body[0];
+    expect(importedSection?.type).toBe('section');
+    expect(importedSection?.children?.[0].attrs['align']).toBe('right');
+    expect(importedSection?.children?.[1].attrs['align']).toBe('center');
+    expect(importedSection?.children?.[2].attrs['align']).toBe('left');
+  });
+
+  it('should import MJML single-column stacked sections without a visible row/column wrapper', () => {
+    const mjml = '<mjml><mj-body><mj-section background-color="#000000" padding="0 0 0 0"><mj-column><mj-image src="https://example.com/logo.png" width="180px" padding="10px 25px" /><mj-text padding-bottom="0px" padding-top="0px" padding="10px 25px"><p>WOMEN&nbsp; | MEN</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const section = document.body[0];
+    const image = section.children?.[0];
+    const text = section.children?.[1];
+
+    expect(section.type).toBe('section');
+    expect(section.children?.map((child) => child.type)).toEqual(['image', 'text']);
+    expect(document.body.some((node) => node.type === 'row')).toBe(false);
+    expect(section.attrs['paddingTop']).toBe(0);
+    expect(image?.attrs['width']).toBe(180);
+    expect(image?.attrs['paddingRight']).toBe(25);
+    expect(text?.attrs['paddingBottom']).toBe(0);
+    expect((component as any).compileMjml(document)).toContain('padding="0px 25px 0px 25px"');
   });
 
   it('should import MJML text that contains common HTML named entities', () => {

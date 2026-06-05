@@ -69,13 +69,18 @@ export function paddingValue(section: EmailNode, key: 'padding' | 'paddingTop' |
   return dimensionValue(section.attrs, key, dimensionValue(section.attrs, 'padding', 16));
 }
 
-export function sectionPaddingCss(section: EmailNode): string {
-  const unit = paddingUnit(section);
-  const top = paddingValue(section, 'paddingTop');
-  const right = paddingValue(section, 'paddingRight');
-  const bottom = paddingValue(section, 'paddingBottom');
-  const left = paddingValue(section, 'paddingLeft');
+export function paddingCss(node: EmailNode, fallback = 0): string {
+  const unit = paddingUnit(node);
+  const base = dimensionValue(node.attrs, 'padding', fallback);
+  const top = dimensionValue(node.attrs, 'paddingTop', base);
+  const right = dimensionValue(node.attrs, 'paddingRight', base);
+  const bottom = dimensionValue(node.attrs, 'paddingBottom', base);
+  const left = dimensionValue(node.attrs, 'paddingLeft', base);
   return `${top}${unit} ${right}${unit} ${bottom}${unit} ${left}${unit}`;
+}
+
+export function sectionPaddingCss(section: EmailNode): string {
+  return paddingCss(section, 16);
 }
 
 export function sectionWidthCss(section: EmailNode): string {
