@@ -357,6 +357,7 @@ function resolveTinyMceScriptSrc(): string {
                     [ngModel]="node.attrs['content']"
                     (ngModelChange)="updateAttr(node, 'content', $event)"
                     [init]="tinyMceInit"
+                    [modelEvents]="'change blur'"
                     [licenseKey]="'gpl'"
                   ></editor>
                   <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell" [attr.data-tiptap-host]="node.id">
@@ -562,6 +563,7 @@ function resolveTinyMceScriptSrc(): string {
                 [ngModel]="richTextNode.attrs['content']"
                 (ngModelChange)="updateExpandedRichText($event)"
                 [init]="largeTinyMceInit"
+                [modelEvents]="'change blur'"
                 [licenseKey]="'gpl'"
               ></editor>
               <div *ngSwitchCase="'tiptap'" class="nes-tiptap-shell nes-tiptap-shell-large" [attr.data-tiptap-modal-host]="richTextNode.id">
@@ -2093,6 +2095,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         getContainer?: () => HTMLElement | null;
         getDoc?: () => Document;
         getWin?: () => Window;
+        selection?: {
+          getNode?: () => Node | null;
+          setCursorLocation?: (node: Node, offset?: number) => void;
+        };
       }) => {
         this.ensureTinyMceSkinInShadowRoot();
         const reveal = () => {
@@ -2103,17 +2109,77 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
             setTimeout(run, 0);
           }
         };
-        const restoreScrollAfterEnter = (event?: KeyboardEvent) => {
-          if (event?.key !== 'Enter') return;
+        const editableBlockSelector = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,div';
+        let pendingEnterTarget: HTMLElement | null = null;
+        let pendingEnterScrollTop = 0;
+        const closestEditableBlock = (node: Node | null, doc?: Document): HTMLElement | null => {
+          if (!node || !doc) return null;
+          const element = node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement;
+          const block = element?.closest?.(editableBlockSelector) as HTMLElement | null;
+          return block && doc.body?.contains(block) ? block : null;
+        };
+        const restorePendingEnterTarget = () => {
           const doc = editor.getDoc?.();
           const win = editor.getWin?.();
+          const body = doc?.body;
+          if (!doc || !body || !pendingEnterTarget || !body.contains(pendingEnterTarget)) return;
+          const currentSelection = win?.getSelection?.();
+          const currentNode = currentSelection?.anchorNode ?? editor.selection?.getNode?.() ?? null;
+          const currentBlock = closestEditableBlock(currentNode, doc);
+          if (currentBlock === pendingEnterTarget || pendingEnterTarget.contains(currentBlock)) return;
+          const jumpedToDocumentStart = !!currentBlock && currentBlock === body.firstElementChild && pendingEnterScrollTop > 20;
+          if (!jumpedToDocumentStart) return;
+          editor.selection?.setCursorLocation?.(pendingEnterTarget, pendingEnterTarget.childNodes.length);
+          const scrollingElement = doc.scrollingElement as HTMLElement | null;
+          if (scrollingElement) scrollingElement.scrollTop = pendingEnterScrollTop;
+          doc.documentElement.scrollTop = pendingEnterScrollTop;
+          doc.body.scrollTop = pendingEnterScrollTop;
+          win?.scrollTo?.(0, pendingEnterScrollTop);
+        };
+        const restoreScrollAndCaretAfterEnter = (event?: KeyboardEvent) => {
+          const doc = editor.getDoc?.();
+          const win = editor.getWin?.();
+          const body = doc?.body;
           const scrollingElement = doc?.scrollingElement as HTMLElement | null | undefined;
-          const scrollTop = scrollingElement?.scrollTop ?? doc?.documentElement?.scrollTop ?? doc?.body?.scrollTop ?? 0;
-          const restore = () => {
+          const restoreScroll = (scrollTop: number) => {
             if (scrollingElement) scrollingElement.scrollTop = scrollTop;
             if (doc?.documentElement) doc.documentElement.scrollTop = scrollTop;
             if (doc?.body) doc.body.scrollTop = scrollTop;
             win?.scrollTo?.(0, scrollTop);
+          };
+          if (event?.key !== 'Enter') {
+            restorePendingEnterTarget();
+            return;
+          }
+          const scrollTop = scrollingElement?.scrollTop ?? doc?.documentElement?.scrollTop ?? doc?.body?.scrollTop ?? 0;
+          const selectionBeforeEnter = win?.getSelection?.();
+          const nodeBeforeEnter = selectionBeforeEnter?.anchorNode ?? editor.selection?.getNode?.() ?? null;
+          const blockBeforeEnter = closestEditableBlock(nodeBeforeEnter, doc);
+          const blockBeforeEnterIndex = blockBeforeEnter && body ? Array.prototype.indexOf.call(body.children, blockBeforeEnter) : -1;
+          const firstBlockBeforeEnter = body?.firstElementChild;
+          const restoreCaretIfTinyMceJumpedToStart = () => {
+            if (!doc || !body) return;
+            const currentSelection = win?.getSelection?.();
+            const currentNode = currentSelection?.anchorNode ?? editor.selection?.getNode?.() ?? null;
+            const currentBlock = closestEditableBlock(currentNode, doc);
+            const expectedBlock = (blockBeforeEnterIndex >= 0
+              ? body.children[Math.min(blockBeforeEnterIndex + 1, body.children.length - 1)]
+              : blockBeforeEnter?.nextElementSibling || body.lastElementChild) as HTMLElement | null;
+            if (!expectedBlock || !body.contains(expectedBlock)) return;
+            pendingEnterTarget = expectedBlock;
+            pendingEnterScrollTop = scrollTop;
+            if (currentBlock === expectedBlock || expectedBlock.contains(currentBlock)) return;
+            const jumpedToDocumentStart = !!currentBlock
+              && currentBlock === body.firstElementChild
+              && scrollTop > 20
+              && (!blockBeforeEnter || blockBeforeEnter !== firstBlockBeforeEnter);
+            if (!jumpedToDocumentStart) return;
+            editor.selection?.setCursorLocation?.(expectedBlock, expectedBlock.childNodes.length);
+          };
+          const restore = () => {
+            restoreCaretIfTinyMceJumpedToStart();
+            restorePendingEnterTarget();
+            restoreScroll(scrollTop);
           };
           if (typeof globalThis.requestAnimationFrame === 'function') {
             globalThis.requestAnimationFrame(() => {
@@ -2121,12 +2187,19 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
               globalThis.requestAnimationFrame(restore);
             });
           }
+          setTimeout(restore, 0);
           setTimeout(restore, 60);
+          setTimeout(restore, 150);
+          setTimeout(restore, 300);
         };
         editor.on('init', reveal);
         editor.on('SkinLoaded', reveal);
         editor.on('PostRender', reveal);
-        editor.on('keydown', restoreScrollAfterEnter);
+        editor.on('keydown', restoreScrollAndCaretAfterEnter);
+        editor.on('beforeinput', restorePendingEnterTarget);
+        editor.on('input', restorePendingEnterTarget);
+        editor.on('keyup', restorePendingEnterTarget);
+        editor.on('mousedown', () => { pendingEnterTarget = null; });
       },
     };
   }

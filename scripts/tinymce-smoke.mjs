@@ -50,12 +50,19 @@ try {
   await studio.locator('.tox-tinymce').first().waitFor({ state: 'visible', timeout: 30_000 });
   await studio.locator('.tox-edit-area iframe').first().waitFor({ state: 'visible', timeout: 30_000 });
 
-  // Pressing Enter in a scrolled TinyMCE document should not jump the editor viewport back to the top.
+  // Pressing Enter in a scrolled TinyMCE document should keep the caret and following typed text at the bottom.
   await page.evaluate(() => {
     const tinyMce = globalThis.tinymce;
-    const longHtml = Array.from({ length: 32 }, (_, index) => `<p>Line ${index + 1}</p>`).join('');
-    tinyMce?.activeEditor?.setContent(longHtml);
-    tinyMce?.activeEditor?.focus();
+    const editor = tinyMce?.activeEditor;
+    const longHtml = Array.from({ length: 32 }, (_, index) => `<p>Line ${index + 1} abc</p>`).join('');
+    editor?.setContent(longHtml);
+    editor?.focus();
+    const doc = editor?.getDoc();
+    const lastBlock = doc?.body?.lastElementChild;
+    if (editor && lastBlock) {
+      editor.selection.select(lastBlock, true);
+      editor.selection.collapse(false);
+    }
   });
   const inlineFrame = await studio.locator('.tox-edit-area iframe').first().contentFrame();
   const beforeEnterScroll = await inlineFrame.locator('body').evaluate((body) => {
@@ -65,9 +72,20 @@ try {
   });
   if (beforeEnterScroll <= 0) throw new Error('TinyMCE scroll regression setup did not create a scrolled editor');
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(380);
   const afterEnterScroll = await inlineFrame.locator('body').evaluate(() => (document.scrollingElement || document.documentElement).scrollTop);
   if (afterEnterScroll < beforeEnterScroll - 20) throw new Error(`TinyMCE Enter jumped upward: before=${beforeEnterScroll}, after=${afterEnterScroll}`);
+  await page.keyboard.type('XYZ');
+  await page.waitForTimeout(150);
+  const typedResult = await page.evaluate(() => {
+    const editor = globalThis.tinymce?.activeEditor;
+    const doc = editor?.getDoc();
+    const scroller = doc?.scrollingElement || doc?.documentElement;
+    const html = editor?.getContent() || '';
+    return { html, scrollTop: scroller?.scrollTop ?? 0 };
+  });
+  if (typedResult.scrollTop < beforeEnterScroll - 20) throw new Error(`TinyMCE typing after Enter jumped upward: before=${beforeEnterScroll}, after=${typedResult.scrollTop}`);
+  if (!/<p>XYZ<\/p>\s*$/.test(typedResult.html)) throw new Error(`TinyMCE typed text did not stay at the new bottom paragraph: ${typedResult.html.slice(0, 120)} ... ${typedResult.html.slice(-160)}`);
 
   // Exercise a real TinyMCE dropdown/popover. This catches Shadow DOM skin/popup regressions
   // without relying on a specific translated toolbar label.
