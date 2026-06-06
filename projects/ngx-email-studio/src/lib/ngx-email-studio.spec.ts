@@ -2176,7 +2176,7 @@ describe('NgxEmailStudio', () => {
     const componentStyles = componentStyleText();
     const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
     expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
-    expect(componentStyles).toMatch(/\.nes-render-column\.cdk-drop-list-dragging \.nes-drop-hit-pad,[\s\S]*?\.nes-render-section\.cdk-drop-list-receiving \.nes-drop-hit-pad \{[^}]*opacity:\s*1;[^}]*background:\s*linear-gradient\(\s*90deg,[^}]*rgba\(220, 38, 38, \.92\)[^}]*box-shadow:\s*0 0 0 4px rgba\(220, 38, 38, \.10\);/);
+    expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
     expect(compactComponentStyles).toContain('.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }');
     expect(compactComponentStyles).toContain('.nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; user-select: none; -webkit-user-select: none; }');
     expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-floating-tools { display: none; }');
