@@ -25,6 +25,7 @@ function sanitizeRichTextNode(node: Node): void {
       if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'IFRAME') {
         element.remove();
       } else {
+        sanitizeRichTextNode(element);
         const parent = element.parentNode;
         while (element.firstChild) parent?.insertBefore(element.firstChild, element);
         element.remove();

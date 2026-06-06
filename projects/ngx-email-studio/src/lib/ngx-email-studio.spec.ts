@@ -133,6 +133,77 @@ describe('NgxEmailStudio', () => {
     }
   });
 
+  it('should clear pending Tiptap drag state after aborted text drags', () => {
+    const element = document.createElement('div');
+    element.innerHTML = '<div class="ProseMirror">Hello</div>';
+    document.body.appendChild(element);
+    const proseMirror = element.querySelector('.ProseMirror')!;
+    const originalGetClientRects = Range.prototype.getClientRects;
+    const fakeEditor = {
+      isDestroyed: false,
+      view: {
+        focus: vi.fn(),
+        posAtDOM: vi.fn(() => 1),
+      },
+      commands: {
+        setTextSelection: vi.fn(),
+      },
+    };
+
+    Range.prototype.getClientRects = () => [{ top: 0, bottom: 20, left: 0, right: 50, width: 50, height: 20 } as DOMRect] as unknown as DOMRectList;
+    try {
+      const cleanup = installTiptapBlankClickGuard(element, fakeEditor as any);
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true, buttons: 1, clientX: 200, clientY: 200 }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, clientX: 200, clientY: 200 }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true, buttons: 0, clientX: 10, clientY: 10 }));
+
+      expect(fakeEditor.commands.setTextSelection).not.toHaveBeenCalled();
+      cleanup();
+    } finally {
+      Range.prototype.getClientRects = originalGetClientRects;
+      element.remove();
+    }
+  });
+
+  it('should not collapse Tiptap native multi-click selections with deferred single-click restores', () => {
+    vi.useFakeTimers();
+    const element = document.createElement('div');
+    element.innerHTML = '<div class="ProseMirror">Hello</div>';
+    document.body.appendChild(element);
+    const proseMirror = element.querySelector('.ProseMirror')!;
+    const originalGetClientRects = Range.prototype.getClientRects;
+    const fakeEditor = {
+      isDestroyed: false,
+      view: {
+        focus: vi.fn(),
+        posAtDOM: vi.fn(() => 1),
+      },
+      commands: {
+        setTextSelection: vi.fn(),
+      },
+    };
+
+    Range.prototype.getClientRects = () => [{ top: 0, bottom: 20, left: 0, right: 50, width: 50, height: 20 } as DOMRect] as unknown as DOMRectList;
+    try {
+      const cleanup = installTiptapBlankClickGuard(element, fakeEditor as any);
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+      proseMirror.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5, detail: 1 }));
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+      proseMirror.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5, detail: 2 }));
+      vi.runAllTimers();
+
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+      cleanup();
+    } finally {
+      Range.prototype.getClientRects = originalGetClientRects;
+      element.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('should put Save at the right side and allow hosts to hide it', () => {
     fixture.detectChanges();
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
@@ -452,6 +523,11 @@ describe('NgxEmailStudio', () => {
     expect(sanitized).toContain('background-color: #00ff00');
   });
 
+  it('should sanitize children unwrapped from disallowed rich-text containers', () => {
+    expect(sanitizeRichTextContent('<div><script>alert(1)</script><p onclick="x()">ok</p></div>')).toBe('<p>ok</p>');
+    expect(sanitizeRichTextContent('<foo><img src="x" onerror="evil()"><span onclick="x()">ok</span></foo>')).toBe('<span>ok</span>');
+  });
+
   it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body background-color="red;background:url(javascript:alert(1))"><mj-section background-color="red;background:url(javascript:alert(1))"><mj-column background-color="#ABCDEF"><mj-text><p>Safe</p></mj-text></mj-column><mj-column background-color="red;background:url(javascript:alert(1))"><mj-text><p>Unsafe column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const row = imported.body[0];
@@ -609,6 +685,22 @@ describe('NgxEmailStudio', () => {
     expect(String(text?.attrs['content'])).toContain('WOMEN');
     expect(String(text?.attrs['content'])).toContain('©');
     expect(String(text?.attrs['content'])).toContain('&amp;unknown;');
+  });
+
+  it('should tolerate HTML void tags inside imported MJML text content', () => {
+    const document = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text>Hi<br>There</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const text = findImportedNode(document.body, 'text');
+
+    expect(String(text?.attrs['content'])).toContain('Hi');
+    expect(String(text?.attrs['content'])).toContain('There');
+    expect(String(text?.attrs['content'])).toContain('<br');
+  });
+
+  it('should not treat literal parsererror tags in MJML text as parser failures', () => {
+    const document = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><parsererror>not parser error</parsererror></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const text = findImportedNode(document.body, 'text');
+
+    expect(String(text?.attrs['content'])).toContain('not parser error');
   });
 
   it('should compile, render, and import image width settings', () => {

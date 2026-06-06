@@ -34,6 +34,13 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   let restoreAnimationFrame: number | undefined;
   let restoreTimeout: ReturnType<typeof setTimeout> | undefined;
   let active = true;
+  const documentRef = element.ownerDocument;
+  const clearDeferredRestore = () => {
+    if (restoreAnimationFrame !== undefined) globalThis.cancelAnimationFrame(restoreAnimationFrame);
+    if (restoreTimeout !== undefined) globalThis.clearTimeout(restoreTimeout);
+    restoreAnimationFrame = undefined;
+    restoreTimeout = undefined;
+  };
   const guardPointer = (event: MouseEvent) => {
     if (event.button !== 0) return;
     const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
@@ -56,13 +63,16 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   };
   const trackTextDrag = (event: MouseEvent) => {
     if (!pendingTextClick) return;
+    if ((event.buttons & 1) !== 1) {
+      pendingTextClick = undefined;
+      return;
+    }
     const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
     if (movement <= 4) return;
     applyTiptapDragSelection(event);
   };
   const finishTextDrag = (event: MouseEvent) => {
-    if (!pendingTextClick?.moved) return;
-    applyTiptapDragSelection(event);
+    if (pendingTextClick?.moved) applyTiptapDragSelection(event);
     pendingTextClick = undefined;
   };
   const applyTiptapDragSelection = (event: MouseEvent) => {
@@ -81,6 +91,11 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   };
   const restoreTextClick = (event: MouseEvent) => {
     if (!pendingTextClick) return;
+    clearDeferredRestore();
+    if (event.detail > 1) {
+      pendingTextClick = undefined;
+      return;
+    }
     const textClick = pendingTextClick;
     const movement = Math.hypot(event.clientX - textClick.x, event.clientY - textClick.y);
     const restore = () => {
@@ -98,24 +113,21 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   };
   element.addEventListener('pointerdown', guardPointer, true);
   element.addEventListener('mousedown', guardPointer, true);
-  element.ownerDocument.addEventListener('pointermove', trackTextDrag, true);
-  element.ownerDocument.addEventListener('mousemove', trackTextDrag, true);
-  element.ownerDocument.addEventListener('pointerup', finishTextDrag, true);
-  element.ownerDocument.addEventListener('mouseup', finishTextDrag, true);
+  documentRef.addEventListener('pointermove', trackTextDrag, true);
+  documentRef.addEventListener('mousemove', trackTextDrag, true);
+  documentRef.addEventListener('pointerup', finishTextDrag, true);
+  documentRef.addEventListener('mouseup', finishTextDrag, true);
   element.addEventListener('click', restoreTextClick, false);
   return () => {
     active = false;
     pendingTextClick = undefined;
-    if (restoreAnimationFrame !== undefined) globalThis.cancelAnimationFrame(restoreAnimationFrame);
-    if (restoreTimeout !== undefined) globalThis.clearTimeout(restoreTimeout);
-    restoreAnimationFrame = undefined;
-    restoreTimeout = undefined;
+    clearDeferredRestore();
     element.removeEventListener('pointerdown', guardPointer, true);
     element.removeEventListener('mousedown', guardPointer, true);
-    element.ownerDocument.removeEventListener('pointermove', trackTextDrag, true);
-    element.ownerDocument.removeEventListener('mousemove', trackTextDrag, true);
-    element.ownerDocument.removeEventListener('pointerup', finishTextDrag, true);
-    element.ownerDocument.removeEventListener('mouseup', finishTextDrag, true);
+    documentRef.removeEventListener('pointermove', trackTextDrag, true);
+    documentRef.removeEventListener('mousemove', trackTextDrag, true);
+    documentRef.removeEventListener('pointerup', finishTextDrag, true);
+    documentRef.removeEventListener('mouseup', finishTextDrag, true);
     element.removeEventListener('click', restoreTextClick, false);
   };
 }

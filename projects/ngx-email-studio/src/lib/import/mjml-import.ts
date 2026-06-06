@@ -32,7 +32,7 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
     return { version: '0.0.1', body: [createNode(idFactory, 'text', { content: mjml })], unsupported: ['DOMParser unavailable'] };
   }
   const xml = new DOMParser().parseFromString(normalizeMjmlForXmlParser(mjml), 'text/xml');
-  const parserError = xml.querySelector('parsererror');
+  const parserError = xml.documentElement?.tagName.toLowerCase() === 'parsererror' ? xml.documentElement : null;
   if (parserError) {
     throw new Error(parserError.textContent || 'Invalid MJML markup.');
   }
@@ -127,11 +127,18 @@ function roundWidth(value: number): number {
 }
 
 function normalizeMjmlForXmlParser(mjml: string): string {
-  return mjml.replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
+  return normalizeHtmlVoidTagsForXml(mjml).replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
     const name = entity.toLowerCase();
     if (XML_SAFE_ENTITIES.has(name)) return match;
     const codepoint = HTML_ENTITY_CODEPOINTS[name];
     return codepoint ? `&#${codepoint};` : `&amp;${entity};`;
+  });
+}
+
+function normalizeHtmlVoidTagsForXml(value: string): string {
+  return value.replace(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b([^>]*)>/gi, (match, tag: string, attrs: string) => {
+    if (/\/\s*$/.test(attrs)) return match;
+    return `<${tag}${attrs} />`;
   });
 }
 
