@@ -2072,6 +2072,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private replaceEmailDocument(document: EmailDocument, emitChange: boolean): void {
+    this.closeTransientMenus();
+    this.closeImportModal();
+    this.closeOutputModal();
     this.closeRichTextSource();
     this.closeRichTextModal();
     this.destroyTiptapEditors();

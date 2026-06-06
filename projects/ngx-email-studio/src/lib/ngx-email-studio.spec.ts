@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 
 import { EmailDocument, EmailNode, NgxEmailStudio } from './ngx-email-studio';
 import { sanitizeRichTextContent } from './tiptap/rich-text-sanitizer';
+import { installTiptapBlankClickGuard } from './tiptap/tiptap-controller';
 
 
 function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
@@ -70,6 +71,66 @@ describe('NgxEmailStudio', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should cancel deferred Tiptap click restore callbacks when the editor is destroyed', () => {
+    vi.useFakeTimers();
+    const element = document.createElement('div');
+    element.innerHTML = '<div class="ProseMirror">Hello</div>';
+    document.body.appendChild(element);
+    const proseMirror = element.querySelector('.ProseMirror')!;
+    const originalGetClientRects = Range.prototype.getClientRects;
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+    const animationCallbacks = new Map<number, FrameRequestCallback>();
+    let animationId = 0;
+    const fakeEditor = {
+      isDestroyed: false,
+      view: {
+        focus: vi.fn(() => {
+          if (fakeEditor.isDestroyed) throw new Error('destroyed focus');
+        }),
+        posAtDOM: vi.fn(() => 1),
+      },
+      commands: {
+        setTextSelection: vi.fn(() => {
+          if (fakeEditor.isDestroyed) throw new Error('destroyed selection');
+        }),
+      },
+    };
+
+    Range.prototype.getClientRects = () => [{ top: 0, bottom: 20, left: 0, right: 50, width: 50, height: 20 } as DOMRect] as unknown as DOMRectList;
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      animationId += 1;
+      animationCallbacks.set(animationId, callback);
+      return animationId;
+    }) as typeof globalThis.requestAnimationFrame;
+    globalThis.cancelAnimationFrame = ((id: number) => {
+      animationCallbacks.delete(id);
+    }) as typeof globalThis.cancelAnimationFrame;
+
+    try {
+      const cleanup = installTiptapBlankClickGuard(element, fakeEditor as any);
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+      proseMirror.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+
+      expect(fakeEditor.view.focus).toHaveBeenCalledTimes(1);
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+      cleanup();
+      fakeEditor.isDestroyed = true;
+      expect(() => {
+        for (const callback of animationCallbacks.values()) callback(0);
+        vi.runAllTimers();
+      }).not.toThrow();
+      expect(fakeEditor.view.focus).toHaveBeenCalledTimes(1);
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+    } finally {
+      Range.prototype.getClientRects = originalGetClientRects;
+      globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+      globalThis.cancelAnimationFrame = originalCancelAnimationFrame;
+      element.remove();
+      vi.useRealTimers();
+    }
   });
 
   it('should put Save at the right side and allow hosts to hide it', () => {
@@ -164,6 +225,40 @@ describe('NgxEmailStudio', () => {
     localFixture.detectChanges();
     expect(localComponent.lastMjml).toContain('Still active document');
     expect(localComponent.lastMjml).not.toContain('Still active MJML');
+  });
+
+  it('should close transient modals and editors when host input replaces the document', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.detectChanges();
+    const localComponent = localFixture.componentInstance;
+    const textNode = localComponent.emailDocument.body[0].children?.[0] || localComponent.emailDocument.body[0];
+
+    localComponent.openImportModal();
+    localComponent.openOutputModal('mjml');
+    localComponent.openRichTextModal(textNode);
+    localComponent.selectNode(textNode.id);
+    localComponent.openRichTextSource('inline');
+    localComponent.exportMenuOpen = true;
+    localComponent.copyState = 'Copied';
+
+    expect(localComponent.importModalOpen).toBe(true);
+    expect(localComponent.outputModalType).toBe('mjml');
+    expect(localComponent.expandedRichTextNode).toBeTruthy();
+    expect(localComponent.sourceEditorScope).toBe('inline');
+
+    localFixture.componentRef.setInput('document', {
+      version: '0.0.1',
+      body: [{ id: 'replacement_text', type: 'text', attrs: { content: '<p>Replacement</p>' } }],
+    } satisfies EmailDocument);
+    localFixture.detectChanges();
+
+    expect(localComponent.importModalOpen).toBe(false);
+    expect(localComponent.outputModalType).toBeNull();
+    expect(localComponent.expandedRichTextNode).toBeUndefined();
+    expect(localComponent.sourceEditorScope).toBeNull();
+    expect(localComponent.exportMenuOpen).toBe(false);
+    expect(localComponent.copyState).toBe('');
+    expect(localComponent.lastMjml).toContain('Replacement');
   });
 
   it('should render the builder in the light DOM host', () => {
@@ -342,10 +437,12 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should keep rich-text cell box styles but strip non-round-tripped box styles from normal text', () => {
-    const sanitized = sanitizeRichTextContent('<p style="padding: 8px; border-color: #ff0000; border-width: 2px; color: #123456">Text</p><table><tbody><tr><td style="padding: 8px; border-color: #ff0000; border-width: 2px; border-style: solid; width: 120px; height: 30px; background-color: #00ff00">Cell</td></tr></tbody></table>');
+    const sanitized = sanitizeRichTextContent('<p style="padding: 8px; border-color: #ff0000; border-width: 2px; margin: 10px 0; color: #123456">Text <span style="margin: 20px; color: #654321">Inline</span></p><h2 style="margin-top: 12px">Heading</h2><table><tbody><tr><td style="padding: 8px; border-color: #ff0000; border-width: 2px; border-style: solid; width: 120px; height: 30px; background-color: #00ff00">Cell</td></tr></tbody></table>');
 
-    expect(sanitized).toContain('<p style="color: #123456">Text</p>');
+    expect(sanitized).toContain('<p style="margin: 10px 0; color: #123456">Text <span style="color: #654321">Inline</span></p>');
+    expect(sanitized).toContain('<h2 style="margin-top: 12px">Heading</h2>');
     expect(sanitized).not.toContain('<p style="padding');
+    expect(sanitized).not.toContain('span style="margin');
     expect(sanitized).toContain('padding: 8px');
     expect(sanitized).toContain('border-color: #ff0000');
     expect(sanitized).toContain('border-width: 2px');

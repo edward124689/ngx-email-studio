@@ -31,6 +31,9 @@ export function syncTiptapContent(editor: TiptapEditor, node: EmailNode, editabl
 
 export function installTiptapBlankClickGuard(element: HTMLElement, editor: TiptapEditor): () => void {
   let pendingTextClick: { x: number; y: number; pos: number; moved: boolean } | undefined;
+  let restoreAnimationFrame: number | undefined;
+  let restoreTimeout: ReturnType<typeof setTimeout> | undefined;
+  let active = true;
   const guardPointer = (event: MouseEvent) => {
     if (event.button !== 0) return;
     const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
@@ -55,24 +58,41 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
     if (!pendingTextClick) return;
     const movement = Math.hypot(event.clientX - pendingTextClick.x, event.clientY - pendingTextClick.y);
     if (movement <= 4) return;
-    // Once the user is dragging, stop the single-click caret restore path and let
-    // the browser/ProseMirror native selection own highlighting. Calling
-    // setTextSelection() during mousemove fights native drag selection and can
-    // collapse the highlight back to a cursor at the document end in real use.
+    applyTiptapDragSelection(event);
+  };
+  const finishTextDrag = (event: MouseEvent) => {
+    if (!pendingTextClick?.moved) return;
+    applyTiptapDragSelection(event);
     pendingTextClick = undefined;
+  };
+  const applyTiptapDragSelection = (event: MouseEvent) => {
+    if (!pendingTextClick) return;
+    const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
+    if (!proseMirror) return;
+    const dragSelection = tiptapSelectionFromViewportPoint(proseMirror, editor, event.clientX, event.clientY);
+    if (!dragSelection || dragSelection.pos === pendingTextClick.pos) return;
+    const from = Math.min(pendingTextClick.pos, dragSelection.pos);
+    const to = Math.max(pendingTextClick.pos, dragSelection.pos);
+    pendingTextClick.moved = true;
+    if (!active || editor.isDestroyed) return;
+    editor.view.focus();
+    editor.commands.setTextSelection({ from, to });
+    setNativeTiptapSelection(editor, from, to);
   };
   const restoreTextClick = (event: MouseEvent) => {
     if (!pendingTextClick) return;
     const textClick = pendingTextClick;
     const movement = Math.hypot(event.clientX - textClick.x, event.clientY - textClick.y);
     const restore = () => {
+      if (!active) return;
+      if (editor.isDestroyed) return;
       editor.view.focus();
       editor.commands.setTextSelection(textClick.pos);
     };
     if (!textClick.moved && movement <= 4) {
       restore();
-      requestAnimationFrame(restore);
-      setTimeout(restore, 0);
+      restoreAnimationFrame = globalThis.requestAnimationFrame(restore);
+      restoreTimeout = globalThis.setTimeout(restore, 0);
     }
     pendingTextClick = undefined;
   };
@@ -80,15 +100,41 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
   element.addEventListener('mousedown', guardPointer, true);
   element.ownerDocument.addEventListener('pointermove', trackTextDrag, true);
   element.ownerDocument.addEventListener('mousemove', trackTextDrag, true);
+  element.ownerDocument.addEventListener('pointerup', finishTextDrag, true);
+  element.ownerDocument.addEventListener('mouseup', finishTextDrag, true);
   element.addEventListener('click', restoreTextClick, false);
   return () => {
+    active = false;
     pendingTextClick = undefined;
+    if (restoreAnimationFrame !== undefined) globalThis.cancelAnimationFrame(restoreAnimationFrame);
+    if (restoreTimeout !== undefined) globalThis.clearTimeout(restoreTimeout);
+    restoreAnimationFrame = undefined;
+    restoreTimeout = undefined;
     element.removeEventListener('pointerdown', guardPointer, true);
     element.removeEventListener('mousedown', guardPointer, true);
     element.ownerDocument.removeEventListener('pointermove', trackTextDrag, true);
     element.ownerDocument.removeEventListener('mousemove', trackTextDrag, true);
+    element.ownerDocument.removeEventListener('pointerup', finishTextDrag, true);
+    element.ownerDocument.removeEventListener('mouseup', finishTextDrag, true);
     element.removeEventListener('click', restoreTextClick, false);
   };
+}
+
+export function setNativeTiptapSelection(editor: TiptapEditor, from: number, to: number): void {
+  try {
+    const start = editor.view.domAtPos(from);
+    const end = editor.view.domAtPos(to);
+    const documentRef = editor.view.dom.ownerDocument;
+    const range = documentRef.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const selection = documentRef.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  } catch {
+    // ProseMirror can resolve positions inside non-text widgets; keep editor selection
+    // as the source of truth if a native DOM range cannot be built.
+  }
 }
 
 export function isTiptapStructuredEditorTarget(target: EventTarget | null): boolean {

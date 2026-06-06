@@ -83,6 +83,7 @@ function sanitizeRichTextElement(element: HTMLElement): void {
 function safeRichTextStyle(value: string, tagName: string): string {
   const safe: string[] = [];
   const isTableCell = tagName === 'TD' || tagName === 'TH';
+  const isBlockTypographyNode = tagName === 'P' || /^H[1-6]$/.test(tagName);
   for (const declaration of value.split(';')) {
     const [rawProperty, ...rawValueParts] = declaration.split(':');
     if (!rawProperty || rawValueParts.length === 0) continue;
@@ -97,7 +98,7 @@ function safeRichTextStyle(value: string, tagName: string): string {
     if (property === 'font-family' && safeFontFamily(rawValue)) safe.push(`font-family: ${rawValue}`);
     const normalizedFontWeight = normalizeFontWeightValue(rawValue);
     if (property === 'font-weight' && normalizedFontWeight) safe.push(`font-weight: ${normalizedFontWeight}`);
-    if ((property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
+    if (isBlockTypographyNode && (property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
     if (property === 'background-color' && normalizedColor) safe.push(`background-color: ${normalizedColor}`);
     if (isTableCell && property === 'border-color' && normalizedColor) safe.push(`border-color: ${normalizedColor}`);
     if (isTableCell && property === 'border-width' && /^(0|[1-9][0-9]?)px$/.test(rawValue)) safe.push(`border-width: ${rawValue}`);
