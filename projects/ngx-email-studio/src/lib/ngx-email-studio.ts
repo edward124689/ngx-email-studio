@@ -1769,11 +1769,18 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const chain = editor.chain().focus();
     if (value === 'paragraph') {
       chain.setParagraph().run();
+      this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
+      return;
+    }
+    if (value === 'div') {
+      chain.setNode('paragraph', { blockTag: 'div' }).run();
+      this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
       return;
     }
     const level = Number(value);
     if ([1, 2, 3, 4, 5, 6].includes(level)) {
       chain.toggleHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
+      this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
     }
   }
 
@@ -2165,7 +2172,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private collectTiptapToolbarState(editor: TiptapEditor): TiptapToolbarState {
     const blockFormat = ([1, 2, 3, 4, 5, 6] as const).find((level) => editor.isActive('heading', { level }));
     const headingLineHeight = editor.getAttributes('heading')['lineHeight'];
-    const paragraphLineHeight = editor.getAttributes('paragraph')['lineHeight'];
+    const paragraphAttrs = editor.getAttributes('paragraph');
+    const paragraphLineHeight = paragraphAttrs['lineHeight'];
     const textStyleFontSize = editor.getAttributes('textStyle')['fontSize'];
     const headingFontSize = editor.getAttributes('heading')['fontSize'];
     const paragraphFontSize = editor.getAttributes('paragraph')['fontSize'];
@@ -2173,7 +2181,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const tableHeaderAttrs = editor.getAttributes('tableHeader');
     const textAlign = (['center', 'right', 'justify'] as const).find((align) => editor.isActive({ textAlign: align })) || 'left';
     return {
-      blockFormat: blockFormat ? String(blockFormat) as TiptapHeadingValue : 'paragraph',
+      blockFormat: blockFormat ? String(blockFormat) as TiptapHeadingValue : paragraphAttrs['blockTag'] === 'div' ? 'div' : 'paragraph',
       fontSize: typeof textStyleFontSize === 'string' ? textStyleFontSize : typeof headingFontSize === 'string' ? headingFontSize : typeof paragraphFontSize === 'string' ? paragraphFontSize : '',
       lineHeight: typeof headingLineHeight === 'string' ? headingLineHeight : typeof paragraphLineHeight === 'string' ? paragraphLineHeight : '',
       activeMarks: {

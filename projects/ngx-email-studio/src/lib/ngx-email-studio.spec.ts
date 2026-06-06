@@ -1546,6 +1546,27 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('<strong>Make me bold</strong>');
   });
 
+  it('should expose DIV as a Tiptap block format and convert between div and paragraph', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+    expect(component.tiptapBlockOptions.map((option) => option.value)).toContain('div');
+
+    editor.commands.setContent('<p>Block tag</p>');
+    editor.commands.selectAll();
+    component.setTiptapBlockFormat('inline', 'div');
+    expect(component.currentTiptapBlockFormat('inline')).toBe('div');
+    expect(textNode.attrs['content']).toContain('<div>Block tag</div>');
+    expect(component.lastMjml).toContain('<div>Block tag</div>');
+
+    editor.commands.selectAll();
+    component.setTiptapBlockFormat('inline', 'paragraph');
+    expect(component.currentTiptapBlockFormat('inline')).toBe('paragraph');
+    expect(textNode.attrs['content']).toContain('<p>Block tag</p>');
+    expect(textNode.attrs['content']).not.toContain('<div>Block tag</div>');
+  });
+
   it('should support expanded Tiptap formatting controls for headings, inline styles, lists, sizing, alignment, and undo', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;

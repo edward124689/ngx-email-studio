@@ -2,6 +2,7 @@ import { TiptapHeadingValue } from '../models';
 
 export const TIPTAP_BLOCK_OPTIONS: Array<{ label: string; value: TiptapHeadingValue }> = [
   { label: 'Paragraph', value: 'paragraph' },
+  { label: 'DIV', value: 'div' },
   { label: 'H1', value: '1' },
   { label: 'H2', value: '2' },
   { label: 'H3', value: '3' },

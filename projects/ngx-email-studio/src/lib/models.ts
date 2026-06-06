@@ -5,7 +5,7 @@ export type EmailSizeUnit = 'px' | '%';
 export type CanvasMode = 'edit' | 'preview';
 export type RichTextEditorMode = 'tiptap' | 'plain';
 export type TiptapScope = 'inline' | 'modal';
-export type TiptapHeadingValue = 'paragraph' | '1' | '2' | '3' | '4' | '5' | '6';
+export type TiptapHeadingValue = 'paragraph' | 'div' | '1' | '2' | '3' | '4' | '5' | '6';
 export type TiptapTextAlignValue = 'left' | 'center' | 'right' | 'justify';
 export type TiptapCommand =
   | 'bold'
