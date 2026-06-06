@@ -528,13 +528,12 @@ describe('NgxEmailStudio', () => {
     expect(sanitizeRichTextContent('<foo><img src="x" onerror="evil()"><span onclick="x()">ok</span></foo>')).toBe('<span>ok</span>');
   });
 
-  it('should support pasted rich-text div paragraphs by normalizing them to paragraphs', () => {
+  it('should support pasted rich-text div paragraphs without changing their tag name', () => {
     const sanitized = sanitizeRichTextContent('<div style="margin: 10px 0; color: #123456" onclick="evil()">Line <strong>one</strong></div><div>Line two<br>next</div><div><p>Nested paragraph</p></div>');
 
-    expect(sanitized).toContain('<p style="margin: 10px 0; color: #123456">Line <strong>one</strong></p>');
-    expect(sanitized).toContain('<p>Line two<br>next</p>');
+    expect(sanitized).toContain('<div style="margin: 10px 0; color: #123456">Line <strong>one</strong></div>');
+    expect(sanitized).toContain('<div>Line two<br>next</div>');
     expect(sanitized).toContain('<p>Nested paragraph</p>');
-    expect(sanitized).not.toContain('<div');
     expect(sanitized).not.toContain('onclick');
   });
 
@@ -1443,6 +1442,28 @@ describe('NgxEmailStudio', () => {
     expect(component.lastMjml).toContain('Times New Roman');
     expect(component.lastMjml).toContain('Helvetica');
     expect(component.lastMjml).toContain('Arial');
+  });
+
+  it('should keep rich-text div blocks through Tiptap edits and exports', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<div style="margin: 10px 0; color: #123456" class="lead-div">Line <strong>one</strong></div><p>Line two</p>');
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    editor.commands.insertContent('!');
+
+    expect(textNode.attrs['content']).toContain('<div');
+    expect(textNode.attrs['content']).toContain('class="lead-div"');
+    expect(textNode.attrs['content']).toContain('Line <strong>one</strong>');
+    expect(textNode.attrs['content']).toContain('color: #123456');
+    expect(textNode.attrs['content']).toContain('margin-top: 10px');
+    expect(textNode.attrs['content']).toContain('<p>Line two!</p>');
+    expect(component.lastMjml).toContain('<div');
+    expect(component.lastMjml).toContain('class="lead-div"');
+    expect(component.lastHtml).toContain('<div');
+    expect(component.lastHtml).toContain('class="lead-div"');
   });
 
   it('should keep safe rich-text class and id attributes through Tiptap edits and exports', () => {

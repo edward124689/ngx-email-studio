@@ -1,6 +1,6 @@
 import { normalizeColorValue, normalizeFontWeightValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
 
-const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
 export function sanitizeRichTextContent(value: unknown): string {
   const raw = String(value || '');
@@ -21,13 +21,11 @@ function sanitizeRichTextNode(node: Node): void {
       continue;
     }
     const element = child as HTMLElement;
-    if (element.tagName === 'DIV' && shouldNormalizeDivToParagraph(element)) {
-      const paragraph = element.ownerDocument.createElement('p');
-      for (const attr of Array.from(element.attributes)) paragraph.setAttribute(attr.name, attr.value);
-      while (element.firstChild) paragraph.appendChild(element.firstChild);
-      element.replaceWith(paragraph);
-      sanitizeRichTextElement(paragraph);
-      sanitizeRichTextNode(paragraph);
+    if (element.tagName === 'DIV' && hasRichTextBlockChild(element)) {
+      sanitizeRichTextNode(element);
+      const parent = element.parentNode;
+      while (element.firstChild) parent?.insertBefore(element.firstChild, element);
+      element.remove();
       continue;
     }
     if (!ALLOWED_RICH_TEXT_TAGS.has(element.tagName)) {
@@ -93,7 +91,7 @@ function sanitizeRichTextElement(element: HTMLElement): void {
 function safeRichTextStyle(value: string, tagName: string): string {
   const safe: string[] = [];
   const isTableCell = tagName === 'TD' || tagName === 'TH';
-  const isBlockTypographyNode = tagName === 'P' || /^H[1-6]$/.test(tagName);
+  const isBlockTypographyNode = tagName === 'P' || tagName === 'DIV' || /^H[1-6]$/.test(tagName);
   for (const declaration of value.split(';')) {
     const [rawProperty, ...rawValueParts] = declaration.split(':');
     if (!rawProperty || rawValueParts.length === 0) continue;
@@ -120,12 +118,12 @@ function safeRichTextStyle(value: string, tagName: string): string {
   return safe.join('; ');
 }
 
-function shouldNormalizeDivToParagraph(element: HTMLElement): boolean {
-  return !Array.from(element.children).some((child) => isRichTextBlockElement(child.tagName));
+function hasRichTextBlockChild(element: HTMLElement): boolean {
+  return Array.from(element.children).some((child) => isRichTextBlockElement(child.tagName));
 }
 
 function isRichTextBlockElement(tagName: string): boolean {
-  return tagName === 'P' || /^H[1-6]$/.test(tagName) || tagName === 'UL' || tagName === 'OL' || tagName === 'TABLE';
+  return tagName === 'P' || tagName === 'DIV' || /^H[1-6]$/.test(tagName) || tagName === 'UL' || tagName === 'OL' || tagName === 'TABLE';
 }
 
 

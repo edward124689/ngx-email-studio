@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core';
+import { Extension, Node } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import { Table } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -171,6 +171,44 @@ const BlockTypography = Extension.create({
   },
 });
 
+const RichParagraph = Node.create({
+  name: 'paragraph',
+  priority: 1000,
+  group: 'block',
+  content: 'inline*',
+  addAttributes() {
+    return {
+      blockTag: {
+        default: 'p',
+        rendered: false,
+        parseHTML: (element: HTMLElement) => element.tagName === 'DIV' ? 'div' : 'p',
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      { tag: 'div', priority: 1000, getAttrs: (element) => element instanceof HTMLElement && !hasBlockChildren(element) ? { blockTag: 'div' } : false },
+      { tag: 'p', priority: 1000, getAttrs: () => ({ blockTag: 'p' }) },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return [node.attrs['blockTag'] === 'div' ? 'div' : 'p', HTMLAttributes, 0];
+  },
+  addCommands() {
+    return {
+      setParagraph: () => ({ commands }) => commands.setNode(this.name, { blockTag: 'p' }),
+    };
+  },
+});
+
+function hasBlockChildren(element: HTMLElement): boolean {
+  return Array.from(element.children).some((child) => isRichTextBlockTag(child.tagName));
+}
+
+function isRichTextBlockTag(tagName: string): boolean {
+  return tagName === 'P' || tagName === 'DIV' || /^H[1-6]$/.test(tagName) || tagName === 'UL' || tagName === 'OL' || tagName === 'TABLE';
+}
+
 const HtmlIdentityAttributes = Extension.create({
   name: 'htmlIdentityAttributes',
   addGlobalAttributes() {
@@ -271,7 +309,8 @@ const StyledTableHeader = TableHeader.extend({
 });
 
 export const TIPTAP_EXTENSIONS = [
-  StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, link: false }),
+  StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, link: false, paragraph: false }),
+  RichParagraph,
   TextStyle,
   InlineTypography,
   BlockTypography,
