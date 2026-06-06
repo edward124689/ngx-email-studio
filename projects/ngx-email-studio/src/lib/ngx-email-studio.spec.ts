@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 
 import { EmailDocument, EmailNode, NgxEmailStudio } from './ngx-email-studio';
+import { sanitizeRichTextContent } from './tiptap/rich-text-sanitizer';
 
 
 function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
@@ -140,6 +141,29 @@ describe('NgxEmailStudio', () => {
     localFixture.detectChanges();
     expect(localComponent.lastMjml).not.toContain('Host document');
     expect(localComponent.emailDocument.body.length).toBeGreaterThan(0);
+  });
+
+  it('should fall back to the still-active host input when either MJML or document is cleared', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const inputDocument: EmailDocument = { version: '0.0.1', body: [{ id: 'host_doc_text', type: 'text', attrs: { content: '<p>Still active document</p>' } }] };
+    const inputMjml = '<mjml><mj-body><mj-section><mj-column><mj-text><p>Still active MJML</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+
+    localFixture.componentRef.setInput('document', inputDocument);
+    localFixture.componentRef.setInput('mjml', inputMjml);
+    localFixture.detectChanges();
+    const localComponent = localFixture.componentInstance;
+    expect(localComponent.lastMjml).toContain('Still active MJML');
+    expect(localComponent.lastMjml).not.toContain('Still active document');
+
+    localFixture.componentRef.setInput('document', undefined);
+    localFixture.detectChanges();
+    expect(localComponent.lastMjml).toContain('Still active MJML');
+
+    localFixture.componentRef.setInput('document', inputDocument);
+    localFixture.componentRef.setInput('mjml', '');
+    localFixture.detectChanges();
+    expect(localComponent.lastMjml).toContain('Still active document');
+    expect(localComponent.lastMjml).not.toContain('Still active MJML');
   });
 
   it('should render the builder in the light DOM host', () => {
@@ -290,6 +314,45 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.attrs?.['backgroundColor']).toBe('red;background:url(javascript:alert(1))');
     expect((component as any).compileMjml(component.emailDocument)).not.toContain('<mj-body background-color=');
     expect((component as any).renderHtml(component.emailDocument)).not.toContain('red;background');
+  });
+
+  it('should sanitize unsafe image sources and divider border colors in import and export', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [
+        { id: 'image_unsafe', type: 'image', attrs: { src: 'javascript:alert(1)', alt: 'Unsafe image' } },
+        { id: 'divider_unsafe', type: 'divider', attrs: { borderColor: 'red;background:url(javascript:alert(1))' } },
+      ],
+    };
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(mjml).toContain('<mj-image src=""');
+    expect(html).toContain('<img src=""');
+    expect(mjml).toContain('<mj-divider border-color="#d0d5dd" />');
+    expect(html).toContain('border-top:1px solid #d0d5dd');
+    expect(`${mjml}\n${html}`).not.toContain('javascript:');
+    expect(`${mjml}\n${html}`).not.toContain('red;background');
+
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-image src="javascript:alert(1)" alt="Bad" /><mj-divider border-color="red;background:url(javascript:alert(1))" /></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const image = findImportedNode(imported.body, 'image');
+    const divider = findImportedNode(imported.body, 'divider');
+    expect(image?.attrs['src']).toBe('');
+    expect(divider?.attrs['borderColor']).toBe('#d0d5dd');
+  });
+
+  it('should keep rich-text cell box styles but strip non-round-tripped box styles from normal text', () => {
+    const sanitized = sanitizeRichTextContent('<p style="padding: 8px; border-color: #ff0000; border-width: 2px; color: #123456">Text</p><table><tbody><tr><td style="padding: 8px; border-color: #ff0000; border-width: 2px; border-style: solid; width: 120px; height: 30px; background-color: #00ff00">Cell</td></tr></tbody></table>');
+
+    expect(sanitized).toContain('<p style="color: #123456">Text</p>');
+    expect(sanitized).not.toContain('<p style="padding');
+    expect(sanitized).toContain('padding: 8px');
+    expect(sanitized).toContain('border-color: #ff0000');
+    expect(sanitized).toContain('border-width: 2px');
+    expect(sanitized).toContain('border-style: solid');
+    expect(sanitized).toContain('width: 120px');
+    expect(sanitized).toContain('height: 30px');
+    expect(sanitized).toContain('background-color: #00ff00');
   });
 
   it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {

@@ -44,7 +44,7 @@ function sanitizeRichTextElement(element: HTMLElement): void {
       continue;
     }
     if (name === 'style') {
-      const style = safeRichTextStyle(attr.value);
+      const style = safeRichTextStyle(attr.value, element.tagName);
       if (style) element.setAttribute('style', style);
       else element.removeAttribute('style');
       continue;
@@ -80,8 +80,9 @@ function sanitizeRichTextElement(element: HTMLElement): void {
   }
 }
 
-function safeRichTextStyle(value: string): string {
+function safeRichTextStyle(value: string, tagName: string): string {
   const safe: string[] = [];
+  const isTableCell = tagName === 'TD' || tagName === 'TH';
   for (const declaration of value.split(';')) {
     const [rawProperty, ...rawValueParts] = declaration.split(':');
     if (!rawProperty || rawValueParts.length === 0) continue;
@@ -98,12 +99,12 @@ function safeRichTextStyle(value: string): string {
     if (property === 'font-weight' && normalizedFontWeight) safe.push(`font-weight: ${normalizedFontWeight}`);
     if ((property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
     if (property === 'background-color' && normalizedColor) safe.push(`background-color: ${normalizedColor}`);
-    if (property === 'border-color' && normalizedColor) safe.push(`border-color: ${normalizedColor}`);
-    if (property === 'border-width' && /^(0|[1-9][0-9]?)px$/.test(rawValue)) safe.push(`border-width: ${rawValue}`);
-    if (property === 'border-style' && /^(solid|dashed|dotted|double|none)$/.test(rawValue)) safe.push(`border-style: ${rawValue}`);
-    if (property === 'width' && /^(auto|100%|[1-9][0-9]{0,2}px|[1-9][0-9]?%)$/.test(rawValue)) safe.push(`width: ${rawValue}`);
-    if (property === 'height' && /^(auto|[1-9][0-9]{0,2}px)$/.test(rawValue)) safe.push(`height: ${rawValue}`);
-    if (property === 'padding' && /^(0|[1-9][0-9]?px)$/.test(rawValue)) safe.push(`padding: ${rawValue}`);
+    if (isTableCell && property === 'border-color' && normalizedColor) safe.push(`border-color: ${normalizedColor}`);
+    if (isTableCell && property === 'border-width' && /^(0|[1-9][0-9]?)px$/.test(rawValue)) safe.push(`border-width: ${rawValue}`);
+    if (isTableCell && property === 'border-style' && /^(solid|dashed|dotted|double|none)$/.test(rawValue)) safe.push(`border-style: ${rawValue}`);
+    if (isTableCell && property === 'width' && /^(auto|100%|[1-9][0-9]{0,2}px|[1-9][0-9]?%)$/.test(rawValue)) safe.push(`width: ${rawValue}`);
+    if (isTableCell && property === 'height' && /^(auto|[1-9][0-9]{0,2}px)$/.test(rawValue)) safe.push(`height: ${rawValue}`);
+    if (isTableCell && property === 'padding' && /^(0|[1-9][0-9]?px)$/.test(rawValue)) safe.push(`padding: ${rawValue}`);
   }
   return safe.join('; ');
 }

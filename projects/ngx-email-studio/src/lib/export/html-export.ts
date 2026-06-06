@@ -20,6 +20,7 @@ import {
   normalizeFontFamilyValue,
   normalizeFontWeightValue,
   normalizeHrefValue,
+  normalizeImageSrcValue,
   normalizeLineHeightValue,
   paddingCss,
   sectionMaxWidthCss,
@@ -171,7 +172,7 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'text':
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 20))};${backgroundStyle(node.attrs['backgroundColor'])}${textTypographyStyle(node)}text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
-      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
+      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(normalizeImageSrcValue(node.attrs['src']))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:${escapeAttr(buttonTextColorCss(node))};text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
@@ -179,7 +180,7 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'social':
       return socialToHtml(node, depth);
     case 'divider':
-      return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
+      return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(colorAttrValue(node.attrs['borderColor']) || '#d0d5dd')};" /></div>`, depth);
     case 'spacer': {
       const height = Number(node.attrs['height'] || 24);
       return indent(`<div style="height:${height}px;line-height:${height}px;font-size:0;">&nbsp;</div>`, depth);

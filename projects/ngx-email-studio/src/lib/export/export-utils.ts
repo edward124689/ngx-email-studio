@@ -59,6 +59,15 @@ export function normalizeHrefValue(value: unknown): string {
   return '';
 }
 
+export function normalizeImageSrcValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (/^https?:/i.test(raw)) return raw;
+  if (/^\/(?!\/)/.test(raw)) return raw;
+  if (/^cid:[A-Za-z0-9._%+\-@]+$/i.test(raw)) return raw;
+  return '';
+}
+
 export function colorAttrValue(value: unknown): string {
   return normalizeColorValue(value);
 }

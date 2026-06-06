@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { parseSocialItems, socialCssSize, socialMode } from '../social/social-utils';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -47,7 +47,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
     case 'text':
       return `<mj-text${backgroundAttr(node)}${alignAttr(node)}${textTypographyAttrs(node)}${paddingAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
     case 'image':
-      return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
+      return `<mj-image src="${escapeAttr(normalizeImageSrcValue(node.attrs['src']))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return `<mj-button href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}"${buttonColorAttr(node)} border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
@@ -55,7 +55,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
     case 'social':
       return socialToMjml(node);
     case 'divider':
-      return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
+      return `<mj-divider border-color="${escapeAttr(colorAttrValue(node.attrs['borderColor']) || '#d0d5dd')}" />`;
     case 'spacer':
       return `<mj-spacer height="${Number(node.attrs['height'] || 24)}px" />`;
   }

@@ -1144,13 +1144,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       this.destroyTiptapEditors();
     }
 
-    if (changes['document']) {
-      this.replaceEmailDocument(this.document ? structuredClone(this.document) : this.createStarterDocument(), false);
-    }
-
-    if (changes['mjml']) {
+    if (changes['document'] || changes['mjml']) {
       this.mjmlDraft = this.mjml || '';
-      this.replaceEmailDocument(this.mjml ? this.parseMjml(this.mjml) : this.createStarterDocument(), false);
+      const nextDocument = this.mjml
+        ? this.parseMjml(this.mjml)
+        : this.document
+          ? structuredClone(this.document)
+          : this.createStarterDocument();
+      this.replaceEmailDocument(nextDocument, false);
     }
   }
 
@@ -1891,9 +1892,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   guardTiptapBlankMouseDown(event: MouseEvent, scope: 'inline' | 'modal'): void {
-    event.stopPropagation();
     if (event.target !== event.currentTarget) return;
     event.preventDefault();
+    event.stopPropagation();
     const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
     editor?.view.focus();
   }

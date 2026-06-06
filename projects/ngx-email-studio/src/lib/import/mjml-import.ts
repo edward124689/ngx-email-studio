@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, createSectionWithChildren, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeLineHeightValue } from '../export/export-utils';
+import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue } from '../export/export-utils';
 import { serializeSocialItems, socialCssSize, socialMode, SocialItem } from '../social/social-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
@@ -251,7 +251,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
       return createNode(idFactory, 'text', { content: sanitizeRichTextContent(element.innerHTML || element.textContent || '<p></p>'), align: safeAlign(element.getAttribute('align')), ...importedTextStyleAttrs(element), ...importedPaddingAttrs(element) });
     case 'mj-image':
       return createNode(idFactory, 'image', {
-        src: element.getAttribute('src') || '',
+        src: normalizeImageSrcValue(element.getAttribute('src')),
         alt: element.getAttribute('alt') || '',
         align: safeAlign(element.getAttribute('align')),
         ...importedPaddingAttrs(element),
@@ -268,7 +268,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
         ...importedPaddingAttrs(element),
       });
     case 'mj-divider':
-      return createNode(idFactory, 'divider', { borderColor: element.getAttribute('border-color') || '#d0d5dd' });
+      return createNode(idFactory, 'divider', { borderColor: importedColor(element.getAttribute('border-color')) || '#d0d5dd' });
     case 'mj-spacer':
       return createNode(idFactory, 'spacer', { height: Number.parseInt(element.getAttribute('height') || '24', 10) });
     case 'mj-social':
