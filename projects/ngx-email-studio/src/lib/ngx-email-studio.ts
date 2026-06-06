@@ -1191,25 +1191,67 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   drop(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): void {
     if (this.readonly) return;
-    if ((event.container as { id?: string }).id === this.paletteDropListId) return;
-    if (!this.canDropIntoContainer(event.item.data, (event.container as { id?: string }).id)) return;
-    if (event.previousContainer === event.container) {
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    const target = this.resolveDropTarget(event);
+    if (target.id === this.paletteDropListId) return;
+    if (!this.canDropIntoContainer(event.item.data, target.id)) return;
+    if (event.previousContainer === event.container && target.data === event.container.data) {
+      moveItemInArray(target.data, event.previousIndex, target.index);
       this.emitDocument();
       return;
     }
 
     if (this.isPaletteItem(event.item.data)) {
-      const node = this.createNodeForDrop(event.item.data, (event.container as { id?: string }).id);
-      event.container.data.splice(event.currentIndex, 0, node);
+      const node = this.createNodeForDrop(event.item.data, target.id);
+      target.data.splice(target.index, 0, node);
       this.selectedNodeId = node.id;
     } else {
       const [movedNode] = (event.previousContainer.data as EmailNode[]).splice(event.previousIndex, 1);
-      const node = this.wrapForRootDrop(movedNode, (event.container as { id?: string }).id);
-      event.container.data.splice(event.currentIndex, 0, node);
+      const node = this.wrapForRootDrop(movedNode, target.id);
+      target.data.splice(target.index, 0, node);
       this.selectedNodeId = node.id;
     }
     this.emitDocument();
+  }
+
+  private resolveDropTarget(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): { id?: string; data: EmailNode[]; index: number } {
+    const containerId = (event.container as { id?: string }).id;
+    if (containerId === this.rootDropListId) {
+      const nestedTarget = this.resolveNestedDropTargetFromPoint(event);
+      if (nestedTarget && this.canDropIntoContainer(event.item.data, nestedTarget.id)) return nestedTarget;
+    }
+    return { id: containerId, data: event.container.data as EmailNode[], index: event.currentIndex };
+  }
+
+  private resolveNestedDropTargetFromPoint(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): { id: string; data: EmailNode[]; index: number } | null {
+    const point = (event as CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]> & { dropPoint?: { x: number; y: number } }).dropPoint;
+    if (!point) return null;
+
+    const doc = this.hostRef.nativeElement.ownerDocument;
+    const elements = typeof doc.elementsFromPoint === 'function'
+      ? doc.elementsFromPoint(point.x, point.y)
+      : [doc.elementFromPoint(point.x, point.y)].filter((element): element is Element => !!element);
+    for (const element of elements) {
+      const container = element.closest?.('.nes-render-column[data-node-id], .nes-render-section[data-node-id]') as HTMLElement | null;
+      if (!container || !this.hostRef.nativeElement.contains(container)) continue;
+      const nodeId = container.getAttribute('data-node-id') || '';
+      const node = this.findNode(nodeId);
+      if (!node || (node.type !== 'column' && node.type !== 'section')) continue;
+      return {
+        id: this.dropListIdFor(node),
+        data: this.childrenOf(node),
+        index: this.dropInsertionIndex(container, point.y),
+      };
+    }
+    return null;
+  }
+
+  private dropInsertionIndex(container: HTMLElement, y: number): number {
+    const children = Array.from(container.querySelectorAll<HTMLElement>(':scope > .nes-child-node[data-node-id]'));
+    const index = children.findIndex((child) => {
+      const box = child.getBoundingClientRect();
+      return y < box.top + box.height / 2;
+    });
+    return index < 0 ? children.length : index;
   }
 
   trackNode(_: number, node: EmailNode): string {
@@ -1246,10 +1288,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   isCanvasNodeDragDisabled(node: EmailNode): boolean {
-    if (this.readonly) return true;
-    if (!this.resolvedUseTiptap || !this.selectedNodeId) return false;
-    const selectedNode = this.selectedNode;
-    return selectedNode?.type === 'text' && this.nodeContains(node, this.selectedNodeId);
+    return this.readonly;
   }
 
   endDrag(): void {

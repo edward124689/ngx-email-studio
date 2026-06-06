@@ -1108,7 +1108,7 @@ describe('NgxEmailStudio', () => {
 
     component.drop({
       previousContainer: { data: component.palette } as any,
-      container: { data: column?.children || [] } as any,
+      container: { id: component.dropListIdFor(column!), data: column?.children || [] } as any,
       previousIndex: 0,
       currentIndex: before,
       item: { data: { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' } } as any,
@@ -1118,6 +1118,47 @@ describe('NgxEmailStudio', () => {
     expect(column?.children?.[before].type).toBe('text');
     expect(component.connectedDropListIds).toContain(component.dropListIdFor(column!));
     expect(component.connectedDropListIds).toContain(component.paletteDropListId);
+  });
+
+  it('should reroute root drops into the nested column under the pointer', () => {
+    fixture.detectChanges();
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    expect(column).toBeTruthy();
+    const columnElement = query<HTMLElement>(fixture, `[data-node-id="${column!.id}"]`)!;
+    const ownerDocument = columnElement.ownerDocument as Document & { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const originalElementsFromPoint = ownerDocument.elementsFromPoint;
+    Object.defineProperty(ownerDocument, 'elementsFromPoint', {
+      configurable: true,
+      value: () => [columnElement],
+    });
+    const bodyBefore = component.emailDocument.body.length;
+    const columnBefore = column!.children?.length || 0;
+
+    try {
+      component.drop({
+        previousContainer: { data: component.palette } as any,
+        container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+        previousIndex: 0,
+        currentIndex: bodyBefore,
+        dropPoint: { x: 10, y: 10 },
+        item: { data: { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' } } as any,
+      } as any);
+    } finally {
+      Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
+    }
+
+    expect(component.emailDocument.body.length).toBe(bodyBefore);
+    expect(column!.children?.length).toBe(columnBefore + 1);
+    expect(column!.children?.[columnBefore].type).toBe('text');
+  });
+
+  it('should keep selected text blocks draggable on the canvas', () => {
+    const selectedText = component.selectedNode;
+    expect(selectedText?.type).toBe('text');
+    expect(component.isCanvasNodeDragDisabled(selectedText!)).toBe(false);
+    const parentSection = component.emailDocument.body[0];
+    expect(component.isCanvasNodeDragDisabled(parentSection)).toBe(false);
   });
 
   it('should disable drag/drop affordances in readonly mode', () => {
