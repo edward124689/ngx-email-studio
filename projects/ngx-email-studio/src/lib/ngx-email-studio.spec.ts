@@ -666,6 +666,24 @@ describe('NgxEmailStudio', () => {
     expect(exportedHtml).toContain('background:#112233;');
   });
 
+  it('should reuse parsed social item arrays between unchanged change-detection passes', () => {
+    const social: EmailNode = {
+      id: 'social-cache-test',
+      type: 'social',
+      attrs: {
+        items: JSON.stringify([{ name: 'facebook', href: 'https://example.com', backgroundColor: '#A1A0A0' }]),
+      },
+    };
+
+    expect(component.socialItems(social)).toBe(component.socialItems(social));
+    expect(component.socialEditorItems(social)).toBe(component.socialEditorItems(social));
+
+    component.updateSocialItemAttr(social, 0, 'href', 'https://example.com/updated');
+
+    expect(component.socialItems(social)[0].href).toBe('https://example.com/updated');
+    expect(component.socialEditorItems(social)[0].href).toBe('https://example.com/updated');
+  });
+
   it('should default imported MJML social alignment to center when align is omitted', () => {
     const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="https://mjml.io/"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
 

@@ -174,7 +174,7 @@ ngx-email-studio button:hover { border-color: var(--nes-accent); color: var(--ne
 .nes-render-social-wrap.is-vertical { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .nes-render-social-wrap.is-vertical.is-align-center { align-items: center; }
 .nes-render-social-wrap.is-vertical.is-align-right { align-items: flex-end; }
-.nes-render-social-icon { display: inline-block; margin: 0 4px; border-radius: 999px; color: #fff; text-align: center; text-decoration: none; font-family: Arial, sans-serif; font-weight: 800; vertical-align: middle; }
+.nes-render-social-icon { display: inline-block; margin: 0 4px; padding: 0; border: 0; border-radius: 999px; color: #fff; text-align: center; text-decoration: none; font-family: Arial, sans-serif; font-weight: 800; vertical-align: middle; cursor: pointer; }
 .nes-social-editor { display: grid; gap: 10px; }
 .nes-social-item-editor { display: grid; grid-template-columns: auto minmax(70px, .7fr) minmax(120px, 1fr); gap: 8px; align-items: end; padding: 10px; border: 1px solid #dbe3ef; border-radius: 12px; background: #f8fafc; }
 .nes-social-item-editor label:nth-of-type(3), .nes-social-item-editor .nes-small-danger { grid-column: 2 / -1; }

@@ -477,7 +477,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
 
               <div *ngIf="node.type === 'social'" class="nes-field-block nes-social-editor">
                 <div class="nes-control-heading">Social links</div>
-                <div class="nes-social-item-editor" *ngFor="let item of socialEditorItems(node); let i = index">
+                <div class="nes-social-item-editor" *ngFor="let item of socialEditorItems(node); let i = index; trackBy: trackSocialItem">
                   <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">{{ socialIconLabel(item.name) }}</span>
                   <label>
                     Icon
@@ -933,7 +933,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.color]="buttonTextColorCss(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
         </div>
         <div *ngSwitchCase="'social'" class="nes-render-social-wrap" [class.is-vertical]="socialModeValue(node) === 'vertical'" [class.is-align-center]="contentAlign(node) === 'center'" [class.is-align-right]="contentAlign(node) === 'right'" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 0)">
-          <a class="nes-render-social-icon" *ngFor="let item of socialItems(node)" [href]="item.href" [attr.aria-label]="item.name" [style.background]="item.backgroundColor" [style.width]="socialIconSizeCss(node)" [style.height]="socialIconSizeCss(node)" [style.line-height]="socialIconSizeCss(node)" [style.font-size]="socialFontSizeCss(node)" (click)="$event.preventDefault()">{{ socialIconLabel(item.name) }}</a>
+          <button type="button" class="nes-render-social-icon" *ngFor="let item of socialItems(node); trackBy: trackSocialItem" [attr.data-href]="item.href" [attr.aria-label]="socialPreviewLabel(item.name)" [style.background]="item.backgroundColor" [style.width]="socialIconSizeCss(node)" [style.height]="socialIconSizeCss(node)" [style.line-height]="socialIconSizeCss(node)" [style.font-size]="socialFontSizeCss(node)" (click)="handleSocialIconPreviewClick($event, node.id)">{{ socialIconLabel(item.name) }}</button>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
@@ -997,6 +997,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   };
   private tiptapToolbarStateTimers: Partial<Record<TiptapScope, ReturnType<typeof setTimeout>>> = {};
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly socialItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
+  private readonly socialDraftItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
   readonly twoColumnRatios = [
@@ -1172,6 +1174,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   trackNode(_: number, node: EmailNode): string {
     return node.id;
+  }
+
+  trackSocialItem(index: number, item: SocialItem): string {
+    return `${index}:${item.name}:${item.href}:${item.backgroundColor}`;
+  }
+
+  handleSocialIconPreviewClick(event: MouseEvent, nodeId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.selectNode(nodeId);
   }
 
   dropListIdFor(node: EmailNode): string {
@@ -1471,15 +1483,28 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   socialItems(node: EmailNode): SocialItem[] {
-    return parseSocialItems(node.attrs['items']);
+    return this.cachedSocialItems(this.socialItemsCache, node, parseSocialItems);
   }
 
   socialEditorItems(node: EmailNode): SocialItem[] {
-    return parseSocialDraftItems(node.attrs['items']);
+    return this.cachedSocialItems(this.socialDraftItemsCache, node, parseSocialDraftItems);
+  }
+
+  private cachedSocialItems(cache: Map<string, { raw: unknown; parsed: SocialItem[] }>, node: EmailNode, parser: (value: unknown) => SocialItem[]): SocialItem[] {
+    const raw = node.attrs['items'];
+    const cached = cache.get(node.id);
+    if (cached && cached.raw === raw) return cached.parsed;
+    const parsed = parser(raw);
+    cache.set(node.id, { raw, parsed });
+    return parsed;
   }
 
   socialIconLabel(name: string): string {
     return getSocialIconLabel(name);
+  }
+
+  socialPreviewLabel(name: string): string {
+    return `Select ${name || 'social'} social link`;
   }
 
   socialModeValue(node: EmailNode): 'horizontal' | 'vertical' {
