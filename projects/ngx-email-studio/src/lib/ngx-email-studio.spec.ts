@@ -2129,21 +2129,21 @@ describe('NgxEmailStudio', () => {
     expect(componentStyles).toContain('data:image/svg+xml');
   });
 
-  it('should avoid canvas selection highlights that compete with preview and rich-text editing', () => {
+  it('should keep the canvas selection frame while preventing native text selection', () => {
     fixture.detectChanges();
 
     const componentStyles = componentStyleText();
     const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
     expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
     expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
-    expect(compactComponentStyles).toContain('.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }');
+    expect(compactComponentStyles).toContain('.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }');
+    expect(compactComponentStyles).toContain('.nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; user-select: none; -webkit-user-select: none; }');
     expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-floating-tools { display: none; }');
-    expect(componentStyles).not.toContain('box-shadow: inset 0 0 0 1px var(--nes-accent)');
     expect(componentStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
     expect(componentStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
 
-  it('should prevent native browser text selection only while dragging on the canvas', () => {
+  it('should clear any native browser text selection while dragging on the canvas', () => {
     fixture.detectChanges();
 
     const componentStyles = componentStyleText();
@@ -2164,8 +2164,7 @@ describe('NgxEmailStudio', () => {
       Object.defineProperty(globalThis, 'getSelection', { configurable: true, value: originalGetSelection });
     }
 
-    expect(componentStyles).toMatch(/\.nes-canvas \{[^}]*box-sizing:\s*border-box;\s*\}/);
-    expect(componentStyles).not.toMatch(/\.nes-canvas \{[^}]*user-select/);
+    expect(componentStyles).toMatch(/\.nes-canvas \{[^}]*box-sizing:\s*border-box;[^}]*user-select:\s*none;[^}]*-webkit-user-select:\s*none;/);
     const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
     expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-canvas, .nes-shell.is-dragging .nes-canvas *, .cdk-drag-preview, .cdk-drag-preview * { user-select: none; -webkit-user-select: none; }');
     expect(cleared).toBe(2);
