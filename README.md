@@ -55,7 +55,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 | --- | --- |
 | `21.x` | Angular `21.x` |
 
-The first public npm release is `21.0.0`.
+The first public npm release is `21.0.0`; the current stable release is tracked on the [npm package page](https://www.npmjs.com/package/ngx-email-studio) and in the [GitHub changelog](https://github.com/edward124689/ngx-email-studio/blob/main/CHANGELOG.md).
 
 ## Installation
 
