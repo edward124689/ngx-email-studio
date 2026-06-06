@@ -1153,6 +1153,38 @@ describe('NgxEmailStudio', () => {
     expect(column!.children?.[columnBefore].type).toBe('text');
   });
 
+  it('should prefer the deepest pointed column when CDK chooses an active drop-list indicator', () => {
+    fixture.detectChanges();
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    const section = component.emailDocument.body.find((node) => node.type === 'section');
+    expect(column).toBeTruthy();
+    expect(section).toBeTruthy();
+    const columnElement = query<HTMLElement>(fixture, `[data-node-id="${column!.id}"]`)!;
+    const columnChild = columnElement.querySelector<HTMLElement>('.nes-child-node') || columnElement;
+    const ownerDocument = columnElement.ownerDocument as Document & { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const originalElementsFromPoint = ownerDocument.elementsFromPoint;
+    Object.defineProperty(ownerDocument, 'elementsFromPoint', {
+      configurable: true,
+      value: () => [columnChild, columnElement],
+    });
+
+    const paletteText = { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' };
+    try {
+      component.beginDrag();
+      component.onDocumentPointerMove({ clientX: 10, clientY: 10 } as PointerEvent);
+
+      expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(column!) })).toBe(true);
+      expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.rootDropListId })).toBe(false);
+      expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(section!) })).toBe(false);
+    } finally {
+      component.endDrag();
+      Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
+    }
+
+    expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.rootDropListId })).toBe(true);
+  });
+
   it('should keep selected text blocks draggable on the canvas', () => {
     const selectedText = component.selectedNode;
     expect(selectedText?.type).toBe('text');

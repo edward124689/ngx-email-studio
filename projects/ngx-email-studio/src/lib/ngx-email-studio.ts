@@ -1020,6 +1020,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
   private readonly socialItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
   private readonly socialDraftItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
+  private activePointedDropListId?: string;
   readonly previewSizeOptions = [1200, 800, 600, 400];
   readonly unitOptions: EmailSizeUnit[] = ['px', '%'];
   readonly twoColumnRatios = [
@@ -1041,7 +1042,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
   readonly bodyNodeId = BODY_NODE_ID;
   readonly rejectPaletteDrop = (): boolean => false;
-  readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => this.canDropIntoContainer(drag.data, drop.id);
+  readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => {
+    if (!this.canDropIntoContainer(drag.data, drop.id)) return false;
+    if (!this.activePointedDropListId || drop.id === this.activePointedDropListId) return true;
+
+    const pointedTarget = this.findNodeByDropListId(this.activePointedDropListId);
+    if (!pointedTarget || !this.canDropIntoContainer(drag.data, this.activePointedDropListId)) return true;
+    return false;
+  };
 
   constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer, private readonly changeDetector: ChangeDetectorRef) {}
 
@@ -1049,6 +1057,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   onDocumentClick(event: MouseEvent): void {
     const path = event.composedPath?.() || [];
     if (!path.includes(this.hostRef.nativeElement)) this.closeTransientMenus();
+  }
+
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentPointerMove(event: PointerEvent): void {
+    if (!this.dragInProgress) return;
+    this.activePointedDropListId = this.findDeepestContainerDropListIdAtPoint(event.clientX, event.clientY);
   }
 
   @HostListener('document:keydown.escape')
@@ -1226,21 +1240,34 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const point = (event as CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]> & { dropPoint?: { x: number; y: number } }).dropPoint;
     if (!point) return null;
 
+    const target = this.findDeepestContainerAtPoint(point.x, point.y);
+    if (!target) return null;
+    return {
+      id: this.dropListIdFor(target.node),
+      data: this.childrenOf(target.node),
+      index: this.dropInsertionIndex(target.element, point.y),
+    };
+  }
+
+  private findDeepestContainerDropListIdAtPoint(x: number, y: number): string | undefined {
+    const target = this.findDeepestContainerAtPoint(x, y);
+    return target ? this.dropListIdFor(target.node) : undefined;
+  }
+
+  private findDeepestContainerAtPoint(x: number, y: number): { element: HTMLElement; node: EmailNode } | null {
     const doc = this.hostRef.nativeElement.ownerDocument;
     const elements = typeof doc.elementsFromPoint === 'function'
-      ? doc.elementsFromPoint(point.x, point.y)
-      : [doc.elementFromPoint(point.x, point.y)].filter((element): element is Element => !!element);
+      ? doc.elementsFromPoint(x, y)
+      : [doc.elementFromPoint(x, y)].filter((element): element is Element => !!element);
+    const seen = new Set<HTMLElement>();
     for (const element of elements) {
       const container = element.closest?.('.nes-render-column[data-node-id], .nes-render-section[data-node-id]') as HTMLElement | null;
-      if (!container || !this.hostRef.nativeElement.contains(container)) continue;
+      if (!container || seen.has(container) || !this.hostRef.nativeElement.contains(container)) continue;
+      seen.add(container);
       const nodeId = container.getAttribute('data-node-id') || '';
       const node = this.findNode(nodeId);
       if (!node || (node.type !== 'column' && node.type !== 'section')) continue;
-      return {
-        id: this.dropListIdFor(node),
-        data: this.childrenOf(node),
-        index: this.dropInsertionIndex(container, point.y),
-      };
+      return { element: container, node };
     }
     return null;
   }
@@ -1284,6 +1311,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   beginDrag(): void {
     if (this.readonly) return;
     this.dragInProgress = true;
+    this.activePointedDropListId = undefined;
     this.clearNativeSelection();
   }
 
@@ -1293,6 +1321,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   endDrag(): void {
     this.dragInProgress = false;
+    this.activePointedDropListId = undefined;
     this.clearNativeSelection();
   }
 
