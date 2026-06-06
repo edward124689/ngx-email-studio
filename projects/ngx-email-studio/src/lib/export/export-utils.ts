@@ -46,6 +46,14 @@ export function normalizeHtmlClassValue(value: unknown): string {
   return tokens.slice(0, 16).join(' ');
 }
 
+export function normalizeHrefValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (/^(https?:|mailto:|tel:|#)/i.test(raw)) return raw;
+  if (/^\/(?!\/)/.test(raw)) return raw;
+  return '';
+}
+
 export function colorAttrValue(value: unknown): string {
   return normalizeColorValue(value);
 }

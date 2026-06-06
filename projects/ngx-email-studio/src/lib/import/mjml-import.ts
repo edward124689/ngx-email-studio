@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, createSectionWithChildren, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from '../export/export-utils';
+import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue } from '../export/export-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
 const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
@@ -59,45 +59,70 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   return { version: '0.0.1', attrs: documentAttrs, body: nodes.length ? nodes : [createNode(idFactory, 'text')], unsupported };
 }
 
-function parseTopLevelMjmlElement(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode[] {
+function parseTopLevelMjmlElement(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory, inheritedAttrs: Record<string, string | number | boolean> = {}): EmailNode[] {
   switch (element.tagName.toLowerCase()) {
     case 'mj-section': {
-      const section = parseSection(element, unsupported, idFactory);
+      const section = parseSection(element, unsupported, idFactory, inheritedAttrs);
       return section ? [section] : [];
     }
     case 'mj-wrapper':
-      return elementChildren(element).flatMap((child) => parseTopLevelMjmlElement(child, unsupported, idFactory));
+      return elementChildren(element).flatMap((child) => parseTopLevelMjmlElement(child, unsupported, idFactory, { ...inheritedAttrs, ...importedContainerAttrs(element) }));
     default:
       if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
       return [];
   }
 }
 
-function parseSection(section: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
+function parseSection(section: Element, unsupported: string[], idFactory: EmailNodeIdFactory, inheritedAttrs: Record<string, string | number | boolean> = {}): EmailNode | undefined {
   const columns = elementChildren(section).flatMap((element) => sectionColumns(element, unsupported));
   if (columns.length === 0) return undefined;
 
-  const parsedColumns = columns.map((column) => parseColumn(column, unsupported, idFactory)).filter((column): column is EmailNode => !!column);
+  const parsedColumns = columns.map((column) => parseColumn(column.element, unsupported, idFactory, column.width)).filter((column): column is EmailNode => !!column);
+  const sectionAttrs = { ...inheritedAttrs, ...importedContainerAttrs(section) };
   if (parsedColumns.length === 1) {
     const children = parsedColumns[0].children || [];
-    return children.length ? createSectionWithChildren(idFactory, children, importedContainerAttrs(section)) : undefined;
+    return children.length ? createSectionWithChildren(idFactory, children, sectionAttrs) : undefined;
   }
 
-  const row = createNode(idFactory, 'row', importedContainerAttrs(section));
+  const row = createNode(idFactory, 'row', sectionAttrs);
   row.children = parsedColumns;
   return row;
 }
 
-function sectionColumns(element: Element, unsupported: string[]): Element[] {
+function sectionColumns(element: Element, unsupported: string[]): Array<{ element: Element; width?: string }> {
   switch (element.tagName.toLowerCase()) {
     case 'mj-column':
-      return [element];
+      return [{ element }];
     case 'mj-group':
-      return elementChildren(element).filter((child) => child.tagName.toLowerCase() === 'mj-column');
+      return elementChildren(element)
+        .filter((child) => child.tagName.toLowerCase() === 'mj-column')
+        .map((child) => ({ element: child, width: effectiveGroupColumnWidth(element, child) }));
     default:
       if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
       return [];
   }
+}
+
+function effectiveGroupColumnWidth(group: Element, column: Element): string | undefined {
+  const groupWidth = percentWidth(group.getAttribute('width'));
+  const columnWidth = percentWidth(column.getAttribute('width'));
+  if (groupWidth !== undefined && columnWidth !== undefined) return `${roundWidth((groupWidth * columnWidth) / 100)}%`;
+  if (groupWidth !== undefined && !column.getAttribute('width')) {
+    const columns = elementChildren(group).filter((child) => child.tagName.toLowerCase() === 'mj-column').length || 1;
+    return `${roundWidth(groupWidth / columns)}%`;
+  }
+  return undefined;
+}
+
+function percentWidth(value: string | null): number | undefined {
+  const raw = String(value || '').trim();
+  if (!raw.endsWith('%')) return undefined;
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function roundWidth(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function normalizeMjmlForXmlParser(mjml: string): string {
@@ -109,12 +134,12 @@ function normalizeMjmlForXmlParser(mjml: string): string {
   });
 }
 
-function parseColumn(column: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
+function parseColumn(column: Element, unsupported: string[], idFactory: EmailNodeIdFactory, widthOverride?: string): EmailNode | undefined {
   const children = elementChildren(column)
     .map((element) => parseMjmlBlock(element, unsupported, idFactory))
     .filter((node): node is EmailNode => !!node);
 
-  return createColumn(idFactory, children, column.getAttribute('width') || '50%', {
+  return createColumn(idFactory, children, widthOverride || column.getAttribute('width') || '50%', {
     ...importedContainerAttrs(column),
   });
 }
@@ -232,7 +257,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
     case 'mj-button':
       return createNode(idFactory, 'button', {
         label: element.textContent || 'Button',
-        href: element.getAttribute('href') || '#',
+        href: normalizeHrefValue(element.getAttribute('href')) || '#',
         backgroundColor: importedColor(element.getAttribute('background-color')) || '#7c3aed',
         color: importedButtonColor(element),
         borderRadius: parseButtonBorderRadius(element.getAttribute('border-radius')),
@@ -244,19 +269,23 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
     case 'mj-spacer':
       return createNode(idFactory, 'spacer', { height: Number.parseInt(element.getAttribute('height') || '24', 10) });
     case 'mj-social':
-      return parseSocialBlock(element, idFactory);
+      return parseSocialBlock(element, unsupported, idFactory);
     default:
       if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
       return undefined;
   }
 }
 
-function parseSocialBlock(element: Element, idFactory: EmailNodeIdFactory): EmailNode | undefined {
-  const links = elementChildren(element)
+function parseSocialBlock(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
+  const children = elementChildren(element);
+  children.forEach((child) => {
+    if (child.tagName.toLowerCase() !== 'mj-social-element' && child.tagName.startsWith('mj-') && !unsupported.includes(child.tagName)) unsupported.push(child.tagName);
+  });
+  const links = children
     .filter((child) => child.tagName.toLowerCase() === 'mj-social-element')
     .map((child) => {
       const name = child.getAttribute('name') || child.textContent?.trim() || 'social';
-      const href = child.getAttribute('href') || '#';
+      const href = normalizeHrefValue(child.getAttribute('href')) || '#';
       return `<a href="${escapeRichTextAttribute(href)}">${escapeRichText(name)}</a>`;
     });
   if (!links.length) return undefined;

@@ -1,4 +1,4 @@
-import { normalizeColorValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
 
 const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
@@ -50,8 +50,8 @@ function sanitizeRichTextElement(element: HTMLElement): void {
       continue;
     }
     if (element.tagName === 'A' && name === 'href') {
-      const href = attr.value.trim();
-      if (/^(https?:|mailto:|tel:|#|\/)/i.test(href)) element.setAttribute('href', href);
+      const href = normalizeHrefValue(attr.value);
+      if (href) element.setAttribute('href', href);
       else element.removeAttribute('href');
       continue;
     }

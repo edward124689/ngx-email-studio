@@ -1,7 +1,7 @@
 import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -49,7 +49,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       return `<mj-image src="${escapeAttr(String(node.attrs['src'] || ''))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
     case 'button': {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return `<mj-button href="${escapeAttr(String(node.attrs['href'] || '#'))}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}"${buttonColorAttr(node)} border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
+      return `<mj-button href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}"${buttonColorAttr(node)} border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
     }
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;

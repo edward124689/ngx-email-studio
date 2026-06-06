@@ -605,7 +605,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should sanitize imported MJML social links when degrading them to rich text', () => {
-    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="javascript:alert(1)"></mj-social-element><mj-social-element name="linkedin" href="https://mjml.io/"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="javascript:alert(1)"></mj-social-element><mj-social-element name="linkedin" href="https://mjml.io/"></mj-social-element><mj-text>Unsupported here</mj-text></mj-social></mj-column></mj-section></mj-body></mjml>`;
 
     const document = (component as any).parseMjml(mjml) as EmailDocument;
     const social = findImportedNode(document.body, 'text');
@@ -615,6 +615,40 @@ describe('NgxEmailStudio', () => {
     expect(content).toContain('linkedin');
     expect(content).not.toContain('javascript:');
     expect(content).toContain('href="https://mjml.io/"');
+    expect(document.unsupported || []).toContain('mj-text');
+  });
+
+  it('should sanitize imported and exported button hrefs', () => {
+    const mjml = `<mjml><mj-body><mj-wrapper><mj-section><mj-column><mj-button href="javascript:alert(1)">Unsafe</mj-button><mj-button href="//evil.example/path">Protocol relative</mj-button><mj-button href="https://example.com/safe">Safe</mj-button></mj-column></mj-section></mj-wrapper></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const buttons = JSON.stringify(document.body);
+    const exportedMjml = (component as any).compileMjml(document) as string;
+    const exportedHtml = (component as any).renderHtml(document) as string;
+
+    expect(buttons).not.toContain('javascript:');
+    expect(buttons).not.toContain('//evil.example');
+    expect(exportedMjml).not.toContain('javascript:');
+    expect(exportedMjml).not.toContain('//evil.example');
+    expect(exportedHtml).not.toContain('javascript:');
+    expect(exportedHtml).not.toContain('//evil.example');
+    expect(exportedMjml).toContain('href="https://example.com/safe"');
+  });
+
+  it('should carry safe wrapper attrs to flattened sections and preserve effective MJML group widths', () => {
+    const mjml = `<mjml><mj-body><mj-wrapper background-color="#eef2ff" padding="4px 8px 12px 16px"><mj-section><mj-column><mj-text>Wrapped</mj-text></mj-column></mj-section></mj-wrapper><mj-section><mj-group width="50%"><mj-column width="50%"><mj-text>A</mj-text></mj-column><mj-column><mj-text>B</mj-text></mj-column></mj-group><mj-column width="50%"><mj-text>C</mj-text></mj-column></mj-section></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const wrapped = document.body[0];
+    const row = document.body[1];
+
+    expect(wrapped.attrs['backgroundColor']).toBe('#eef2ff');
+    expect(wrapped.attrs['paddingTop']).toBe(4);
+    expect(wrapped.attrs['paddingRight']).toBe(8);
+    expect(wrapped.attrs['paddingBottom']).toBe(12);
+    expect(wrapped.attrs['paddingLeft']).toBe(16);
+    expect(row.type).toBe('row');
+    expect(row.children?.map((column) => column.attrs['width'])).toEqual(['25%', '25%', '50%']);
   });
 
 
