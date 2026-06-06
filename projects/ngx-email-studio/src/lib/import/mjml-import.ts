@@ -4,7 +4,7 @@ import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeLineHeightValue } from '../export/export-utils';
 
-const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-section', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer']);
+const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
 const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
 const HTML_ENTITY_CODEPOINTS: Record<string, number> = {
   nbsp: 160,
@@ -47,24 +47,9 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   }
   const nodes: EmailNode[] = [];
 
-  elementChildren(body)
-    .filter((element) => element.tagName.toLowerCase() === 'mj-section')
-    .forEach((section) => {
-      const columns = elementChildren(section).filter((element) => element.tagName.toLowerCase() === 'mj-column');
-      if (columns.length === 0) return;
-
-      const parsedColumns = columns.map((column) => parseColumn(column, unsupported, idFactory)).filter((column): column is EmailNode => !!column);
-      if (parsedColumns.length === 1) {
-        const children = parsedColumns[0].children || [];
-        if (children.length) {
-          nodes.push(createSectionWithChildren(idFactory, children, importedContainerAttrs(section)));
-        }
-      } else {
-        const row = createNode(idFactory, 'row', importedContainerAttrs(section));
-        row.children = parsedColumns;
-        nodes.push(row);
-      }
-    });
+  elementChildren(body).forEach((element) => {
+    nodes.push(...parseTopLevelMjmlElement(element, unsupported, idFactory));
+  });
 
   Array.from(xml.getElementsByTagName('*')).forEach((element) => {
     const tag = element.tagName.toLowerCase();
@@ -72,6 +57,47 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   });
 
   return { version: '0.0.1', attrs: documentAttrs, body: nodes.length ? nodes : [createNode(idFactory, 'text')], unsupported };
+}
+
+function parseTopLevelMjmlElement(element: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode[] {
+  switch (element.tagName.toLowerCase()) {
+    case 'mj-section': {
+      const section = parseSection(element, unsupported, idFactory);
+      return section ? [section] : [];
+    }
+    case 'mj-wrapper':
+      return elementChildren(element).flatMap((child) => parseTopLevelMjmlElement(child, unsupported, idFactory));
+    default:
+      if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
+      return [];
+  }
+}
+
+function parseSection(section: Element, unsupported: string[], idFactory: EmailNodeIdFactory): EmailNode | undefined {
+  const columns = elementChildren(section).flatMap((element) => sectionColumns(element, unsupported));
+  if (columns.length === 0) return undefined;
+
+  const parsedColumns = columns.map((column) => parseColumn(column, unsupported, idFactory)).filter((column): column is EmailNode => !!column);
+  if (parsedColumns.length === 1) {
+    const children = parsedColumns[0].children || [];
+    return children.length ? createSectionWithChildren(idFactory, children, importedContainerAttrs(section)) : undefined;
+  }
+
+  const row = createNode(idFactory, 'row', importedContainerAttrs(section));
+  row.children = parsedColumns;
+  return row;
+}
+
+function sectionColumns(element: Element, unsupported: string[]): Element[] {
+  switch (element.tagName.toLowerCase()) {
+    case 'mj-column':
+      return [element];
+    case 'mj-group':
+      return elementChildren(element).filter((child) => child.tagName.toLowerCase() === 'mj-column');
+    default:
+      if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
+      return [];
+  }
 }
 
 function normalizeMjmlForXmlParser(mjml: string): string {
@@ -217,8 +243,34 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
       return createNode(idFactory, 'divider', { borderColor: element.getAttribute('border-color') || '#d0d5dd' });
     case 'mj-spacer':
       return createNode(idFactory, 'spacer', { height: Number.parseInt(element.getAttribute('height') || '24', 10) });
+    case 'mj-social':
+      return parseSocialBlock(element, idFactory);
     default:
       if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
       return undefined;
   }
+}
+
+function parseSocialBlock(element: Element, idFactory: EmailNodeIdFactory): EmailNode | undefined {
+  const links = elementChildren(element)
+    .filter((child) => child.tagName.toLowerCase() === 'mj-social-element')
+    .map((child) => {
+      const name = child.getAttribute('name') || child.textContent?.trim() || 'social';
+      const href = child.getAttribute('href') || '#';
+      return `<a href="${escapeRichTextAttribute(href)}">${escapeRichText(name)}</a>`;
+    });
+  if (!links.length) return undefined;
+  return createNode(idFactory, 'text', {
+    content: sanitizeRichTextContent(`<p>${links.join('&nbsp;&nbsp;&nbsp;')}</p>`),
+    align: safeAlign(element.getAttribute('align')),
+    ...importedPaddingAttrs(element),
+  });
+}
+
+function escapeRichText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeRichTextAttribute(value: string): string {
+  return escapeRichText(value).replace(/"/g, '&quot;');
 }

@@ -584,6 +584,39 @@ describe('NgxEmailStudio', () => {
     expect(document.body[0].children?.[1].children?.[0].type).toBe('image');
   });
 
+  it('should import content nested inside MJML wrappers and groups', () => {
+    const mjml = `<mjml><mj-body background-color="#E7E7E7" width="600px"><mj-section background-color="#040B4F"><mj-column><mj-image src="https://example.com/header.png" width="600px" /></mj-column></mj-section><mj-wrapper padding-top="0" padding-bottom="0" css-class="body-section"><mj-section background-color="#ffffff" padding-left="15px" padding-right="15px"><mj-column><mj-text color="#212b35" font-weight="bold" font-size="20px">Croft's in Austin is opening December 20th</mj-text><mj-button background-color="#5e6ebf" color="#ffffff" href="https://google.com" width="300px">RSVP Today</mj-button></mj-column></mj-section><mj-section background-color="#ffffff" padding-top="0"><mj-column width="50%"><mj-image src="https://example.com/austin-image-1.png" /></mj-column><mj-column width="50%"><mj-image src="https://example.com/austin-image-2.png" /></mj-column></mj-section></mj-wrapper><mj-wrapper full-width="full-width"><mj-section><mj-column width="100%"><mj-social align="center"><mj-social-element name="facebook" href="https://mjml.io/"></mj-social-element><mj-social-element name="linkedin" href="https://mjml.io/"></mj-social-element></mj-social></mj-column></mj-section><mj-section padding-top="0"><mj-group><mj-column width="100%"><mj-text align="center"><a class="footer-link" href="https://www.google.com">Privacy</a></mj-text></mj-column></mj-group></mj-section></mj-wrapper></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const allText = JSON.stringify(document.body);
+
+    expect(document.attrs?.['backgroundColor']).toBe('#e7e7e7');
+    expect(document.attrs?.['width']).toBe(600);
+    expect(document.body.length).toBe(5);
+    expect(allText).toContain('Croft\'s in Austin is opening December 20th');
+    expect(allText).toContain('RSVP Today');
+    expect(allText).toContain('austin-image-1.png');
+    expect(allText).toContain('austin-image-2.png');
+    expect(allText).toContain('facebook');
+    expect(allText).toContain('Privacy');
+    expect(document.unsupported || []).not.toContain('mj-wrapper');
+    expect(document.unsupported || []).not.toContain('mj-group');
+    expect(document.unsupported || []).not.toContain('mj-social');
+  });
+
+  it('should sanitize imported MJML social links when degrading them to rich text', () => {
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="javascript:alert(1)"></mj-social-element><mj-social-element name="linkedin" href="https://mjml.io/"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const social = findImportedNode(document.body, 'text');
+    const content = String(social?.attrs['content'] || '');
+
+    expect(content).toContain('facebook');
+    expect(content).toContain('linkedin');
+    expect(content).not.toContain('javascript:');
+    expect(content).toContain('href="https://mjml.io/"');
+  });
+
 
   it('should drop palette blocks into a row column', () => {
     const row = component.emailDocument.body.find((node) => node.type === 'row');
