@@ -8,6 +8,10 @@ It provides a polished visual builder shell, MJML import/export for a practical 
 
 Live demo: <https://edward124689.github.io/ngx-email-studio/>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/edward124689/ngx-email-studio/main/docs/images/email-studio-demo.png" alt="Email Studio visual builder with content modules, email canvas, responsive preview controls, and properties inspector" width="100%" />
+</p>
+
 ## Table of Contents
 
 - [Features](#features)
