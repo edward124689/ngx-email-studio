@@ -2136,6 +2136,8 @@ describe('NgxEmailStudio', () => {
     const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
     expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
     expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
+    expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-node.is-selected, .nes-shell.is-dragging .nes-child-node.is-selected, .nes-shell.is-dragging .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }');
+    expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-floating-tools { display: none; }');
     expect(componentStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
     expect(componentStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
