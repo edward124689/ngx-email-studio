@@ -21,6 +21,15 @@ function sanitizeRichTextNode(node: Node): void {
       continue;
     }
     const element = child as HTMLElement;
+    if (element.tagName === 'DIV' && shouldNormalizeDivToParagraph(element)) {
+      const paragraph = element.ownerDocument.createElement('p');
+      for (const attr of Array.from(element.attributes)) paragraph.setAttribute(attr.name, attr.value);
+      while (element.firstChild) paragraph.appendChild(element.firstChild);
+      element.replaceWith(paragraph);
+      sanitizeRichTextElement(paragraph);
+      sanitizeRichTextNode(paragraph);
+      continue;
+    }
     if (!ALLOWED_RICH_TEXT_TAGS.has(element.tagName)) {
       if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'IFRAME') {
         element.remove();
@@ -109,6 +118,14 @@ function safeRichTextStyle(value: string, tagName: string): string {
     if (isTableCell && property === 'padding' && /^(0|[1-9][0-9]?px)$/.test(rawValue)) safe.push(`padding: ${rawValue}`);
   }
   return safe.join('; ');
+}
+
+function shouldNormalizeDivToParagraph(element: HTMLElement): boolean {
+  return !Array.from(element.children).some((child) => isRichTextBlockElement(child.tagName));
+}
+
+function isRichTextBlockElement(tagName: string): boolean {
+  return tagName === 'P' || /^H[1-6]$/.test(tagName) || tagName === 'UL' || tagName === 'OL' || tagName === 'TABLE';
 }
 
 

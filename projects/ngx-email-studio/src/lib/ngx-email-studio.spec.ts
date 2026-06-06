@@ -528,6 +528,16 @@ describe('NgxEmailStudio', () => {
     expect(sanitizeRichTextContent('<foo><img src="x" onerror="evil()"><span onclick="x()">ok</span></foo>')).toBe('<span>ok</span>');
   });
 
+  it('should support pasted rich-text div paragraphs by normalizing them to paragraphs', () => {
+    const sanitized = sanitizeRichTextContent('<div style="margin: 10px 0; color: #123456" onclick="evil()">Line <strong>one</strong></div><div>Line two<br>next</div><div><p>Nested paragraph</p></div>');
+
+    expect(sanitized).toContain('<p style="margin: 10px 0; color: #123456">Line <strong>one</strong></p>');
+    expect(sanitized).toContain('<p>Line two<br>next</p>');
+    expect(sanitized).toContain('<p>Nested paragraph</p>');
+    expect(sanitized).not.toContain('<div');
+    expect(sanitized).not.toContain('onclick');
+  });
+
   it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body background-color="red;background:url(javascript:alert(1))"><mj-section background-color="red;background:url(javascript:alert(1))"><mj-column background-color="#ABCDEF"><mj-text><p>Safe</p></mj-text></mj-column><mj-column background-color="red;background:url(javascript:alert(1))"><mj-text><p>Unsafe column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const row = imported.body[0];
