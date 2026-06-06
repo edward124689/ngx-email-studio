@@ -120,6 +120,28 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.lastHtml).toContain('Input MJML hero');
   });
 
+  it('should reset stale host-provided MJML and document inputs when they are cleared', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    localFixture.componentRef.setInput('mjml', '<mjml><mj-body><mj-section><mj-column><mj-text><p>Host MJML</p></mj-text></mj-column></mj-section></mj-body></mjml>');
+    localFixture.detectChanges();
+    const localComponent = localFixture.componentInstance;
+    expect(localComponent.lastMjml).toContain('Host MJML');
+
+    localFixture.componentRef.setInput('mjml', '');
+    localFixture.detectChanges();
+    expect(localComponent.lastMjml).not.toContain('Host MJML');
+    expect(localComponent.emailDocument.body.length).toBeGreaterThan(0);
+
+    localFixture.componentRef.setInput('document', { version: '0.0.1', body: [{ id: 'host_text', type: 'text', attrs: { content: '<p>Host document</p>' } }] } satisfies EmailDocument);
+    localFixture.detectChanges();
+    expect(localComponent.lastMjml).toContain('Host document');
+
+    localFixture.componentRef.setInput('document', undefined);
+    localFixture.detectChanges();
+    expect(localComponent.lastMjml).not.toContain('Host document');
+    expect(localComponent.emailDocument.body.length).toBeGreaterThan(0);
+  });
+
   it('should render the builder in the light DOM host', () => {
     fixture.detectChanges();
 
@@ -762,6 +784,36 @@ describe('NgxEmailStudio', () => {
     expect(component.connectedDropListIds).toContain(component.paletteDropListId);
   });
 
+  it('should disable drag/drop affordances in readonly mode', () => {
+    const readonlyFixture = TestBed.createComponent(NgxEmailStudio);
+    readonlyFixture.componentRef.setInput('readonly', true);
+    readonlyFixture.detectChanges();
+    const readonlyComponent = readonlyFixture.componentInstance;
+
+    expect(readonlyComponent.canEnterContainerDropList({ data: readonlyComponent.palette[0] }, { id: readonlyComponent.rootDropListId })).toBe(false);
+    readonlyComponent.beginDrag();
+    expect(readonlyComponent.dragInProgress).toBe(false);
+    expect(queryAll(readonlyFixture, '.cdk-drag-disabled, .cdk-drop-list-disabled').length).toBeGreaterThan(0);
+  });
+
+  it('should wrap existing content modules moved back to the root canvas', () => {
+    const section = (component as any).createSectionWithChildren([{ id: 'text_nested_root_move', type: 'text', attrs: { content: '<p>Nested root move</p>' } }]);
+    const nestedText = section.children![0];
+    component.emailDocument = { ...component.emailDocument, body: [section] };
+
+    component.drop({
+      previousContainer: { data: section.children } as any,
+      container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 1,
+      item: { data: nestedText } as any,
+    } as any);
+
+    expect(component.emailDocument.body[1].type).toBe('section');
+    expect(component.emailDocument.body[1].children?.[0].type).toBe('text');
+    expect(component.emailDocument.body[1].children?.[0].attrs['content']).toContain('Nested root move');
+  });
+
   it('should reject drops into the palette so canvas nodes cannot corrupt module cards', () => {
     fixture.detectChanges();
     const paletteBefore = [...component.palette];
@@ -1106,7 +1158,7 @@ describe('NgxEmailStudio', () => {
     const editor = (component as any).tiptapInlineEditor;
     expect(editor).toBeTruthy();
 
-    editor.commands.setContent('<p style="line-height: 60px; text-align: center; margin: 10px 0; font-size: 55px; color: #fcfcfc; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif"><strong>Black Friday</strong></p>');
+    editor.commands.setContent('<p style="line-height: 80px; text-align: center; margin: 10px 0; background-color: #f8fafc; font-size: 55px; color: #fcfcfc; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif"><strong>Black Friday</strong></p>');
     editor.commands.setTextSelection(editor.state.doc.content.size - 1);
     editor.commands.insertContent('1');
 
@@ -1116,8 +1168,15 @@ describe('NgxEmailStudio', () => {
     expect(textNode.attrs['content']).toContain('Times New Roman');
     expect(textNode.attrs['content']).toContain('Helvetica');
     expect(textNode.attrs['content']).toContain('Arial');
-    expect(textNode.attrs['content']).toContain('line-height: 60px');
+    expect(textNode.attrs['content']).toContain('line-height: 80px');
+    expect(textNode.attrs['content']).toContain('margin-top: 10px');
+    expect(textNode.attrs['content']).toContain('margin-bottom: 10px');
+    expect(textNode.attrs['content']).toContain('background-color: #f8fafc');
     expect(component.lastMjml).toContain('font-size: 55px');
+    expect(component.lastMjml).toContain('line-height: 80px');
+    expect(component.lastMjml).toContain('margin-top: 10px');
+    expect(component.lastMjml).toContain('margin-bottom: 10px');
+    expect(component.lastMjml).toContain('background-color: #f8fafc');
     expect(component.lastMjml).toContain('color: #fcfcfc');
     expect(component.lastMjml).toContain('Times New Roman');
     expect(component.lastMjml).toContain('Helvetica');

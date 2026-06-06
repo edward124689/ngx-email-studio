@@ -16,11 +16,20 @@ function inlineTypographyStyle(attributes: Record<string, unknown>): string {
   const color = normalizeColorValue(attributes['color']);
   const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
   const fontWeight = normalizeFontWeightValue(attributes['fontWeight']);
+  const backgroundColor = normalizeColorValue(attributes['backgroundColor']);
   if (fontSize) style.push(`font-size: ${fontSize}`);
   if (color) style.push(`color: ${color}`);
   if (fontFamily) style.push(`font-family: ${fontFamily}`);
   if (fontWeight) style.push(`font-weight: ${fontWeight}`);
+  if (backgroundColor) style.push(`background-color: ${backgroundColor}`);
   return style.join('; ');
+}
+
+function normalizeBlockSpacingValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  const parts = raw.split(/\s+/).filter(Boolean);
+  if (parts.length < 1 || parts.length > 4) return '';
+  return parts.every((part) => part === '0' || /^-?([1-9]|[1-9][0-9])px$/.test(part) || part === 'auto') ? raw : '';
 }
 
 function blockTypographyStyle(attributes: Record<string, unknown>): string {
@@ -30,11 +39,23 @@ function blockTypographyStyle(attributes: Record<string, unknown>): string {
   const color = normalizeColorValue(attributes['color']);
   const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
   const fontWeight = normalizeFontWeightValue(attributes['fontWeight']);
+  const backgroundColor = normalizeColorValue(attributes['backgroundColor']);
+  const margin = normalizeBlockSpacingValue(attributes['margin']);
+  const marginTop = normalizeBlockSpacingValue(attributes['marginTop']);
+  const marginRight = normalizeBlockSpacingValue(attributes['marginRight']);
+  const marginBottom = normalizeBlockSpacingValue(attributes['marginBottom']);
+  const marginLeft = normalizeBlockSpacingValue(attributes['marginLeft']);
   if (lineHeight) style.push(`line-height: ${lineHeight}`);
   if (fontSize) style.push(`font-size: ${fontSize}`);
   if (color) style.push(`color: ${color}`);
   if (fontFamily) style.push(`font-family: ${fontFamily}`);
   if (fontWeight) style.push(`font-weight: ${fontWeight}`);
+  if (backgroundColor) style.push(`background-color: ${backgroundColor}`);
+  if (margin) style.push(`margin: ${margin}`);
+  if (marginTop) style.push(`margin-top: ${marginTop}`);
+  if (marginRight) style.push(`margin-right: ${marginRight}`);
+  if (marginBottom) style.push(`margin-bottom: ${marginBottom}`);
+  if (marginLeft) style.push(`margin-left: ${marginLeft}`);
   return style.join('; ');
 }
 
@@ -66,6 +87,11 @@ const InlineTypography = Extension.create({
           fontWeight: {
             default: null,
             parseHTML: (element: HTMLElement) => normalizeFontWeightValue(element.style.fontWeight) || null,
+            renderHTML: () => ({}),
+          },
+          backgroundColor: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeColorValue(element.style.backgroundColor) || null,
             renderHTML: () => ({}),
           },
         },
@@ -107,6 +133,36 @@ const BlockTypography = Extension.create({
           fontWeight: {
             default: null,
             parseHTML: (element: HTMLElement) => normalizeFontWeightValue(element.style.fontWeight) || null,
+            renderHTML: () => ({}),
+          },
+          backgroundColor: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeColorValue(element.style.backgroundColor) || null,
+            renderHTML: () => ({}),
+          },
+          margin: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeBlockSpacingValue(element.style.margin) || null,
+            renderHTML: () => ({}),
+          },
+          marginTop: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeBlockSpacingValue(element.style.marginTop) || null,
+            renderHTML: () => ({}),
+          },
+          marginRight: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeBlockSpacingValue(element.style.marginRight) || null,
+            renderHTML: () => ({}),
+          },
+          marginBottom: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeBlockSpacingValue(element.style.marginBottom) || null,
+            renderHTML: () => ({}),
+          },
+          marginLeft: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeBlockSpacingValue(element.style.marginLeft) || null,
             renderHTML: () => ({}),
           },
         },

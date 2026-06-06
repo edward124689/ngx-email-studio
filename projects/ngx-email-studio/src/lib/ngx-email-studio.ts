@@ -1,4 +1,4 @@
-import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
 import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -147,11 +147,12 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               [id]="paletteDropListId"
               [cdkDropListData]="palette"
               [cdkDropListConnectedTo]="connectedDropListIds"
+              [cdkDropListDisabled]="readonly"
               [cdkDropListSortingDisabled]="true"
               [cdkDropListEnterPredicate]="rejectPaletteDrop"
               class="nes-block-list"
             >
-              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="beginDrag()" (cdkDragEnded)="endDrag()" [attr.title]="item.description">
+              <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragDisabled]="readonly" [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="beginDrag()" (cdkDragEnded)="endDrag()" [attr.title]="item.description">
                 <span class="nes-block-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
@@ -232,6 +233,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   [id]="rootDropListId"
                   [cdkDropListData]="emailDocument.body"
                   [cdkDropListConnectedTo]="connectedDropListIds"
+                  [cdkDropListDisabled]="readonly"
                   [cdkDropListEnterPredicate]="canEnterContainerDropList"
                   [cdkDropListAutoScrollStep]="18"
                   (cdkDropListDropped)="drop($event)"
@@ -248,6 +250,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     [attr.data-node-id]="node.id"
                     *ngFor="let node of emailDocument.body; trackBy: trackNode"
                     cdkDrag
+                    [cdkDragDisabled]="isCanvasNodeDragDisabled(node)"
                     [cdkDragData]="node"
                     [cdkDragPreviewContainer]="'parent'"
                     [cdkDragStartDelay]="0"
@@ -843,6 +846,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             [id]="dropListIdFor(column)"
             [cdkDropListData]="childrenOf(column)"
             [cdkDropListConnectedTo]="connectedDropListIds"
+            [cdkDropListDisabled]="readonly"
             [cdkDropListEnterPredicate]="canEnterContainerDropList"
             [cdkDropListAutoScrollStep]="18"
             (cdkDropListDropped)="drop($event)"
@@ -863,6 +867,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               [attr.data-node-id]="child.id"
               *ngFor="let child of childrenOf(column); trackBy: trackNode"
               cdkDrag
+              [cdkDragDisabled]="isCanvasNodeDragDisabled(child)"
               [cdkDragData]="child"
               [cdkDragPreviewContainer]="'parent'"
               [cdkDragStartDelay]="0"
@@ -894,6 +899,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           [attr.data-node-id]="node.id"
           [cdkDropListData]="childrenOf(node)"
           [cdkDropListConnectedTo]="connectedDropListIds"
+          [cdkDropListDisabled]="readonly"
           [cdkDropListEnterPredicate]="canEnterContainerDropList"
           [cdkDropListAutoScrollStep]="18"
           (cdkDropListDropped)="drop($event)"
@@ -909,6 +915,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             [attr.data-node-id]="child.id"
             *ngFor="let child of childrenOf(node); trackBy: trackNode"
             cdkDrag
+            [cdkDragDisabled]="isCanvasNodeDragDisabled(child)"
             [cdkDragData]="child"
             [cdkDragStartDelay]="0"
             (cdkDragStarted)="beginDrag()"
@@ -1137,17 +1144,13 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       this.destroyTiptapEditors();
     }
 
-    if (changes['document'] && this.document) {
-      this.emailDocument = structuredClone(this.document);
-      this.selectedNodeId = this.emailDocument.body[0]?.id;
-      this.refreshOutputs(false);
+    if (changes['document']) {
+      this.replaceEmailDocument(this.document ? structuredClone(this.document) : this.createStarterDocument(), false);
     }
 
-    if (changes['mjml'] && this.mjml) {
-      this.mjmlDraft = this.mjml;
-      this.emailDocument = this.parseMjml(this.mjml);
-      this.selectedNodeId = this.emailDocument.body[0]?.id;
-      this.refreshOutputs(false);
+    if (changes['mjml']) {
+      this.mjmlDraft = this.mjml || '';
+      this.replaceEmailDocument(this.mjml ? this.parseMjml(this.mjml) : this.createStarterDocument(), false);
     }
   }
 
@@ -1166,8 +1169,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       event.container.data.splice(event.currentIndex, 0, node);
       this.selectedNodeId = node.id;
     } else {
-      transferArrayItem(event.previousContainer.data as EmailNode[], event.container.data, event.previousIndex, event.currentIndex);
-      this.selectedNodeId = event.container.data[event.currentIndex]?.id;
+      const [movedNode] = (event.previousContainer.data as EmailNode[]).splice(event.previousIndex, 1);
+      const node = this.wrapForRootDrop(movedNode, (event.container as { id?: string }).id);
+      event.container.data.splice(event.currentIndex, 0, node);
+      this.selectedNodeId = node.id;
     }
     this.emitDocument();
   }
@@ -1200,8 +1205,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   beginDrag(): void {
+    if (this.readonly) return;
     this.dragInProgress = true;
     this.clearNativeSelection();
+  }
+
+  isCanvasNodeDragDisabled(node: EmailNode): boolean {
+    if (this.readonly) return true;
+    if (!this.resolvedUseTiptap || !this.selectedNodeId) return false;
+    const selectedNode = this.selectedNode;
+    return selectedNode?.type === 'text' && this.nodeContains(node, this.selectedNodeId);
   }
 
   endDrag(): void {
@@ -1878,9 +1891,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   guardTiptapBlankMouseDown(event: MouseEvent, scope: 'inline' | 'modal'): void {
+    event.stopPropagation();
     if (event.target !== event.currentTarget) return;
     event.preventDefault();
-    event.stopPropagation();
     const editor = scope === 'modal' ? this.tiptapModalEditor : this.tiptapInlineEditor;
     editor?.view.focus();
   }
@@ -1969,6 +1982,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private canDropIntoContainer(data: unknown, containerId?: string): boolean {
+    if (this.readonly) return false;
     return canDropIntoTreeContainer({
       data,
       containerId,
@@ -2054,6 +2068,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private createStarterDocument(): EmailDocument {
     return createTreeStarterDocument((type) => this.nextId(type));
+  }
+
+  private replaceEmailDocument(document: EmailDocument, emitChange: boolean): void {
+    this.closeRichTextSource();
+    this.closeRichTextModal();
+    this.destroyTiptapEditors();
+    this.emailDocument = document;
+    this.selectedNodeId = this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id || BODY_NODE_ID;
+    this.refreshOutputs(emitChange);
   }
 
   private defaultDocumentAttrs(): Record<string, string | number | boolean> {
@@ -2254,6 +2277,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private findNode(id?: string): EmailNode | undefined {
     return findTreeNode(id, this.emailDocument.body);
+  }
+
+  private nodeContains(node: EmailNode, id: string): boolean {
+    if (node.id === id) return true;
+    return (node.children || []).some((child) => this.nodeContains(child, id));
   }
 
   private findNodeLocation(id: string, siblings = this.emailDocument.body): { node: EmailNode; siblings: EmailNode[]; index: number } | undefined {
