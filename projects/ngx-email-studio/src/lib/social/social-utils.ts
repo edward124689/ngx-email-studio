@@ -16,6 +16,14 @@ export function serializeSocialItems(items: SocialItem[]): string {
   return JSON.stringify(normalizeSocialItems(items));
 }
 
+export function serializeSocialDraftItems(items: SocialItem[]): string {
+  return JSON.stringify(items.map((item) => ({
+    name: String(item.name ?? ''),
+    href: String(item.href ?? ''),
+    backgroundColor: String(item.backgroundColor ?? ''),
+  })));
+}
+
 export function parseSocialItems(value: unknown): SocialItem[] {
   if (Array.isArray(value)) return normalizeSocialItems(value);
   if (typeof value !== 'string') return [...DEFAULT_SOCIAL_ITEMS];
@@ -25,6 +33,28 @@ export function parseSocialItems(value: unknown): SocialItem[] {
   } catch {
     return [...DEFAULT_SOCIAL_ITEMS];
   }
+}
+
+export function parseSocialDraftItems(value: unknown): SocialItem[] {
+  if (Array.isArray(value)) return draftSocialItems(value);
+  if (typeof value !== 'string') return [...DEFAULT_SOCIAL_ITEMS];
+  try {
+    return draftSocialItems(JSON.parse(value));
+  } catch {
+    return [...DEFAULT_SOCIAL_ITEMS];
+  }
+}
+
+function draftSocialItems(value: unknown): SocialItem[] {
+  if (!Array.isArray(value)) return [...DEFAULT_SOCIAL_ITEMS];
+  const items = value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item) => ({
+      name: String(item['name'] ?? ''),
+      href: String(item['href'] ?? ''),
+      backgroundColor: String(item['backgroundColor'] ?? ''),
+    }));
+  return items.length ? items : [...DEFAULT_SOCIAL_ITEMS];
 }
 
 export function normalizeSocialItems(value: unknown): SocialItem[] {
@@ -66,13 +96,9 @@ export function socialItemsForAttr(value: unknown): SocialItem[] {
 }
 
 export function updateSocialItem(items: SocialItem[], index: number, key: keyof SocialItem, value: string): SocialItem[] {
-  const next = normalizeSocialItems(items).map((item) => ({ ...item }));
+  const next = draftSocialItems(items).map((item) => ({ ...item }));
   const current = next[index] || { name: 'social', href: '#', backgroundColor: '#A1A0A0' };
-  current[key] = key === 'name'
-    ? normalizeSocialName(value)
-    : key === 'href'
-      ? (normalizeHrefValue(value) || '#')
-      : (normalizeColorValue(value) || String(value || '').trim() || '#A1A0A0');
+  current[key] = String(value ?? '');
   next[index] = current;
   return next;
 }

@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 
 import { EmailDocument, EmailNode, NgxEmailStudio } from './ngx-email-studio';
 
+
 function studioRoot<T>(fixture: ComponentFixture<T>): ParentNode {
   const host = fixture.nativeElement as HTMLElement;
   return host;
@@ -609,7 +610,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should import MJML social as editable social content modules and export MJML social elements', () => {
-    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social font-size="15px" icon-size="30px" mode="horizontal" padding="0" align="center"><mj-social-element name="facebook" href="https://mjml.io/" background-color="#A1A0A0"></mj-social-element><mj-social-element name="google" href="https://example.com/google" background-color="#A1A0A0"></mj-social-element><mj-social-element name="twitter" href="javascript:alert(1)" background-color="#222222"></mj-social-element><mj-social-element name="linkedin" href="https://example.com/linkedin" background-color="#A1A0A0"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social font-size="15px" icon-size="30px" mode="horizontal" padding="0" align="center" container-background-color="#112233"><mj-social-element name="facebook" href="https://mjml.io/" background-color="#A1A0A0"></mj-social-element><mj-social-element name="google" href="https://example.com/google" background-color="#A1A0A0"></mj-social-element><mj-social-element name="twitter" href="javascript:alert(1)" background-color="#222222"></mj-social-element><mj-social-element name="linkedin" href="https://example.com/linkedin" background-color="#A1A0A0"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
 
     const document = (component as any).parseMjml(mjml) as EmailDocument;
     const social = findImportedNode(document.body, 'social');
@@ -621,6 +622,7 @@ describe('NgxEmailStudio', () => {
     expect(social?.attrs['mode']).toBe('horizontal');
     expect(social?.attrs['iconSize']).toBe('30px');
     expect(social?.attrs['fontSize']).toBe('15px');
+    expect(social?.attrs['backgroundColor']).toBe('#112233');
     expect(items.map((item: any) => item.name)).toEqual(['facebook', 'google', 'twitter', 'linkedin']);
     expect(items.map((item: any) => item.href)).toEqual(['https://mjml.io/', 'https://example.com/google', '#', 'https://example.com/linkedin']);
     expect(items[0].backgroundColor).toBe('#a1a0a0');
@@ -630,6 +632,48 @@ describe('NgxEmailStudio', () => {
     expect(exportedMjml).not.toContain('javascript:');
     expect(exportedHtml).not.toContain('javascript:');
     expect(exportedHtml).toContain('aria-label="facebook"');
+  });
+
+  it('should keep social editor draft values while normalizing only preview/export values', () => {
+    const social: EmailNode = {
+      id: 'social-test',
+      type: 'social',
+      attrs: {
+        backgroundColor: '#112233',
+        items: JSON.stringify([{ name: 'facebook', href: '#', backgroundColor: '#A1A0A0' }]),
+      },
+    };
+
+    component.updateSocialItemAttr(social, 0, 'href', 'https');
+    component.updateSocialItemAttr(social, 0, 'name', '');
+    component.updateSocialItemAttr(social, 0, 'backgroundColor', '#12');
+
+    expect(component.socialEditorItems(social)[0]).toEqual({ name: '', href: 'https', backgroundColor: '#12' });
+    expect(component.socialItems(social)[0]).toEqual({ name: 'social', href: '#', backgroundColor: '#A1A0A0' });
+
+    component.updateSocialItemAttr(social, 0, 'href', 'https://example.com/social');
+    component.updateSocialItemAttr(social, 0, 'name', 'Linked In!');
+    component.updateSocialItemAttr(social, 0, 'backgroundColor', '#445566');
+
+    const exportedMjml = (component as any).compileMjml({ attrs: {}, body: [social] } as EmailDocument) as string;
+    const exportedHtml = (component as any).renderHtml({ attrs: {}, body: [social] } as EmailDocument) as string;
+
+    expect(component.socialEditorItems(social)[0].href).toBe('https://example.com/social');
+    expect(exportedMjml).toContain('name="linkedin"');
+    expect(exportedMjml).toContain('href="https://example.com/social"');
+    expect(exportedMjml).toContain('background-color="#445566"');
+    expect(exportedMjml).toContain('container-background-color="#112233"');
+    expect(exportedHtml).toContain('background:#112233;');
+  });
+
+  it('should default imported MJML social alignment to center when align is omitted', () => {
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="https://mjml.io/"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const social = findImportedNode(document.body, 'social');
+
+    expect(social?.attrs['align']).toBe('center');
+    expect((component as any).compileMjml(document)).toContain('align="center"');
   });
 
   it('should track unsupported MJML nested inside social modules', () => {

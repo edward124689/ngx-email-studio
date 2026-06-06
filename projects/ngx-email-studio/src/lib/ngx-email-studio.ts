@@ -13,7 +13,7 @@ import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageW
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
-import { parseSocialItems, serializeSocialItems, SocialItem, socialCssSize, socialIconLabel as getSocialIconLabel, socialMode, updateSocialItem } from './social/social-utils';
+import { parseSocialDraftItems, parseSocialItems, serializeSocialDraftItems, SocialItem, socialCssSize, socialIconLabel as getSocialIconLabel, socialMode, updateSocialItem } from './social/social-utils';
 import {
   CanvasMode,
   EmailBlockType,
@@ -477,7 +477,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
 
               <div *ngIf="node.type === 'social'" class="nes-field-block nes-social-editor">
                 <div class="nes-control-heading">Social links</div>
-                <div class="nes-social-item-editor" *ngFor="let item of socialItems(node); let i = index">
+                <div class="nes-social-item-editor" *ngFor="let item of socialEditorItems(node); let i = index">
                   <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">{{ socialIconLabel(item.name) }}</span>
                   <label>
                     Icon
@@ -494,7 +494,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                       <input [ngModel]="item.backgroundColor" (ngModelChange)="updateSocialItemAttr(node, i, 'backgroundColor', $event)" />
                     </span>
                   </label>
-                  <button type="button" class="nes-small-danger" [disabled]="socialItems(node).length <= 1" (click)="removeSocialItem(node, i)">Remove</button>
+                  <button type="button" class="nes-small-danger" [disabled]="socialEditorItems(node).length <= 1" (click)="removeSocialItem(node, i)">Remove</button>
                 </div>
                 <button type="button" (click)="addSocialItem(node)"><i class="nes-icon fa fa-plus" aria-hidden="true"></i> Add social icon</button>
               </div>
@@ -1474,6 +1474,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     return parseSocialItems(node.attrs['items']);
   }
 
+  socialEditorItems(node: EmailNode): SocialItem[] {
+    return parseSocialDraftItems(node.attrs['items']);
+  }
+
   socialIconLabel(name: string): string {
     return getSocialIconLabel(name);
   }
@@ -1492,22 +1496,22 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   updateSocialItemAttr(node: EmailNode, index: number, key: keyof SocialItem, value: string): void {
     if (this.readonly || node.type !== 'social') return;
-    const next = updateSocialItem(this.socialItems(node), index, key, value);
-    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    const next = updateSocialItem(this.socialEditorItems(node), index, key, value);
+    node.attrs = { ...node.attrs, items: serializeSocialDraftItems(next) };
     this.emitDocument();
   }
 
   addSocialItem(node: EmailNode): void {
     if (this.readonly || node.type !== 'social') return;
-    const next = [...this.socialItems(node), { name: 'social', href: '#', backgroundColor: '#A1A0A0' }];
-    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    const next = [...this.socialEditorItems(node), { name: 'social', href: '#', backgroundColor: '#A1A0A0' }];
+    node.attrs = { ...node.attrs, items: serializeSocialDraftItems(next) };
     this.emitDocument();
   }
 
   removeSocialItem(node: EmailNode, index: number): void {
     if (this.readonly || node.type !== 'social') return;
-    const next = this.socialItems(node).filter((_, itemIndex) => itemIndex !== index);
-    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    const next = this.socialEditorItems(node).filter((_, itemIndex) => itemIndex !== index);
+    node.attrs = { ...node.attrs, items: serializeSocialDraftItems(next) };
     this.emitDocument();
   }
 

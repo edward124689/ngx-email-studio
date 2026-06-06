@@ -197,7 +197,7 @@ function socialToHtml(node: EmailNode, depth = 0): string {
     const background = colorAttrValue(item.backgroundColor) || '#A1A0A0';
     return `<a href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" aria-label="${escapeAttr(item.name)}" style="display:inline-block;width:${escapeAttr(iconSize)};height:${escapeAttr(iconSize)};line-height:${escapeAttr(iconSize)};border-radius:999px;background:${escapeAttr(background)};color:#ffffff;text-align:center;text-decoration:none;font-family:Arial,sans-serif;font-size:${escapeAttr(fontSize)};font-weight:bold;">${escapeHtml(socialIconLabel(item.name))}</a>`;
   }).join(gap);
-  return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};">${links}</div>`, depth);
+  return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};${backgroundStyle(node.attrs['backgroundColor'])}">${links}</div>`, depth);
 }
 
 function buttonBorderRadiusCss(node: EmailNode): string {

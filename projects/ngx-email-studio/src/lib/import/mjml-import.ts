@@ -291,9 +291,11 @@ function parseSocialBlock(element: Element, unsupported: string[], idFactory: Em
       return { name, href, backgroundColor };
     });
   if (!items.length) return undefined;
+  const containerBackground = importedColor(element.getAttribute('container-background-color'));
   return createNode(idFactory, 'social', {
     items: serializeSocialItems(items),
-    align: safeAlign(element.getAttribute('align')),
+    align: element.hasAttribute('align') ? safeAlign(element.getAttribute('align')) : 'center',
+    ...(containerBackground ? { backgroundColor: containerBackground } : {}),
     mode: socialMode(element.getAttribute('mode')),
     iconSize: socialCssSize(element.getAttribute('icon-size'), '30px'),
     fontSize: socialCssSize(element.getAttribute('font-size'), '15px'),
