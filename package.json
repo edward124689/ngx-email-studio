@@ -1,6 +1,6 @@
 {
   "name": "ngx-email-studio-workspace",
-  "version": "0.0.1",
+  "version": "21.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve demo",

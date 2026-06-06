@@ -1,22 +1,25 @@
 {
   "name": "ngx-email-studio",
-  "version": "0.0.1",
-  "description": "Angular 21 frontend email builder library with MJML import/export, HTML export, responsive preview, drag-and-drop blocks, Font Awesome 4.7 icons, and Tiptap rich text editing.",
+  "version": "21.0.0",
+  "description": "Angular 21 frontend email builder with MJML import/export, responsive preview, Tiptap rich text editing, and clean HTML export.",
   "keywords": [
     "angular",
     "email-builder",
     "mjml",
     "tiptap",
     "drag-and-drop",
-    "newsletter"
+    "newsletter",
+    "angular-email",
+    "html-email",
+    "email-template"
   ],
   "author": "Edward",
   "license": "MIT",
   "peerDependencies": {
     "@angular/cdk": "^21.0.0",
-    "@angular/common": "^21.2.0",
-    "@angular/core": "^21.2.0",
-    "@angular/forms": "^21.2.0",
+    "@angular/common": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
     "@tiptap/core": "^3.0.0",
     "@tiptap/extension-link": "^3.0.0",
     "@tiptap/extension-table": "^3.0.0",
@@ -30,5 +33,16 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "homepage": "https://edward124689.github.io/ngx-email-studio/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edward124689/ngx-email-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/edward124689/ngx-email-studio/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
