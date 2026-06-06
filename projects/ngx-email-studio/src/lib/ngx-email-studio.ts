@@ -1044,10 +1044,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   readonly rejectPaletteDrop = (): boolean => false;
   readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => {
     if (!this.canDropIntoContainer(drag.data, drop.id)) return false;
-    if (!this.activePointedDropListId || drop.id === this.activePointedDropListId) return true;
+    const pointedDropListId = this.activePointedDropListId;
+    if (!pointedDropListId || !this.shouldPreferPointedDropTarget(drag.data, drop.id)) return true;
 
-    const pointedTarget = this.findNodeByDropListId(this.activePointedDropListId);
-    if (!pointedTarget || !this.canDropIntoContainer(drag.data, this.activePointedDropListId)) return true;
+    const pointedTarget = this.findNodeByDropListId(pointedDropListId);
+    if (!pointedTarget || !this.canDropIntoContainer(drag.data, pointedDropListId)) return true;
     return false;
   };
 
@@ -1229,11 +1230,22 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private resolveDropTarget(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): { id?: string; data: EmailNode[]; index: number } {
     const containerId = (event.container as { id?: string }).id;
-    if (containerId === this.rootDropListId) {
+    if (containerId === this.rootDropListId && this.shouldRerouteRootDropFromPoint(event.item.data)) {
       const nestedTarget = this.resolveNestedDropTargetFromPoint(event);
       if (nestedTarget && this.canDropIntoContainer(event.item.data, nestedTarget.id)) return nestedTarget;
     }
     return { id: containerId, data: event.container.data as EmailNode[], index: event.currentIndex };
+  }
+
+  private shouldRerouteRootDropFromPoint(data: unknown): boolean {
+    if (this.isPaletteItem(data) && (data.type === 'section' || data.type === 'row')) return false;
+    return true;
+  }
+
+  private shouldPreferPointedDropTarget(data: unknown, dropId?: string): boolean {
+    if (!this.activePointedDropListId || dropId === this.activePointedDropListId) return false;
+    if (!this.shouldRerouteRootDropFromPoint(data)) return false;
+    return true;
   }
 
   private resolveNestedDropTargetFromPoint(event: CdkDragDrop<EmailNode[], EmailNode[] | PaletteItem[]>): { id: string; data: EmailNode[]; index: number } | null {

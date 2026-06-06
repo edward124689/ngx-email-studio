@@ -1153,6 +1153,50 @@ describe('NgxEmailStudio', () => {
     expect(column!.children?.[columnBefore].type).toBe('text');
   });
 
+  it('should keep structural palette drops at the root even when the pointer is over a column', () => {
+    fixture.detectChanges();
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    expect(column).toBeTruthy();
+    const columnElement = query<HTMLElement>(fixture, `[data-node-id="${column!.id}"]`)!;
+    const ownerDocument = columnElement.ownerDocument as Document & { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const originalElementsFromPoint = ownerDocument.elementsFromPoint;
+    Object.defineProperty(ownerDocument, 'elementsFromPoint', {
+      configurable: true,
+      value: () => [columnElement],
+    });
+    const rowPaletteItem = component.palette.find((item) => item.type === 'row')!;
+    const sectionPaletteItem = component.palette.find((item) => item.type === 'section')!;
+    const bodyBefore = component.emailDocument.body.length;
+    const columnBefore = column!.children?.length || 0;
+
+    try {
+      component.drop({
+        previousContainer: { data: component.palette } as any,
+        container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+        previousIndex: component.palette.indexOf(sectionPaletteItem),
+        currentIndex: bodyBefore,
+        dropPoint: { x: 10, y: 10 },
+        item: { data: sectionPaletteItem } as any,
+      } as any);
+      component.drop({
+        previousContainer: { data: component.palette } as any,
+        container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+        previousIndex: component.palette.indexOf(rowPaletteItem),
+        currentIndex: bodyBefore + 1,
+        dropPoint: { x: 10, y: 10 },
+        item: { data: rowPaletteItem } as any,
+      } as any);
+    } finally {
+      Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
+    }
+
+    expect(component.emailDocument.body.length).toBe(bodyBefore + 2);
+    expect(component.emailDocument.body[bodyBefore].type).toBe('section');
+    expect(component.emailDocument.body[bodyBefore + 1].type).toBe('row');
+    expect(column!.children?.length).toBe(columnBefore);
+  });
+
   it('should prefer the deepest pointed column when CDK chooses an active drop-list indicator', () => {
     fixture.detectChanges();
     const row = component.emailDocument.body.find((node) => node.type === 'row');
@@ -1170,6 +1214,8 @@ describe('NgxEmailStudio', () => {
     });
 
     const paletteText = { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' };
+    const paletteSection = { type: 'section', label: 'Hero', icon: 'fa-header', description: 'Root section preset' };
+    const paletteRow = { type: 'row', label: 'Columns', icon: 'fa-columns', description: 'Root column row preset' };
     try {
       component.beginDrag();
       component.onDocumentPointerMove({ clientX: 10, clientY: 10 } as PointerEvent);
@@ -1177,6 +1223,8 @@ describe('NgxEmailStudio', () => {
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(column!) })).toBe(true);
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.rootDropListId })).toBe(false);
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(section!) })).toBe(false);
+      expect(component.canEnterContainerDropList({ data: paletteSection }, { id: component.rootDropListId })).toBe(true);
+      expect(component.canEnterContainerDropList({ data: paletteRow }, { id: component.rootDropListId })).toBe(true);
     } finally {
       component.endDrag();
       Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
