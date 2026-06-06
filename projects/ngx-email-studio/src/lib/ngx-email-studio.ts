@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
@@ -79,6 +79,13 @@ interface TiptapToolbarState {
   cellStyles: Record<string, string>;
 }
 
+interface EmailHistorySnapshot {
+  document: EmailDocument;
+  selectedNodeId?: string;
+}
+
+const MAX_DOCUMENT_HISTORY = 80;
+
 function defaultTiptapToolbarState(): TiptapToolbarState {
   return {
     blockFormat: 'paragraph',
@@ -109,6 +116,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           </div>
         </div>
         <div class="nes-actions">
+          <div class="nes-history-actions" role="group" aria-label="Document history">
+            <button type="button" class="nes-history-btn" data-history-action="undo" aria-label="Undo" title="Undo (⌘Z / Ctrl+Z)" (click)="undoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+            <button type="button" class="nes-history-btn" data-history-action="redo" aria-label="Redo" title="Redo (⌘⇧Z / Ctrl+Y)" (click)="redoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
+          </div>
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
@@ -1004,6 +1015,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   };
   private tiptapToolbarStateTimers: Partial<Record<TiptapScope, ReturnType<typeof setTimeout>>> = {};
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
+  private undoStack: EmailHistorySnapshot[] = [];
+  private redoStack: EmailHistorySnapshot[] = [];
+  private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
   private readonly socialItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
   private readonly socialDraftItemsCache = new Map<string, { raw: unknown; parsed: SocialItem[] }>();
   readonly previewSizeOptions = [1200, 800, 600, 400];
@@ -1029,7 +1043,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   readonly rejectPaletteDrop = (): boolean => false;
   readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => this.canDropIntoContainer(drag.data, drop.id);
 
-  constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer) {}
+  constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer, private readonly changeDetector: ChangeDetectorRef) {}
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -1046,12 +1060,24 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (this.expandedRichTextNode) this.closeRichTextModal();
   }
 
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeydown(event: KeyboardEvent): void {
+    if (!this.isHistoryShortcut(event)) return;
+    event.preventDefault();
+    if (this.isRedoShortcut(event)) {
+      this.redoDocument();
+      return;
+    }
+    this.undoDocument();
+  }
+
   ngAfterViewInit(): void {
     this.syncTiptapEditors();
   }
 
   ngAfterViewChecked(): void {
     this.syncTiptapEditors();
+    this.syncHistoryControls();
   }
 
   ngOnDestroy(): void {
@@ -1137,6 +1163,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   get outputModalContent(): string {
     return this.outputModalType === 'html' ? this.lastHtml : this.lastMjml;
+  }
+
+  get canRedoDocument(): boolean {
+    return !this.readonly && this.redoStack.length > 0;
+  }
+
+  get canUndoDocument(): boolean {
+    return !this.readonly && this.undoStack.length > 0;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -1295,6 +1329,34 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.emailDocument = { ...this.emailDocument, body: [] };
     this.selectedNodeId = undefined;
     this.emitDocument();
+  }
+
+  undoDocument(): void {
+    if (!this.canUndoDocument) return;
+    const previous = this.undoStack.pop();
+    if (!previous) return;
+    this.redoStack.push(this.createHistorySnapshot());
+    this.trimRedoStack();
+    this.applyHistorySnapshot(previous);
+  }
+
+  redoDocument(): void {
+    if (!this.canRedoDocument) return;
+    const next = this.redoStack.pop();
+    if (!next) return;
+    this.undoStack.push(this.createHistorySnapshot());
+    this.trimUndoStack();
+    this.applyHistorySnapshot(next);
+  }
+
+  undoDocumentFromToolbar(): void {
+    this.undoDocument();
+    this.changeDetector.detectChanges();
+  }
+
+  redoDocumentFromToolbar(): void {
+    this.redoDocument();
+    this.changeDetector.detectChanges();
   }
 
   outlineLabel(node: EmailNode): string {
@@ -2006,7 +2068,97 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private emitDocument(): void {
     this.emailDocument = { ...this.emailDocument, body: [...this.emailDocument.body] };
+    this.recordHistoryBeforeEmit();
     this.refreshOutputs(true);
+  }
+
+  private recordHistoryBeforeEmit(): void {
+    const nextSnapshot = this.createHistorySnapshot();
+    if (this.serializeHistorySnapshot(nextSnapshot) === this.serializeHistorySnapshot(this.historySnapshot)) return;
+    this.undoStack.push(this.cloneHistorySnapshot(this.historySnapshot));
+    this.trimUndoStack();
+    this.redoStack = [];
+    this.historySnapshot = nextSnapshot;
+  }
+
+  private applyHistorySnapshot(snapshot: EmailHistorySnapshot): void {
+    this.closeTransientMenus();
+    this.closeImportModal();
+    this.closeOutputModal();
+    this.closeRichTextSource();
+    this.closeRichTextModal();
+    this.destroyTiptapEditors();
+    this.emailDocument = structuredClone(snapshot.document);
+    this.selectedNodeId = this.resolveHistorySelection(snapshot.selectedNodeId);
+    this.historySnapshot = this.createHistorySnapshot();
+    this.refreshOutputs(true);
+  }
+
+  private createHistorySnapshot(): EmailHistorySnapshot {
+    return {
+      document: structuredClone(this.emailDocument),
+      selectedNodeId: this.selectedNodeId,
+    };
+  }
+
+  private cloneHistorySnapshot(snapshot: EmailHistorySnapshot): EmailHistorySnapshot {
+    return {
+      document: structuredClone(snapshot.document),
+      selectedNodeId: snapshot.selectedNodeId,
+    };
+  }
+
+  private serializeHistorySnapshot(snapshot: EmailHistorySnapshot): string {
+    return JSON.stringify(snapshot.document);
+  }
+
+  private resetDocumentHistory(): void {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.historySnapshot = this.createHistorySnapshot();
+  }
+
+  private trimUndoStack(): void {
+    if (this.undoStack.length > MAX_DOCUMENT_HISTORY) this.undoStack.splice(0, this.undoStack.length - MAX_DOCUMENT_HISTORY);
+  }
+
+  private trimRedoStack(): void {
+    if (this.redoStack.length > MAX_DOCUMENT_HISTORY) this.redoStack.splice(0, this.redoStack.length - MAX_DOCUMENT_HISTORY);
+  }
+
+  private resolveHistorySelection(selectedNodeId?: string): string | undefined {
+    if (selectedNodeId === BODY_NODE_ID || this.findNode(selectedNodeId)) return selectedNodeId;
+    return this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id || BODY_NODE_ID;
+  }
+
+  private isHistoryShortcut(event: KeyboardEvent): boolean {
+    if (this.readonly || this.isEditableKeyboardTarget(event.target)) return false;
+    const key = event.key.toLowerCase();
+    return (event.metaKey || event.ctrlKey) && (key === 'z' || key === 'y');
+  }
+
+  private isRedoShortcut(event: KeyboardEvent): boolean {
+    const key = event.key.toLowerCase();
+    return (event.metaKey || event.ctrlKey) && (key === 'y' || (key === 'z' && event.shiftKey));
+  }
+
+  private isEditableKeyboardTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    const tagName = target.tagName.toLowerCase();
+    return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  }
+
+  private syncHistoryControls(): void {
+    const root = this.componentRoot();
+    this.syncHistoryButton(root.querySelector('[data-history-action="undo"]'), this.canUndoDocument);
+    this.syncHistoryButton(root.querySelector('[data-history-action="redo"]'), this.canRedoDocument);
+  }
+
+  private syncHistoryButton(element: Element | null, enabled: boolean): void {
+    if (!(element instanceof HTMLButtonElement)) return;
+    element.disabled = !enabled;
+    element.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    element.classList.toggle('is-disabled', !enabled);
   }
 
   private isPaletteItem(value: unknown): value is PaletteItem {
@@ -2115,6 +2267,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.destroyTiptapEditors();
     this.emailDocument = document;
     this.selectedNodeId = this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id || BODY_NODE_ID;
+    this.resetDocumentHistory();
     this.refreshOutputs(emitChange);
   }
 

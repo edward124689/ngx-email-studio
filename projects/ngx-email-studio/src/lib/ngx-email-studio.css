@@ -64,9 +64,18 @@ ngx-email-studio *, ngx-email-studio *::before, ngx-email-studio *::after { box-
 ngx-email-studio h2, ngx-email-studio h3 { margin: 0; }
 ngx-email-studio h2 { font-size: 20px; letter-spacing: -.02em; }
 ngx-email-studio h3 { font-size: 14px; color: #172033; }
-.nes-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: nowrap; margin-left: auto; }
+.nes-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: nowrap; margin-left: auto; overflow: visible; }
 ngx-email-studio button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--nes-border); background: #fff; color: #172033; border-radius: 10px; padding: 9px 12px; font: inherit; cursor: pointer; transition: .15s ease; white-space: nowrap; }
 ngx-email-studio button:hover { border-color: var(--nes-accent); color: var(--nes-accent); }
+ngx-email-studio button:disabled { opacity: .42; cursor: not-allowed; filter: grayscale(.2); }
+.nes-history-actions { position: relative; display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid #e8eef6; border-radius: 12px; background: linear-gradient(180deg, #fff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); overflow: visible; }
+.nes-history-btn { position: relative; width: 34px; height: 34px; min-width: 34px; padding: 0 !important; border-color: transparent !important; border-radius: 9px !important; background: transparent !important; color: #334155; overflow: visible; }
+.nes-history-btn .nes-icon { --nes-icon-size: 15px; }
+.nes-history-btn:hover:not(:disabled), .nes-history-btn:focus-visible:not(:disabled) { background: #eff6ff !important; color: var(--nes-accent); box-shadow: 0 8px 18px rgba(37, 99, 235, .12); transform: translateY(-1px); }
+.nes-history-btn::before { content: ''; position: absolute; left: 50%; bottom: calc(100% + 3px); width: 7px; height: 7px; border-radius: 1px; background: #0f172a; transform: translate(-50%, 6px) rotate(45deg); opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 31; }
+.nes-history-btn::after { content: attr(aria-label); position: absolute; left: 50%; bottom: calc(100% + 7px); padding: 5px 8px; border-radius: 8px; background: #0f172a; color: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .2); font-size: 11px; font-weight: 850; line-height: 1.15; letter-spacing: -.01em; white-space: nowrap; transform: translate(-50%, 5px); opacity: 0; pointer-events: none; transition: opacity .12s ease, transform .12s ease; z-index: 32; }
+.nes-history-btn:hover:not(:disabled)::before, .nes-history-btn:focus-visible:not(:disabled)::before, .nes-history-btn:hover:not(:disabled)::after, .nes-history-btn:focus-visible:not(:disabled)::after { opacity: 1; transform: translate(-50%, 0) rotate(45deg); }
+.nes-history-btn:hover:not(:disabled)::after, .nes-history-btn:focus-visible:not(:disabled)::after { transform: translate(-50%, 0); }
 .nes-primary { background: var(--nes-success); color: #fff; border-color: var(--nes-success); box-shadow: 0 8px 18px rgba(22, 163, 74, .16); }
 .nes-primary:hover { background: #15803d; color: #fff; border-color: #15803d; }
 .nes-export { position: relative; flex: 0 0 auto; }

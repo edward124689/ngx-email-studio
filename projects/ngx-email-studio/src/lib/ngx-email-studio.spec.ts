@@ -239,6 +239,76 @@ describe('NgxEmailStudio', () => {
     expect(changeSpy.mock.calls[0][0]).toEqual({ mjml: expect.stringContaining('Callback copy'), html: { html: expect.stringContaining('Callback copy') } });
   });
 
+  it('should expose global undo and redo icon controls with hover labels', () => {
+    fixture.detectChanges();
+    const undoButton = query<HTMLButtonElement>(fixture, '.nes-history-btn[aria-label="Undo"]');
+    const redoButton = query<HTMLButtonElement>(fixture, '.nes-history-btn[aria-label="Redo"]');
+    expect(undoButton).toBeTruthy();
+    expect(redoButton).toBeTruthy();
+    expect(undoButton?.querySelector('.nes-icon.fa-undo')).toBeTruthy();
+    expect(redoButton?.querySelector('.nes-icon.fa-repeat')).toBeTruthy();
+    expect(undoButton?.disabled).toBe(true);
+    expect(redoButton?.disabled).toBe(true);
+
+    const styles = componentStyleText();
+    expect(styles).toContain('.nes-history-btn::after');
+    expect(styles).toContain('content: attr(aria-label)');
+    expect(styles).toContain('.nes-history-btn:hover:not(:disabled)');
+    expect(styles).toContain('width: 34px');
+    expect(styles).toContain('height: 34px');
+  });
+
+  it('should undo and redo document-level edits from the header controls', () => {
+    fixture.detectChanges();
+    const initialBodyCount = component.emailDocument.body.length;
+    fixture.ngZone?.run(() => component.addBlockByType('divider'));
+    (component as any).syncHistoryControls();
+    expect(component.emailDocument.body.length).toBe(initialBodyCount + 1);
+    expect(component.canUndoDocument).toBe(true);
+
+    query<HTMLButtonElement>(fixture, '.nes-history-btn[aria-label="Undo"]')?.click();
+    expect(component.emailDocument.body.length).toBe(initialBodyCount);
+    expect(component.canRedoDocument).toBe(true);
+    (component as any).syncHistoryControls();
+
+    query<HTMLButtonElement>(fixture, '.nes-history-btn[aria-label="Redo"]')?.click();
+    expect(component.emailDocument.body.length).toBe(initialBodyCount + 1);
+  });
+
+  it('should clear redo history after a new document edit', () => {
+    component.addBlockByType('text');
+    component.undoDocument();
+    expect(component.canRedoDocument).toBe(true);
+
+    component.addBlockByType('button');
+    expect(component.canRedoDocument).toBe(false);
+    expect(component.canUndoDocument).toBe(true);
+  });
+
+  it('should support global keyboard undo and redo without hijacking editable fields', () => {
+    const initialBodyCount = component.emailDocument.body.length;
+    component.addBlockByType('text');
+    expect(component.emailDocument.body.length).toBe(initialBodyCount + 1);
+
+    const undoEvent = new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true });
+    component.onDocumentKeydown(undoEvent);
+    expect(undoEvent.defaultPrevented).toBe(true);
+    expect(component.emailDocument.body.length).toBe(initialBodyCount);
+
+    const redoEvent = new KeyboardEvent('keydown', { key: 'Z', metaKey: true, shiftKey: true, bubbles: true, cancelable: true });
+    component.onDocumentKeydown(redoEvent);
+    expect(redoEvent.defaultPrevented).toBe(true);
+    expect(component.emailDocument.body.length).toBe(initialBodyCount + 1);
+
+    component.undoDocument();
+    const input = document.createElement('input');
+    const editableUndo = new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true });
+    Object.defineProperty(editableUndo, 'target', { value: input });
+    component.onDocumentKeydown(editableUndo);
+    expect(editableUndo.defaultPrevented).toBe(false);
+    expect(component.canRedoDocument).toBe(true);
+  });
+
   it('should use an input MJML default value as the initial editable document', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     const inputMjml = '<mjml><mj-body background-color="#101827" width="720px"><mj-section background-color="#ffffff"><mj-column><mj-text align="center"><h1>Input MJML hero</h1><p>Loaded from host input.</p></mj-text></mj-column></mj-section></mj-body></mjml>';
