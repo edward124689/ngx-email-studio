@@ -154,8 +154,7 @@ ngx-email-studio button:disabled { opacity: .42; cursor: not-allowed; filter: gr
 .nes-preview-frame { display: block; max-width: 100%; min-height: 720px; margin: 0 auto; border: 0; background: #fff; border-radius: 0 0 16px 16px; }
 .nes-node, .nes-child-node { position: relative; display: block; width: 100%; text-align: initial; border: 2px solid transparent; padding: 0; margin: 0; background: transparent; box-sizing: border-box; }
 .nes-child-node { margin-bottom: 10px; border-width: 1px; border-style: dashed; border-radius: 10px; }
-.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }
-.nes-shell.is-dragging .nes-node.is-selected, .nes-shell.is-dragging .nes-child-node.is-selected, .nes-shell.is-dragging .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }
+.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }
 .nes-shell.is-dragging .nes-node:focus, .nes-shell.is-dragging .nes-child-node:focus { outline: none; }
 .nes-floating-tools { position: absolute; right: 10px; top: 10px; z-index: 5; display: flex; gap: 4px; padding: 4px; background: #0f172a; border-radius: 10px; }
 .nes-shell.is-dragging .nes-floating-tools { display: none; }

@@ -2129,15 +2129,16 @@ describe('NgxEmailStudio', () => {
     expect(componentStyles).toContain('data:image/svg+xml');
   });
 
-  it('should avoid broad drag-time highlights behind the dragged item', () => {
+  it('should avoid canvas selection highlights that compete with preview and rich-text editing', () => {
     fixture.detectChanges();
 
     const componentStyles = componentStyleText();
     const compactComponentStyles = componentStyles.replace(/\s+/g, ' ');
     expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
     expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
-    expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-node.is-selected, .nes-shell.is-dragging .nes-child-node.is-selected, .nes-shell.is-dragging .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }');
+    expect(compactComponentStyles).toContain('.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: transparent; box-shadow: none; }');
     expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-floating-tools { display: none; }');
+    expect(componentStyles).not.toContain('box-shadow: inset 0 0 0 1px var(--nes-accent)');
     expect(componentStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
     expect(componentStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');
   });
