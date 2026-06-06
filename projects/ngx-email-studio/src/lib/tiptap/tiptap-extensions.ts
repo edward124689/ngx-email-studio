@@ -187,7 +187,7 @@ const RichParagraph = Node.create({
   },
   parseHTML() {
     return [
-      { tag: 'div', priority: 1000, getAttrs: (element) => element instanceof HTMLElement && !hasBlockChildren(element) ? { blockTag: 'div' } : false },
+      { tag: 'div', priority: 1000, getAttrs: (element) => element instanceof HTMLElement && !hasBlockDescendants(element) ? { blockTag: 'div' } : false },
       { tag: 'p', priority: 1000, getAttrs: () => ({ blockTag: 'p' }) },
     ];
   },
@@ -201,8 +201,8 @@ const RichParagraph = Node.create({
   },
 });
 
-function hasBlockChildren(element: HTMLElement): boolean {
-  return Array.from(element.children).some((child) => isRichTextBlockTag(child.tagName));
+function hasBlockDescendants(element: HTMLElement): boolean {
+  return Array.from(element.querySelectorAll('*')).some((child) => isRichTextBlockTag(child.tagName));
 }
 
 function isRichTextBlockTag(tagName: string): boolean {

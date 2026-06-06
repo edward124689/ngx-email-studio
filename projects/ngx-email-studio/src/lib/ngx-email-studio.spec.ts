@@ -537,6 +537,11 @@ describe('NgxEmailStudio', () => {
     expect(sanitized).not.toContain('onclick');
   });
 
+  it('should unwrap rich-text divs and inline wrappers that contain indirect block descendants', () => {
+    expect(sanitizeRichTextContent('<div><span class="wrapper"><p>Nested paragraph</p></span></div>')).toBe('<p>Nested paragraph</p>');
+    expect(sanitizeRichTextContent('<div><span><ul><li>Nested item</li></ul></span></div>')).toBe('<ul><li>Nested item</li></ul>');
+  });
+
   it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body background-color="red;background:url(javascript:alert(1))"><mj-section background-color="red;background:url(javascript:alert(1))"><mj-column background-color="#ABCDEF"><mj-text><p>Safe</p></mj-text></mj-column><mj-column background-color="red;background:url(javascript:alert(1))"><mj-text><p>Unsafe column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const row = imported.body[0];
@@ -1553,18 +1558,45 @@ describe('NgxEmailStudio', () => {
     expect(editor).toBeTruthy();
     expect(component.tiptapBlockOptions.map((option) => option.value)).toContain('div');
 
-    editor.commands.setContent('<p>Block tag</p>');
+    editor.commands.setContent('<p style="margin: 10px 0; color: #123456" class="tagged-block" id="tagged-block">Block tag</p>');
     editor.commands.selectAll();
     component.setTiptapBlockFormat('inline', 'div');
     expect(component.currentTiptapBlockFormat('inline')).toBe('div');
-    expect(textNode.attrs['content']).toContain('<div>Block tag</div>');
-    expect(component.lastMjml).toContain('<div>Block tag</div>');
+    expect(textNode.attrs['content']).toContain('<div');
+    expect(textNode.attrs['content']).toContain('Block tag</div>');
+    expect(textNode.attrs['content']).toContain('class="tagged-block"');
+    expect(textNode.attrs['content']).toContain('id="tagged-block"');
+    expect(textNode.attrs['content']).toContain('color: #123456');
+    expect(textNode.attrs['content']).toContain('margin-top: 10px');
+    expect(component.lastMjml).toContain('<div');
+    expect(component.lastMjml).toContain('class="tagged-block"');
 
     editor.commands.selectAll();
     component.setTiptapBlockFormat('inline', 'paragraph');
     expect(component.currentTiptapBlockFormat('inline')).toBe('paragraph');
-    expect(textNode.attrs['content']).toContain('<p>Block tag</p>');
-    expect(textNode.attrs['content']).not.toContain('<div>Block tag</div>');
+    expect(textNode.attrs['content']).toContain('<p');
+    expect(textNode.attrs['content']).toContain('Block tag</p>');
+    expect(textNode.attrs['content']).toContain('class="tagged-block"');
+    expect(textNode.attrs['content']).toContain('id="tagged-block"');
+    expect(textNode.attrs['content']).toContain('color: #123456');
+    expect(textNode.attrs['content']).toContain('margin-top: 10px');
+    expect(textNode.attrs['content']).not.toContain('<div');
+  });
+
+  it('should preserve per-block attributes when converting multiple Tiptap paragraphs to DIV', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    editor.commands.setContent('<p id="first-block" class="first" style="color: #111111">First</p><p id="second-block" class="second" style="color: #222222">Second</p>');
+    editor.commands.selectAll();
+    component.setTiptapBlockFormat('inline', 'div');
+
+    expect(textNode.attrs['content']).toContain('<div style="color: #111111" id="first-block" class="first">First</div>');
+    expect(textNode.attrs['content']).toContain('<div style="color: #222222" id="second-block" class="second">Second</div>');
+    expect(textNode.attrs['content']).not.toContain('id="first-block" class="first">Second');
+    expect(textNode.attrs['content']).not.toContain('id="second-block" class="second">First');
   });
 
   it('should support expanded Tiptap formatting controls for headings, inline styles, lists, sizing, alignment, and undo', () => {

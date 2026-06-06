@@ -1768,12 +1768,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (!editor) return;
     const chain = editor.chain().focus();
     if (value === 'paragraph') {
-      chain.setParagraph().run();
+      this.setSelectedTiptapParagraphTag(editor, 'p');
       this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
       return;
     }
     if (value === 'div') {
-      chain.setNode('paragraph', { blockTag: 'div' }).run();
+      this.setSelectedTiptapParagraphTag(editor, 'div');
       this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
       return;
     }
@@ -1782,6 +1782,34 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       chain.toggleHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
       this.tiptapToolbarState[scope] = this.collectTiptapToolbarState(editor);
     }
+  }
+
+  private setSelectedTiptapParagraphTag(editor: TiptapEditor, blockTag: 'p' | 'div'): void {
+    editor.commands.focus();
+    const paragraphType = editor.state.schema.nodes['paragraph'];
+    if (!paragraphType) return;
+    let transaction = editor.state.tr;
+    let changed = false;
+    editor.state.doc.nodesBetween(editor.state.selection.from, editor.state.selection.to, (node, pos) => {
+      if (!node.isTextblock) return true;
+      if (node.type.name === 'paragraph') {
+        transaction = transaction.setNodeMarkup(pos, undefined, { ...node.attrs, blockTag });
+        changed = true;
+        return false;
+      }
+      if (node.type.name === 'heading') {
+        const { level: _level, ...attrs } = node.attrs;
+        transaction = transaction.setNodeMarkup(pos, paragraphType, { ...attrs, blockTag });
+        changed = true;
+        return false;
+      }
+      return false;
+    });
+    if (changed) {
+      editor.view.dispatch(transaction.scrollIntoView());
+      return;
+    }
+    editor.chain().focus().setNode('paragraph', { ...editor.getAttributes('paragraph'), blockTag }).run();
   }
 
   currentTiptapFontSize(scope: TiptapScope): string {

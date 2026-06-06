@@ -21,7 +21,7 @@ function sanitizeRichTextNode(node: Node): void {
       continue;
     }
     const element = child as HTMLElement;
-    if (element.tagName === 'DIV' && hasRichTextBlockChild(element)) {
+    if ((element.tagName === 'DIV' || isRichTextInlineElement(element.tagName)) && hasRichTextBlockDescendant(element)) {
       sanitizeRichTextNode(element);
       const parent = element.parentNode;
       while (element.firstChild) parent?.insertBefore(element.firstChild, element);
@@ -118,12 +118,16 @@ function safeRichTextStyle(value: string, tagName: string): string {
   return safe.join('; ');
 }
 
-function hasRichTextBlockChild(element: HTMLElement): boolean {
-  return Array.from(element.children).some((child) => isRichTextBlockElement(child.tagName));
+function hasRichTextBlockDescendant(element: HTMLElement): boolean {
+  return Array.from(element.querySelectorAll('*')).some((child) => isRichTextBlockElement(child.tagName));
 }
 
 function isRichTextBlockElement(tagName: string): boolean {
   return tagName === 'P' || tagName === 'DIV' || /^H[1-6]$/.test(tagName) || tagName === 'UL' || tagName === 'OL' || tagName === 'TABLE';
+}
+
+function isRichTextInlineElement(tagName: string): boolean {
+  return tagName === 'SPAN' || tagName === 'STRONG' || tagName === 'B' || tagName === 'EM' || tagName === 'I' || tagName === 'U' || tagName === 'S' || tagName === 'STRIKE' || tagName === 'A';
 }
 
 
