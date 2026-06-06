@@ -32,6 +32,11 @@ export function normalizeFontFamilyValue(value: unknown): string {
   return /^[a-zA-Z0-9\s,'"\-]+$/.test(raw) && /[a-zA-Z]/.test(raw) && raw.length <= 120 ? raw : '';
 }
 
+export function normalizeFontWeightValue(value: unknown): string {
+  const raw = String(value ?? '').trim().toLowerCase();
+  return /^(normal|bold|[1-9]00)$/.test(raw) ? raw : '';
+}
+
 export function normalizeHtmlIdValue(value: unknown): string {
   const raw = String(value ?? '').trim();
   return /^[A-Za-z][A-Za-z0-9_:\-.]{0,63}$/.test(raw) ? raw : '';

@@ -8,16 +8,18 @@ import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import StarterKit from '@tiptap/starter-kit';
 
-import { normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHtmlClassValue, normalizeHtmlIdValue, normalizeLineHeightValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHtmlClassValue, normalizeHtmlIdValue, normalizeLineHeightValue } from '../export/export-utils';
 
 function inlineTypographyStyle(attributes: Record<string, unknown>): string {
   const style: string[] = [];
   const fontSize = normalizeCssSizeValue(attributes['fontSize']);
   const color = normalizeColorValue(attributes['color']);
   const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
+  const fontWeight = normalizeFontWeightValue(attributes['fontWeight']);
   if (fontSize) style.push(`font-size: ${fontSize}`);
   if (color) style.push(`color: ${color}`);
   if (fontFamily) style.push(`font-family: ${fontFamily}`);
+  if (fontWeight) style.push(`font-weight: ${fontWeight}`);
   return style.join('; ');
 }
 
@@ -27,10 +29,12 @@ function blockTypographyStyle(attributes: Record<string, unknown>): string {
   const fontSize = normalizeCssSizeValue(attributes['fontSize']);
   const color = normalizeColorValue(attributes['color']);
   const fontFamily = normalizeFontFamilyValue(attributes['fontFamily']);
+  const fontWeight = normalizeFontWeightValue(attributes['fontWeight']);
   if (lineHeight) style.push(`line-height: ${lineHeight}`);
   if (fontSize) style.push(`font-size: ${fontSize}`);
   if (color) style.push(`color: ${color}`);
   if (fontFamily) style.push(`font-family: ${fontFamily}`);
+  if (fontWeight) style.push(`font-weight: ${fontWeight}`);
   return style.join('; ');
 }
 
@@ -57,6 +61,11 @@ const InlineTypography = Extension.create({
           fontFamily: {
             default: null,
             parseHTML: (element: HTMLElement) => normalizeFontFamilyValue(element.style.fontFamily) || null,
+            renderHTML: () => ({}),
+          },
+          fontWeight: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeFontWeightValue(element.style.fontWeight) || null,
             renderHTML: () => ({}),
           },
         },
@@ -93,6 +102,11 @@ const BlockTypography = Extension.create({
           fontFamily: {
             default: null,
             parseHTML: (element: HTMLElement) => normalizeFontFamilyValue(element.style.fontFamily) || null,
+            renderHTML: () => ({}),
+          },
+          fontWeight: {
+            default: null,
+            parseHTML: (element: HTMLElement) => normalizeFontWeightValue(element.style.fontWeight) || null,
             renderHTML: () => ({}),
           },
         },

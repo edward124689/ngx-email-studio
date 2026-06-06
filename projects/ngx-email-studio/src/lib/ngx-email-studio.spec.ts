@@ -370,7 +370,7 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should preserve MJML text typography attrs and safe inline email styles', () => {
-    const source = '<mjml><mj-body><mj-section><mj-column><mj-text align="left" color="#55575d" font-family="Arial, sans-serif" font-size="13px" line-height="22px" padding-bottom="0px" padding-top="0px" padding="10px 25px"><p style="line-height: 18px; margin: 10px 0; text-align: center;font-size:14px;color:#ffffff;font-family:\'Times New Roman\',Helvetica,Arial,sans-serif">WOMEN&nbsp; | MEN</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+    const source = '<mjml><mj-body><mj-section><mj-column><mj-text align="left" color="#55575d" font-family="Arial, sans-serif" font-weight="bold" font-size="13px" line-height="22px" padding-bottom="0px" padding-top="0px" padding="10px 25px"><p style="line-height: 18px; margin: 10px 0; text-align: center;font-size:14px;color:#ffffff;font-family:\'Times New Roman\',Helvetica,Arial,sans-serif;font-weight:700">WOMEN&nbsp; | MEN</p></mj-text></mj-column></mj-section></mj-body></mjml>';
 
     const document = (component as any).parseMjml(source) as EmailDocument;
     const text = document.body[0].children?.[0];
@@ -379,18 +379,22 @@ describe('NgxEmailStudio', () => {
 
     expect(text?.attrs['color']).toBe('#55575d');
     expect(text?.attrs['fontFamily']).toBe('Arial, sans-serif');
+    expect(text?.attrs['fontWeight']).toBe('bold');
     expect(text?.attrs['fontSize']).toBe('13px');
     expect(text?.attrs['lineHeight']).toBe('22px');
     expect(String(text?.attrs['content'])).toContain('line-height: 18px');
     expect(String(text?.attrs['content'])).toContain('margin: 10px 0');
     expect(String(text?.attrs['content'])).toContain('color: #ffffff');
     expect(String(text?.attrs['content'])).toContain("font-family: 'Times New Roman',Helvetica,Arial,sans-serif");
+    expect(String(text?.attrs['content'])).toContain('font-weight: 700');
     expect(mjml).toContain('color="#55575d"');
     expect(mjml).toContain('font-family="Arial, sans-serif"');
+    expect(mjml).toContain('font-weight="bold"');
     expect(mjml).toContain('font-size="13px"');
     expect(mjml).toContain('line-height="22px"');
-    expect(mjml).toContain('style="line-height: 18px; margin: 10px 0; text-align: center; font-size: 14px; color: #ffffff; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif"');
+    expect(mjml).toContain('style="line-height: 18px; margin: 10px 0; text-align: center; font-size: 14px; color: #ffffff; font-family: \'Times New Roman\',Helvetica,Arial,sans-serif; font-weight: 700"');
     expect(html).toContain('font-family:Arial, sans-serif;');
+    expect(html).toContain('font-weight:bold;');
     expect(html).toContain('font-size:13px;');
     expect(html).toContain('line-height:22px;');
   });

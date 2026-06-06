@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { parseSocialItems, socialCssSize, socialMode } from '../social/social-utils';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
+import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
   const body = document.body.map((node) => nodeToMjml(node, idFactory)).join('\n');
@@ -88,9 +88,10 @@ function imageWidthAttr(node: EmailNode): string {
 function textTypographyAttrs(node: EmailNode): string {
   const color = colorAttrValue(node.attrs['color']);
   const fontFamily = normalizeFontFamilyValue(node.attrs['fontFamily']);
+  const fontWeight = normalizeFontWeightValue(node.attrs['fontWeight']);
   const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
   const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']);
-  return `${color ? ` color="${escapeAttr(color)}"` : ''}${fontFamily ? ` font-family="${escapeAttr(fontFamily)}"` : ''}${fontSize ? ` font-size="${escapeAttr(fontSize)}"` : ''}${lineHeight ? ` line-height="${escapeAttr(lineHeight)}"` : ''}`;
+  return `${color ? ` color="${escapeAttr(color)}"` : ''}${fontFamily ? ` font-family="${escapeAttr(fontFamily)}"` : ''}${fontWeight ? ` font-weight="${escapeAttr(fontWeight)}"` : ''}${fontSize ? ` font-size="${escapeAttr(fontSize)}"` : ''}${lineHeight ? ` line-height="${escapeAttr(lineHeight)}"` : ''}`;
 }
 
 function buttonColorAttr(node: EmailNode): string {

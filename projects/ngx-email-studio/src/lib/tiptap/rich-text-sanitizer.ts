@@ -1,4 +1,4 @@
-import { normalizeColorValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeFontWeightValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
 
 const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
@@ -94,6 +94,8 @@ function safeRichTextStyle(value: string): string {
     const normalizedColor = normalizeColorValue(rawValue);
     if (property === 'color' && normalizedColor) safe.push(`color: ${normalizedColor}`);
     if (property === 'font-family' && safeFontFamily(rawValue)) safe.push(`font-family: ${rawValue}`);
+    const normalizedFontWeight = normalizeFontWeightValue(rawValue);
+    if (property === 'font-weight' && normalizedFontWeight) safe.push(`font-weight: ${normalizedFontWeight}`);
     if ((property === 'margin' || property === 'margin-top' || property === 'margin-right' || property === 'margin-bottom' || property === 'margin-left') && safeBoxSpacing(rawValue)) safe.push(`${property}: ${rawValue}`);
     if (property === 'background-color' && normalizedColor) safe.push(`background-color: ${normalizedColor}`);
     if (property === 'border-color' && normalizedColor) safe.push(`border-color: ${normalizedColor}`);

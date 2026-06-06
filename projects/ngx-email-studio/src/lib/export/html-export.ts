@@ -18,6 +18,7 @@ import {
   indent,
   normalizeCssSizeValue,
   normalizeFontFamilyValue,
+  normalizeFontWeightValue,
   normalizeHrefValue,
   normalizeLineHeightValue,
   paddingCss,
@@ -210,9 +211,10 @@ function buttonBorderRadiusCss(node: EmailNode): string {
 function textTypographyStyle(node: EmailNode): string {
   const color = colorAttrValue(node.attrs['color']) || '#1f2937';
   const fontFamily = normalizeFontFamilyValue(node.attrs['fontFamily']);
+  const fontWeight = normalizeFontWeightValue(node.attrs['fontWeight']);
   const fontSize = normalizeCssSizeValue(node.attrs['fontSize']);
   const lineHeight = normalizeLineHeightValue(node.attrs['lineHeight']) || '1.6';
-  return `${fontFamily ? `font-family:${escapeAttr(fontFamily)};` : ''}${fontSize ? `font-size:${escapeAttr(fontSize)};` : ''}line-height:${escapeAttr(lineHeight)};color:${escapeAttr(color)};`;
+  return `${fontFamily ? `font-family:${escapeAttr(fontFamily)};` : ''}${fontWeight ? `font-weight:${escapeAttr(fontWeight)};` : ''}${fontSize ? `font-size:${escapeAttr(fontSize)};` : ''}line-height:${escapeAttr(lineHeight)};color:${escapeAttr(color)};`;
 }
 
 function buttonTextColorCss(node: EmailNode): string {

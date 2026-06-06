@@ -2,7 +2,7 @@ import { EmailDocument, EmailNode } from '../models';
 import { createColumn, createNode, createSectionWithChildren, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
-import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue } from '../export/export-utils';
+import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeLineHeightValue } from '../export/export-utils';
 import { serializeSocialItems, socialCssSize, socialMode, SocialItem } from '../social/social-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
@@ -225,11 +225,13 @@ function paddingUnitFromValue(value: string | null): '%' | 'px' | '' {
 function importedTextStyleAttrs(element: Element): Record<string, string> {
   const color = normalizeColorValue(element.getAttribute('color'));
   const fontFamily = normalizeFontFamilyValue(element.getAttribute('font-family'));
+  const fontWeight = normalizeFontWeightValue(element.getAttribute('font-weight'));
   const fontSize = normalizeCssSizeValue(element.getAttribute('font-size'));
   const lineHeight = normalizeLineHeightValue(element.getAttribute('line-height'));
   return {
     ...(color ? { color } : {}),
     ...(fontFamily ? { fontFamily } : {}),
+    ...(fontWeight ? { fontWeight } : {}),
     ...(fontSize ? { fontSize } : {}),
     ...(lineHeight ? { lineHeight } : {}),
   };
