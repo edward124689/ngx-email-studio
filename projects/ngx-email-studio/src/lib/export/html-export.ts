@@ -1,5 +1,6 @@
 import { defaultDocumentAttrs } from '../tree/block-factory';
 import { EmailDocument, EmailNode, EmailSizeUnit } from '../models';
+import { parseSocialItems, socialCssSize, socialIconLabel, socialMode } from '../social/social-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import {
   backgroundStyle,
@@ -174,6 +175,8 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:${escapeAttr(buttonTextColorCss(node))};text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
     }
+    case 'social':
+      return socialToHtml(node, depth);
     case 'divider':
       return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))};" /></div>`, depth);
     case 'spacer': {
@@ -183,6 +186,18 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     default:
       return '';
   }
+}
+
+function socialToHtml(node: EmailNode, depth = 0): string {
+  const items = parseSocialItems(node.attrs['items']);
+  const gap = socialMode(node.attrs['mode']) === 'vertical' ? '<br>' : '&nbsp;';
+  const iconSize = socialCssSize(node.attrs['iconSize'], '30px');
+  const fontSize = socialCssSize(node.attrs['fontSize'], '15px');
+  const links = items.map((item) => {
+    const background = colorAttrValue(item.backgroundColor) || '#A1A0A0';
+    return `<a href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" aria-label="${escapeAttr(item.name)}" style="display:inline-block;width:${escapeAttr(iconSize)};height:${escapeAttr(iconSize)};line-height:${escapeAttr(iconSize)};border-radius:999px;background:${escapeAttr(background)};color:#ffffff;text-align:center;text-decoration:none;font-family:Arial,sans-serif;font-size:${escapeAttr(fontSize)};font-weight:bold;">${escapeHtml(socialIconLabel(item.name))}</a>`;
+  }).join(gap);
+  return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};">${links}</div>`, depth);
 }
 
 function buttonBorderRadiusCss(node: EmailNode): string {

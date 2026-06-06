@@ -73,7 +73,7 @@ export function contentAlign(node: EmailNode): 'left' | 'center' | 'right' {
 }
 
 export function isAlignableContent(node: EmailNode): boolean {
-  return node.type === 'text' || node.type === 'image' || node.type === 'button';
+  return node.type === 'text' || node.type === 'image' || node.type === 'button' || node.type === 'social';
 }
 
 export function dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {

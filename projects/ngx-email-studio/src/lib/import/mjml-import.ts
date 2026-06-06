@@ -3,6 +3,7 @@ import { createColumn, createNode, createSectionWithChildren, defaultDocumentAtt
 import { elementChildren } from '../tree/node-utils';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue } from '../export/export-utils';
+import { serializeSocialItems, socialCssSize, socialMode, SocialItem } from '../social/social-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
 const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
@@ -281,25 +282,21 @@ function parseSocialBlock(element: Element, unsupported: string[], idFactory: Em
   children.forEach((child) => {
     if (child.tagName.toLowerCase() !== 'mj-social-element' && child.tagName.startsWith('mj-') && !unsupported.includes(child.tagName)) unsupported.push(child.tagName);
   });
-  const links = children
+  const items: SocialItem[] = children
     .filter((child) => child.tagName.toLowerCase() === 'mj-social-element')
     .map((child) => {
       const name = child.getAttribute('name') || child.textContent?.trim() || 'social';
       const href = normalizeHrefValue(child.getAttribute('href')) || '#';
-      return `<a href="${escapeRichTextAttribute(href)}">${escapeRichText(name)}</a>`;
+      const backgroundColor = importedColor(child.getAttribute('background-color')) || importedColor(element.getAttribute('background-color')) || '#A1A0A0';
+      return { name, href, backgroundColor };
     });
-  if (!links.length) return undefined;
-  return createNode(idFactory, 'text', {
-    content: sanitizeRichTextContent(`<p>${links.join('&nbsp;&nbsp;&nbsp;')}</p>`),
+  if (!items.length) return undefined;
+  return createNode(idFactory, 'social', {
+    items: serializeSocialItems(items),
     align: safeAlign(element.getAttribute('align')),
+    mode: socialMode(element.getAttribute('mode')),
+    iconSize: socialCssSize(element.getAttribute('icon-size'), '30px'),
+    fontSize: socialCssSize(element.getAttribute('font-size'), '15px'),
     ...importedPaddingAttrs(element),
   });
-}
-
-function escapeRichText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function escapeRichTextAttribute(value: string): string {
-  return escapeRichText(value).replace(/"/g, '&quot;');
 }

@@ -7,6 +7,7 @@ export function outlineLabel(node: EmailNode): string {
   if (node.type === 'text') return plainText(String(node.attrs['content'] || 'Text')).slice(0, 28) || 'Text paragraph';
   if (node.type === 'image') return 'Image placeholder';
   if (node.type === 'button') return String(node.attrs['label'] || 'CTA button');
+  if (node.type === 'social') return 'Social links';
   if (node.type === 'divider') return 'Divider';
   if (node.type === 'spacer') return 'Spacer';
   return node.type;
@@ -17,6 +18,7 @@ export function outlineMeta(node: EmailNode): string {
   if (node.type === 'row') return `${childCount || 1} column${(childCount || 1) === 1 ? '' : 's'}`;
   if (node.type === 'column') return `${childCount} nested block${childCount === 1 ? '' : 's'}`;
   if (node.type === 'section') return childCount ? `${childCount} nested block${childCount === 1 ? '' : 's'}` : 'container';
+  if (node.type === 'social') return 'mj-social';
   return node.type;
 }
 
@@ -27,6 +29,7 @@ export function outlineIcon(node: EmailNode): string {
   if (node.type === 'text') return 'fa-font';
   if (node.type === 'image') return 'fa-picture-o';
   if (node.type === 'button') return 'fa-mouse-pointer';
+  if (node.type === 'social') return 'fa-share-alt';
   if (node.type === 'divider') return 'fa-minus';
   if (node.type === 'spacer') return 'fa-arrows-v';
   return 'fa-square-o';

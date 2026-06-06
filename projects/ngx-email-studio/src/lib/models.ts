@@ -1,4 +1,4 @@
-export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'divider' | 'spacer';
+export type EmailBlockType = 'row' | 'column' | 'section' | 'text' | 'image' | 'button' | 'social' | 'divider' | 'spacer';
 export type PaletteBlockType = Exclude<EmailBlockType, 'column'>;
 export type EmailPreviewSize = 'desktop' | 'tablet' | 'mobile' | number;
 export type EmailSizeUnit = 'px' | '%';

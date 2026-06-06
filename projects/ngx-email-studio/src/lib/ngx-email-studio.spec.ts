@@ -589,6 +589,8 @@ describe('NgxEmailStudio', () => {
 
     const document = (component as any).parseMjml(mjml) as EmailDocument;
     const allText = JSON.stringify(document.body);
+    const social = findImportedNode(document.body, 'social');
+    const socialItems = JSON.parse(String(social?.attrs['items'] || '[]'));
 
     expect(document.attrs?.['backgroundColor']).toBe('#e7e7e7');
     expect(document.attrs?.['width']).toBe(600);
@@ -597,24 +599,46 @@ describe('NgxEmailStudio', () => {
     expect(allText).toContain('RSVP Today');
     expect(allText).toContain('austin-image-1.png');
     expect(allText).toContain('austin-image-2.png');
-    expect(allText).toContain('facebook');
+    expect(social?.type).toBe('social');
+    expect(socialItems.map((item: any) => item.name)).toEqual(['facebook', 'linkedin']);
+    expect(socialItems.map((item: any) => item.href)).toEqual(['https://mjml.io/', 'https://mjml.io/']);
     expect(allText).toContain('Privacy');
     expect(document.unsupported || []).not.toContain('mj-wrapper');
     expect(document.unsupported || []).not.toContain('mj-group');
     expect(document.unsupported || []).not.toContain('mj-social');
   });
 
-  it('should sanitize imported MJML social links when degrading them to rich text', () => {
-    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="javascript:alert(1)"></mj-social-element><mj-social-element name="linkedin" href="https://mjml.io/"></mj-social-element><mj-text>Unsupported here</mj-text></mj-social></mj-column></mj-section></mj-body></mjml>`;
+  it('should import MJML social as editable social content modules and export MJML social elements', () => {
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social font-size="15px" icon-size="30px" mode="horizontal" padding="0" align="center"><mj-social-element name="facebook" href="https://mjml.io/" background-color="#A1A0A0"></mj-social-element><mj-social-element name="google" href="https://example.com/google" background-color="#A1A0A0"></mj-social-element><mj-social-element name="twitter" href="javascript:alert(1)" background-color="#222222"></mj-social-element><mj-social-element name="linkedin" href="https://example.com/linkedin" background-color="#A1A0A0"></mj-social-element></mj-social></mj-column></mj-section></mj-body></mjml>`;
 
     const document = (component as any).parseMjml(mjml) as EmailDocument;
-    const social = findImportedNode(document.body, 'text');
-    const content = String(social?.attrs['content'] || '');
+    const social = findImportedNode(document.body, 'social');
+    const items = JSON.parse(String(social?.attrs['items'] || '[]'));
+    const exportedMjml = (component as any).compileMjml(document) as string;
+    const exportedHtml = (component as any).renderHtml(document) as string;
 
-    expect(content).toContain('facebook');
-    expect(content).toContain('linkedin');
-    expect(content).not.toContain('javascript:');
-    expect(content).toContain('href="https://mjml.io/"');
+    expect(social?.attrs['align']).toBe('center');
+    expect(social?.attrs['mode']).toBe('horizontal');
+    expect(social?.attrs['iconSize']).toBe('30px');
+    expect(social?.attrs['fontSize']).toBe('15px');
+    expect(items.map((item: any) => item.name)).toEqual(['facebook', 'google', 'twitter', 'linkedin']);
+    expect(items.map((item: any) => item.href)).toEqual(['https://mjml.io/', 'https://example.com/google', '#', 'https://example.com/linkedin']);
+    expect(items[0].backgroundColor).toBe('#a1a0a0');
+    expect(exportedMjml).toContain('<mj-social');
+    expect(exportedMjml).toContain('name="facebook"');
+    expect(exportedMjml).toContain('href="https://example.com/linkedin"');
+    expect(exportedMjml).not.toContain('javascript:');
+    expect(exportedHtml).not.toContain('javascript:');
+    expect(exportedHtml).toContain('aria-label="facebook"');
+  });
+
+  it('should track unsupported MJML nested inside social modules', () => {
+    const mjml = `<mjml><mj-body><mj-section><mj-column><mj-social><mj-social-element name="facebook" href="https://mjml.io/"></mj-social-element><mj-text>Unsupported here</mj-text></mj-social></mj-column></mj-section></mj-body></mjml>`;
+
+    const document = (component as any).parseMjml(mjml) as EmailDocument;
+    const social = findImportedNode(document.body, 'social');
+
+    expect(social?.type).toBe('social');
     expect(document.unsupported || []).toContain('mj-text');
   });
 

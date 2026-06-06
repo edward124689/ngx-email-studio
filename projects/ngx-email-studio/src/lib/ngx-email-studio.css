@@ -170,6 +170,16 @@ ngx-email-studio button:hover { border-color: var(--nes-accent); color: var(--ne
 .nes-render-image { display: inline-block; width: 100%; max-width: 100%; height: auto; object-fit: contain; vertical-align: top; }
 .nes-render-button-wrap { padding: 22px 32px 30px; }
 .nes-render-button { display: inline-block; background: #0f172a; color: white; padding: 13px 20px; border-radius: 10px; text-decoration: none; font-weight: 800; }
+.nes-render-social-wrap { display: block; padding: 0; }
+.nes-render-social-wrap.is-vertical { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.nes-render-social-wrap.is-vertical.is-align-center { align-items: center; }
+.nes-render-social-wrap.is-vertical.is-align-right { align-items: flex-end; }
+.nes-render-social-icon { display: inline-block; margin: 0 4px; border-radius: 999px; color: #fff; text-align: center; text-decoration: none; font-family: Arial, sans-serif; font-weight: 800; vertical-align: middle; }
+.nes-social-editor { display: grid; gap: 10px; }
+.nes-social-item-editor { display: grid; grid-template-columns: auto minmax(70px, .7fr) minmax(120px, 1fr); gap: 8px; align-items: end; padding: 10px; border: 1px solid #dbe3ef; border-radius: 12px; background: #f8fafc; }
+.nes-social-item-editor label:nth-of-type(3), .nes-social-item-editor .nes-small-danger { grid-column: 2 / -1; }
+.nes-social-editor-preview { display: inline-grid; grid-row: span 2; place-items: center; width: 32px; height: 32px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 900; }
+.nes-small-danger { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
 .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }
 .nes-empty { min-height: 380px; display: grid; place-items: center; color: var(--nes-muted); border: 2px dashed #d0d5dd; text-align: center; }
 .nes-root-drop-space { min-height: 24px; }

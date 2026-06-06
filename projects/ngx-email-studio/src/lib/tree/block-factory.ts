@@ -1,4 +1,5 @@
 import { EmailBlockType, EmailDocument, EmailNode } from '../models';
+import { serializeSocialItems, DEFAULT_SOCIAL_ITEMS } from '../social/social-utils';
 
 export type EmailNodeIdFactory = (type: string) => string;
 
@@ -20,6 +21,7 @@ export function createNode(idFactory: EmailNodeIdFactory, type: EmailBlockType, 
     text: { content: '<p>New text block</p>' },
     image: { src: 'https://placehold.co/640x260?text=Email+Image', alt: 'Email image' },
     button: { label: 'Button', href: '#', backgroundColor: '#7c3aed', borderRadius: 10 },
+    social: { items: serializeSocialItems(DEFAULT_SOCIAL_ITEMS), iconSize: '30px', fontSize: '15px', mode: 'horizontal', align: 'center', padding: 0, paddingUnit: 'px' },
     divider: { borderColor: '#d0d5dd' },
     spacer: { height: 24 },
   };

@@ -10,7 +10,7 @@ export function isEmailNode(value: unknown): value is EmailNode {
 }
 
 export function isContentModule(node: EmailNode): boolean {
-  return node.type === 'text' || node.type === 'image' || node.type === 'button' || node.type === 'divider' || node.type === 'spacer';
+  return node.type === 'text' || node.type === 'image' || node.type === 'button' || node.type === 'social' || node.type === 'divider' || node.type === 'spacer';
 }
 
 export function canDropIntoContainer(args: {

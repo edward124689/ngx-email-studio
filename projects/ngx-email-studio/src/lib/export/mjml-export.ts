@@ -1,4 +1,5 @@
 import { EmailDocument, EmailNode } from '../models';
+import { parseSocialItems, socialCssSize, socialMode } from '../social/social-utils';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
 import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
 import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeHrefValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
@@ -51,11 +52,22 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       const radius = escapeAttr(buttonBorderRadiusCss(node));
       return `<mj-button href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" background-color="${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')}"${buttonColorAttr(node)} border-radius="${radius}"${alignAttr(node)}${paddingAttr(node)}>${escapeHtml(String(node.attrs['label'] || 'Button'))}</mj-button>`;
     }
+    case 'social':
+      return socialToMjml(node);
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(String(node.attrs['borderColor'] || '#d0d5dd'))}" />`;
     case 'spacer':
       return `<mj-spacer height="${Number(node.attrs['height'] || 24)}px" />`;
   }
+}
+
+function socialToMjml(node: EmailNode): string {
+  const items = parseSocialItems(node.attrs['items']);
+  const mode = socialMode(node.attrs['mode']);
+  const iconSize = socialCssSize(node.attrs['iconSize'], '30px');
+  const fontSize = socialCssSize(node.attrs['fontSize'], '15px');
+  const children = items.map((item) => `<mj-social-element name="${escapeAttr(item.name)}" href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" background-color="${escapeAttr(colorAttrValue(item.backgroundColor) || '#A1A0A0')}"></mj-social-element>`).join('');
+  return `<mj-social font-size="${escapeAttr(fontSize)}" icon-size="${escapeAttr(iconSize)}" mode="${escapeAttr(mode)}"${alignAttr(node)}${paddingAttr(node)}>${children}</mj-social>`;
 }
 
 function backgroundAttr(node: EmailNode): string {

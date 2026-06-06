@@ -13,6 +13,7 @@ import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageW
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
+import { parseSocialItems, serializeSocialItems, SocialItem, socialCssSize, socialIconLabel as getSocialIconLabel, socialMode, updateSocialItem } from './social/social-utils';
 import {
   CanvasMode,
   EmailBlockType,
@@ -474,6 +475,30 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                 <input [ngModel]="node.attrs['href']" (ngModelChange)="updateAttr(node, 'href', $event)" />
               </label>
 
+              <div *ngIf="node.type === 'social'" class="nes-field-block nes-social-editor">
+                <div class="nes-control-heading">Social links</div>
+                <div class="nes-social-item-editor" *ngFor="let item of socialItems(node); let i = index">
+                  <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">{{ socialIconLabel(item.name) }}</span>
+                  <label>
+                    Icon
+                    <input [ngModel]="item.name" (ngModelChange)="updateSocialItemAttr(node, i, 'name', $event)" placeholder="facebook" />
+                  </label>
+                  <label>
+                    Href
+                    <input [ngModel]="item.href" (ngModelChange)="updateSocialItemAttr(node, i, 'href', $event)" placeholder="https://" />
+                  </label>
+                  <label>
+                    Icon bg
+                    <span class="nes-color-control">
+                      <input type="color" [ngModel]="colorPickerValue(item.backgroundColor, '#A1A0A0')" (ngModelChange)="updateSocialItemAttr(node, i, 'backgroundColor', $event)" />
+                      <input [ngModel]="item.backgroundColor" (ngModelChange)="updateSocialItemAttr(node, i, 'backgroundColor', $event)" />
+                    </span>
+                  </label>
+                  <button type="button" class="nes-small-danger" [disabled]="socialItems(node).length <= 1" (click)="removeSocialItem(node, i)">Remove</button>
+                </div>
+                <button type="button" (click)="addSocialItem(node)"><i class="nes-icon fa fa-plus" aria-hidden="true"></i> Add social icon</button>
+              </div>
+
               <label *ngIf="node.type === 'spacer'">
                 Height
                 <input type="number" [ngModel]="node.attrs['height']" (ngModelChange)="updateAttr(node, 'height', +$event)" />
@@ -579,6 +604,26 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   <span class="nes-static-unit">px</span>
                 </span>
               </label>
+              <div class="nes-field-block" *ngIf="node.type === 'social'">
+                <div class="nes-control-heading">Social style</div>
+                <div class="nes-control-row">
+                  <label>
+                    Icon size
+                    <input [ngModel]="node.attrs['iconSize'] || '30px'" (ngModelChange)="updateAttr(node, 'iconSize', $event)" />
+                  </label>
+                  <label>
+                    Font size
+                    <input [ngModel]="node.attrs['fontSize'] || '15px'" (ngModelChange)="updateAttr(node, 'fontSize', $event)" />
+                  </label>
+                  <label>
+                    Mode
+                    <select [ngModel]="node.attrs['mode'] || 'horizontal'" (ngModelChange)="updateAttr(node, 'mode', $event)">
+                      <option value="horizontal">horizontal</option>
+                      <option value="vertical">vertical</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
               <label *ngIf="node.type === 'divider'">
                 Border color
                 <span class="nes-color-control">
@@ -887,6 +932,9 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         <div *ngSwitchCase="'button'" class="nes-render-button-wrap" [style.text-align]="contentAlign(node)" [style.padding]="contentPaddingCss(node, 24)">
           <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.color]="buttonTextColorCss(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
         </div>
+        <div *ngSwitchCase="'social'" class="nes-render-social-wrap" [class.is-vertical]="socialModeValue(node) === 'vertical'" [class.is-align-center]="contentAlign(node) === 'center'" [class.is-align-right]="contentAlign(node) === 'right'" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 0)">
+          <a class="nes-render-social-icon" *ngFor="let item of socialItems(node)" [href]="item.href" [attr.aria-label]="item.name" [style.background]="item.backgroundColor" [style.width]="socialIconSizeCss(node)" [style.height]="socialIconSizeCss(node)" [style.line-height]="socialIconSizeCss(node)" [style.font-size]="socialFontSizeCss(node)" (click)="$event.preventDefault()">{{ socialIconLabel(item.name) }}</a>
+        </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
       </ng-container>
@@ -914,6 +962,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     { type: 'text', label: 'Text paragraph', icon: 'fa-align-left', description: 'Rich text body or CMS summary' },
     { type: 'button', label: 'CTA button', icon: 'fa-mouse-pointer', description: 'Link, registration, or purchase action' },
     { type: 'image', label: 'Image placeholder', icon: 'fa-picture-o', description: 'Hero image or product visual' },
+    { type: 'social', label: 'Social icons', icon: 'fa-share-alt', description: 'MJML social links with icons and hrefs' },
     { type: 'row', label: 'MJML columns', icon: 'fa-columns', description: '1-4 columns exported as mj-column' },
     { type: 'divider', label: 'Divider', icon: 'fa-minus', description: 'Separate content rhythm' },
     { type: 'spacer', label: 'Spacer', icon: 'fa-arrows-v', description: 'Vertical breathing room' },
@@ -1419,6 +1468,47 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   buttonTextColorCss(node: EmailNode): string {
     return normalizeColorValue(node.attrs['color']) || '#ffffff';
+  }
+
+  socialItems(node: EmailNode): SocialItem[] {
+    return parseSocialItems(node.attrs['items']);
+  }
+
+  socialIconLabel(name: string): string {
+    return getSocialIconLabel(name);
+  }
+
+  socialModeValue(node: EmailNode): 'horizontal' | 'vertical' {
+    return socialMode(node.attrs['mode']);
+  }
+
+  socialIconSizeCss(node: EmailNode): string {
+    return socialCssSize(node.attrs['iconSize'], '30px');
+  }
+
+  socialFontSizeCss(node: EmailNode): string {
+    return socialCssSize(node.attrs['fontSize'], '15px');
+  }
+
+  updateSocialItemAttr(node: EmailNode, index: number, key: keyof SocialItem, value: string): void {
+    if (this.readonly || node.type !== 'social') return;
+    const next = updateSocialItem(this.socialItems(node), index, key, value);
+    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    this.emitDocument();
+  }
+
+  addSocialItem(node: EmailNode): void {
+    if (this.readonly || node.type !== 'social') return;
+    const next = [...this.socialItems(node), { name: 'social', href: '#', backgroundColor: '#A1A0A0' }];
+    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    this.emitDocument();
+  }
+
+  removeSocialItem(node: EmailNode, index: number): void {
+    if (this.readonly || node.type !== 'social') return;
+    const next = this.socialItems(node).filter((_, itemIndex) => itemIndex !== index);
+    node.attrs = { ...node.attrs, items: serializeSocialItems(next) };
+    this.emitDocument();
   }
 
   sectionPaddingValue(section: EmailNode, key: 'padding' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft', fallback = 0): number {
