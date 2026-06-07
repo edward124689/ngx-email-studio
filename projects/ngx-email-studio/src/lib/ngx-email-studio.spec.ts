@@ -2325,6 +2325,53 @@ describe('NgxEmailStudio', () => {
     expect(readonlyToolbar.querySelector('button[aria-label="Redo"]')?.hasAttribute('disabled')).toBe(true);
   });
 
+  it('should use polished Tiptap tool modals instead of browser prompts for link and table cell values', () => {
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+    const promptSpy = vi.spyOn(globalThis, 'prompt').mockReturnValue('https://bad.example');
+
+    try {
+      component.openTiptapLinkModal('inline');
+
+      expect(promptSpy).not.toHaveBeenCalled();
+      expect(component.tiptapPrompt?.title).toBe('Edit link URL');
+      expect(componentStyleText()).toContain('.nes-tiptap-prompt-modal');
+      component.closeTiptapPrompt();
+
+      editor.commands.setContent('<p>Link me</p>');
+      editor.commands.selectAll();
+      component.runTiptapCommand('inline', 'link');
+      expect(promptSpy).not.toHaveBeenCalled();
+
+      component.tiptapPromptValue = 'javascript:alert(1)';
+      component.applyTiptapPrompt();
+      expect(component.tiptapPromptError).toContain('safe URL');
+      expect(textNode.attrs['content']).not.toContain('javascript');
+
+      component.tiptapPromptValue = 'https://example.com/newsletter';
+      component.applyTiptapPrompt();
+      expect(component.tiptapPrompt).toBeNull();
+      expect(textNode.attrs['content']).toContain('href="https://example.com/newsletter"');
+
+      component.runTiptapCommand('inline', 'insertTable');
+      component.openTiptapCellStyleModal('inline', 'width', 'Cell width (px, %, auto)', '100%');
+      expect(component.tiptapPrompt?.eyebrow).toBe('Table cell style');
+
+      component.tiptapPromptValue = '9999px';
+      component.applyTiptapPrompt();
+      expect(component.tiptapPromptError).toContain('email-safe');
+
+      component.tiptapPromptValue = '180px';
+      component.applyTiptapPrompt();
+      expect(component.tiptapPrompt).toBeNull();
+      expect(textNode.attrs['content']).toContain('width: 180px');
+    } finally {
+      promptSpy.mockRestore();
+    }
+  });
+
   it('should open, apply, sanitize, and cancel rich text source edits', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;

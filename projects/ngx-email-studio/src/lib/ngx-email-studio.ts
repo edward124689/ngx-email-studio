@@ -11,7 +11,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -99,6 +99,21 @@ interface TiptapToolbarState {
 interface EmailHistorySnapshot {
   document: EmailDocument;
   selectedNodeId?: string;
+}
+
+type TiptapPromptKind = 'link' | 'cell-style';
+
+interface TiptapPromptConfig {
+  kind: TiptapPromptKind;
+  scope: TiptapScope;
+  name?: string;
+  title: string;
+  eyebrow: string;
+  label: string;
+  description: string;
+  placeholder: string;
+  icon: string;
+  value: string;
 }
 
 const MAX_DOCUMENT_HISTORY = 80;
@@ -476,10 +491,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                             <label class="nes-tiptap-color-control" title="Cell border color"><span>Border</span><input type="color" aria-label="Cell border color" [value]="currentTiptapCellStyle('inline', 'borderColor') || '#cbd5e1'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('inline', 'borderColor', $any($event.target).value)" /></label>
                           </div>
                           <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
-                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
-                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'height', 'Cell height (px, auto)', '48px')">H</button>
-                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'padding', 'Cell padding (px)', '8px')">Pad</button>
-                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('inline', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
+                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('inline', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
+                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('inline', 'height', 'Cell height (px, auto)', '48px')">H</button>
+                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('inline', 'padding', 'Cell padding (px)', '8px')">Pad</button>
+                            <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('inline', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
                           </div>
                         </div>
                       </details>
@@ -831,10 +846,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                         <label class="nes-tiptap-color-control" title="Cell border color"><span>Border</span><input type="color" aria-label="Cell border color" [value]="currentTiptapCellStyle('modal', 'borderColor') || '#cbd5e1'" (mousedown)="$event.stopPropagation()" (change)="setTiptapCellStyle('modal', 'borderColor', $any($event.target).value)" /></label>
                       </div>
                       <div class="nes-tiptap-group nes-tiptap-table-group nes-tiptap-style-group">
-                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
-                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'height', 'Cell height (px, auto)', '48px')">H</button>
-                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'padding', 'Cell padding (px)', '8px')">Pad</button>
-                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="promptTiptapCellStyle('modal', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell width" title="Set cell width" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('modal', 'width', 'Cell width (px, %, auto)', '100%')">W</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell height" title="Set cell height" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('modal', 'height', 'Cell height (px, auto)', '48px')">H</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set cell padding" title="Set cell padding" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('modal', 'padding', 'Cell padding (px)', '8px')">Pad</button>
+                        <button type="button" class="nes-tiptap-chip-btn" aria-label="Set border width" title="Set border width" (mousedown)="$event.preventDefault()" (click)="openTiptapCellStyleModal('modal', 'borderWidth', 'Border width (px)', '1px')">Bdr</button>
                       </div>
                     </div>
                   </details>
@@ -873,6 +888,45 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           <footer class="nes-modal-footer">
             <button type="button" (click)="closeRichTextSource()">Cancel</button>
             <button type="button" class="nes-primary" (click)="applyRichTextSource()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Apply source</button>
+          </footer>
+        </section>
+      </div>
+
+      <div class="nes-modal-backdrop" *ngIf="tiptapPrompt as prompt" (click)="closeTiptapPrompt()">
+        <section class="nes-tiptap-prompt-modal" role="dialog" aria-modal="true" [attr.aria-label]="prompt.title" (click)="$event.stopPropagation()">
+          <header>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + prompt.icon" aria-hidden="true"></i></span>
+              <div>
+                <p>{{ prompt.eyebrow }}</p>
+                <h3>{{ prompt.title }}</h3>
+              </div>
+            </div>
+            <button type="button" aria-label="Close editor tool modal" (click)="closeTiptapPrompt()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div class="nes-tiptap-prompt-body">
+            <div class="nes-modal-intro">
+              <strong>{{ prompt.label }}</strong>
+              <p class="nes-muted">{{ prompt.description }}</p>
+            </div>
+            <label class="nes-tiptap-prompt-field">
+              <span>{{ prompt.label }}</span>
+              <input
+                name="tiptapPromptValue"
+                [ngModel]="tiptapPromptValue"
+                (ngModelChange)="tiptapPromptValue = $event; tiptapPromptError = ''"
+                [placeholder]="prompt.placeholder"
+                (keydown.enter)="applyTiptapPrompt(); $event.preventDefault()"
+              />
+            </label>
+            <div class="nes-tiptap-prompt-hint" *ngIf="prompt.kind === 'link'">
+              <i class="nes-icon fa fa-shield" aria-hidden="true"></i> Supports https, mailto, tel, anchors, and root-relative URLs. Leave blank to remove the link.
+            </div>
+            <div class="nes-import-error" role="alert" *ngIf="tiptapPromptError"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ tiptapPromptError }}</div>
+          </div>
+          <footer class="nes-modal-footer">
+            <button type="button" (click)="closeTiptapPrompt()">Cancel</button>
+            <button type="button" class="nes-primary" (click)="applyTiptapPrompt()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Apply</button>
           </footer>
         </section>
       </div>
@@ -1091,6 +1145,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   sourceEditorNode: EmailNode | null = null;
   sourceEditorValue = '';
   sourceEditorWarning = '';
+  tiptapPrompt: TiptapPromptConfig | null = null;
+  tiptapPromptValue = '';
+  tiptapPromptError = '';
   copyState = '';
   private tiptapInlineEditor?: TiptapEditor;
   private tiptapInlineNodeId?: string;
@@ -1165,6 +1222,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   onDocumentEscape(): void {
     this.closeTransientMenus();
     if (this.outputModalType) this.closeOutputModal();
+    if (this.tiptapPrompt) this.closeTiptapPrompt();
     if (this.sourceEditorScope) this.closeRichTextSource();
     if (this.importModalOpen) this.closeImportModal();
     if (this.dataSetModalOpen) this.closeDataSetModal();
@@ -2205,6 +2263,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   closeRichTextModal(): void {
+    this.closeTiptapPrompt();
     this.expandedRichTextNode = undefined;
     this.destroyTiptapModalEditor();
   }
@@ -2248,15 +2307,89 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (command === 'undo') chain.undo().run();
     if (command === 'redo') chain.redo().run();
     if (command === 'unlink') chain.extendMarkRange('link').unsetLink().run();
-    if (command === 'link') {
-      const currentHref = String(editor.getAttributes('link')['href'] || '');
-      const href = globalThis.prompt?.('Link URL', currentHref || 'https://') ?? null;
-      if (href === null) return;
-      if (!href.trim()) {
-        chain.extendMarkRange('link').unsetLink().run();
-      } else {
-        chain.extendMarkRange('link').setLink({ href: href.trim() }).run();
+    if (command === 'link') this.openTiptapLinkModal(scope);
+  }
+
+  openTiptapLinkModal(scope: TiptapScope): void {
+    if (this.readonly) return;
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    const currentHref = String(editor.getAttributes('link')['href'] || '');
+    this.tiptapPrompt = {
+      kind: 'link',
+      scope,
+      title: 'Edit link URL',
+      eyebrow: 'Rich text tool',
+      label: 'Link URL',
+      description: 'Update the selected link target without leaving the editor flow.',
+      placeholder: 'https://example.com',
+      icon: 'fa-link',
+      value: currentHref || 'https://',
+    };
+    this.tiptapPromptValue = this.tiptapPrompt.value;
+    this.tiptapPromptError = '';
+  }
+
+  openTiptapCellStyleModal(scope: TiptapScope, name: string, label: string, fallback: string): void {
+    if (this.readonly) return;
+    if (!this.tiptapEditor(scope)) return;
+    const currentValue = this.currentTiptapCellStyle(scope, name) || fallback;
+    const shortLabel = label.replace(/\s*\([^)]*\)\s*/g, '').trim();
+    this.tiptapPrompt = {
+      kind: 'cell-style',
+      scope,
+      name,
+      title: shortLabel,
+      eyebrow: 'Table cell style',
+      label: shortLabel,
+      description: `Set ${shortLabel.toLowerCase()} for the current table cell selection. Invalid values are ignored.`,
+      placeholder: fallback,
+      icon: 'fa-table',
+      value: currentValue,
+    };
+    this.tiptapPromptValue = currentValue;
+    this.tiptapPromptError = '';
+  }
+
+  closeTiptapPrompt(): void {
+    this.tiptapPrompt = null;
+    this.tiptapPromptValue = '';
+    this.tiptapPromptError = '';
+  }
+
+  applyTiptapPrompt(): void {
+    const prompt = this.tiptapPrompt;
+    if (!prompt || this.readonly) return;
+    const editor = this.tiptapEditor(prompt.scope);
+    if (!editor) {
+      this.closeTiptapPrompt();
+      return;
+    }
+    const value = this.tiptapPromptValue.trim();
+    if (prompt.kind === 'link') {
+      const chain = editor.chain().focus().extendMarkRange('link');
+      if (!value) {
+        chain.unsetLink().run();
+        this.closeTiptapPrompt();
+        return;
       }
+      const safeHref = normalizeHrefValue(value);
+      if (!safeHref) {
+        this.tiptapPromptError = 'Enter a safe URL: https, mailto, tel, #anchor, or /relative-path.';
+        return;
+      }
+      chain.setLink({ href: safeHref }).run();
+      this.closeTiptapPrompt();
+      return;
+    }
+    if (prompt.kind === 'cell-style' && prompt.name) {
+      const safeValue = this.sanitizeTiptapCellStyleValue(prompt.name, value);
+      if (value && !safeValue) {
+        this.tiptapPromptError = 'Enter a supported email-safe CSS value for this table cell.';
+        return;
+      }
+      this.setTiptapCellStyle(prompt.scope, prompt.name, value);
+      this.closeTiptapPrompt();
     }
   }
 
@@ -2394,14 +2527,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (!editor) return;
     const safeValue = this.sanitizeTiptapCellStyleValue(name, value);
     editor.chain().focus().setCellAttribute(name, safeValue || null).run();
-  }
-
-  promptTiptapCellStyle(scope: TiptapScope, name: string, label: string, fallback: string): void {
-    if (this.readonly) return;
-    const currentValue = this.currentTiptapCellStyle(scope, name) || fallback;
-    const value = globalThis.prompt?.(label, currentValue) ?? null;
-    if (value === null) return;
-    this.setTiptapCellStyle(scope, name, value);
   }
 
   private sanitizeTiptapCellStyleValue(name: string, rawValue: string): string {
@@ -2729,6 +2854,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.closeDataSetModal();
     this.closeTransformModal();
     this.closeOutputModal();
+    this.closeTiptapPrompt();
     this.closeRichTextSource();
     this.closeRichTextModal();
     this.invalidateImageUpload();

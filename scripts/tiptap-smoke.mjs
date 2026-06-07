@@ -93,6 +93,13 @@ try {
   }
   const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
   if (!tooltipContent.includes('Bold')) throw new Error(`Tiptap icon hover label CSS missing: ${tooltipContent}`);
+  await studio.locator('.nes-tiptap-toolbar button[aria-label="Add link"]').first().click();
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').waitFor({ state: 'visible', timeout: 15_000 });
+  const linkPromptTitle = await page.locator('.nes-tiptap-prompt-modal').textContent();
+  if (!linkPromptTitle?.includes('Edit link URL')) throw new Error(`Link prompt modal missing expected title: ${linkPromptTitle}`);
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').fill('https://example.com/tiptap-smoke');
+  await page.locator('.nes-tiptap-prompt-modal button', { hasText: 'Apply' }).click();
+  await page.locator('.nes-tiptap-prompt-modal').waitFor({ state: 'detached', timeout: 15_000 });
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Insert 2 by 2 table"]').first().click();
   await studio.locator('.nes-tiptap-editor .ProseMirror table').waitFor({ state: 'visible', timeout: 15_000 });
   const tableUi = await studio.locator('.nes-tiptap-editor .ProseMirror').first().evaluate((node) => ({
@@ -101,6 +108,14 @@ try {
     hasWrapper: !!node.querySelector('.tableWrapper'),
   }));
   if (!tableUi.hasTable || !tableUi.hasWrapper) throw new Error(`Tiptap table wrapper missing: ${JSON.stringify(tableUi)}`);
+  await studio.locator('.nes-tiptap-toolbar .nes-tiptap-table-tools').first().evaluate((node) => { if (node instanceof HTMLDetailsElement) node.open = true; });
+  await studio.locator('.nes-tiptap-toolbar button[aria-label="Set cell width"]').first().click();
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').waitFor({ state: 'visible', timeout: 15_000 });
+  const cellPromptText = await page.locator('.nes-tiptap-prompt-modal').textContent();
+  if (!cellPromptText?.includes('Table cell style') || !cellPromptText.includes('Cell width')) throw new Error(`Cell style prompt modal missing expected copy: ${cellPromptText}`);
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').fill('180px');
+  await page.locator('.nes-tiptap-prompt-modal button', { hasText: 'Apply' }).click();
+  await page.locator('.nes-tiptap-prompt-modal').waitFor({ state: 'detached', timeout: 15_000 });
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Edit HTML source"]').first().click();
   await studio.locator('.nes-source-modal textarea').waitFor({ state: 'visible', timeout: 15_000 });
   const sourceValue = await studio.locator('.nes-source-modal textarea').inputValue();
