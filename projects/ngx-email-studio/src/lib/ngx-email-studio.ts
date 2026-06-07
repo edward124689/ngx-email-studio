@@ -500,7 +500,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     #imageUploadInput
                     class="nes-file-input"
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
                     [disabled]="readonly || isImageUploading(node)"
                     (change)="uploadImageForNode(node, $event)"
                   />
@@ -1624,8 +1624,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.imageUploadErrorMessage = '';
 
     try {
-      if (file.type && !file.type.startsWith('image/')) {
-        throw new Error('Please choose an image file.');
+      if (file.type && !this.isSupportedImageUploadFile(file)) {
+        throw new Error('Please choose a PNG, JPEG, WebP, or GIF image file.');
       }
       this.imageUploadPreviewNodeId = nodeId;
       this.imageUploadPreviewName = file.name || 'Selected image';
@@ -1663,6 +1663,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   private normalizeImageUploadResult(result: string | EmailStudioImageUploadResult): EmailStudioImageUploadResult {
     return typeof result === 'string' ? { url: result } : result;
+  }
+
+  private isSupportedImageUploadFile(file: File): boolean {
+    return ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type);
   }
 
   private setImageUploadPreviewUrl(file: File): void {

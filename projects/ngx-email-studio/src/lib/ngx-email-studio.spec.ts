@@ -1043,6 +1043,7 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     expect(studioText(fixture)).toContain('Upload image');
+    expect(query<HTMLInputElement>(fixture, '.nes-file-input')?.getAttribute('accept')).toBe('image/png,image/jpeg,image/webp,image/gif');
     const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
     await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'hero.png' } } as unknown as Event);
 
@@ -1121,6 +1122,25 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body[0].id).toBe('replacement_image');
     expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/replacement.jpg');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-preview');
+  });
+
+  it('should reject unsupported image upload file types before calling the upload hook', async () => {
+    const imageNode: EmailNode = { id: 'image_upload_svg', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    const handler = vi.fn(async () => 'https://cdn.example.com/ignored.svg');
+    const errorSpy = vi.spyOn(component.error, 'emit');
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['<svg></svg>'], 'bad.svg', { type: 'image/svg+xml' });
+    await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'bad.svg' } } as unknown as Event);
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.imageUploadErrorFor(activeImage)).toContain('PNG, JPEG, WebP, or GIF');
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'image_upload_failed' }));
   });
 
   it('should not upload images in readonly mode', async () => {
