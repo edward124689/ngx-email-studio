@@ -223,7 +223,7 @@ const config: EmailStudioConfig = {
 };
 ```
 
-`uploadImage` may return either a string URL or `{ url, alt? }`. If `alt` is returned, it updates the image block alt text. Returned URLs are normalized with the same image URL safety rules used by the editor. When `uploadImage` is omitted, the upload button is hidden and users can still paste an Image URL manually. In `readonly` mode, upload is disabled.
+`uploadImage` may return either a string URL or `{ url, alt? }`. If `alt` is returned, it updates the image block alt text. The picker accepts PNG, JPEG, WebP, and GIF files; host apps should still validate uploads server-side. Returned URLs are normalized with the same image URL safety rules used by the editor. When `uploadImage` is omitted, the upload button is hidden and users can still paste an Image URL manually. In `readonly` mode, upload is disabled.
 
 ## Text Transform
 

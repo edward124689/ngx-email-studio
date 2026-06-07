@@ -501,21 +501,22 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     class="nes-file-input"
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif"
-                    [disabled]="readonly || isImageUploading(node)"
+                    tabindex="-1"
+                    [disabled]="readonly || isAnyImageUploading()"
                     (change)="uploadImageForNode(node, $event)"
                   />
-                  <button type="button" class="nes-secondary-action nes-image-upload-btn" [disabled]="readonly || isImageUploading(node)" (click)="imageUploadInput.click()">
+                  <button type="button" class="nes-secondary-action nes-image-upload-btn" [disabled]="readonly || isAnyImageUploading()" (click)="imageUploadInput.click()">
                     <i class="nes-icon fa fa-upload" aria-hidden="true"></i>
                     {{ isImageUploading(node) ? 'Uploading image…' : 'Upload image' }}
                   </button>
                   <p class="nes-muted">Choose a local image. The host app uploads it and returns the final URL.</p>
                 </div>
-                <div class="nes-image-upload-error" *ngIf="imageUploadErrorFor(node)">{{ imageUploadErrorFor(node) }}</div>
+                <div class="nes-image-upload-error" role="alert" *ngIf="imageUploadErrorFor(node)">{{ imageUploadErrorFor(node) }}</div>
                 <div class="nes-image-preview" *ngIf="imagePreviewSrc(node) as previewSrc">
                   <div class="nes-image-preview-frame">
                     <img [src]="previewSrc" [alt]="node.attrs['alt'] || 'Image preview'" />
                   </div>
-                  <div class="nes-image-preview-meta">
+                  <div class="nes-image-preview-meta" role="status" aria-live="polite">
                     <span>{{ imagePreviewLabel(node) }}</span>
                     <span *ngIf="isImageUploading(node)">Uploading…</span>
                   </div>
@@ -1303,6 +1304,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['config'] || changes['readonly']) {
+      this.invalidateImageUpload();
+    }
+
     if (changes['config']) {
       this.destroyTiptapEditors();
     }
@@ -1606,6 +1611,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     return this.imageUploadLoadingNodeId === node.id;
   }
 
+  isAnyImageUploading(): boolean {
+    return !!this.imageUploadLoadingNodeId;
+  }
+
   imageUploadErrorFor(node: EmailNode): string {
     return this.imageUploadErrorNodeId === node.id ? this.imageUploadErrorMessage : '';
   }
@@ -1614,7 +1623,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0];
     if (input) input.value = '';
-    if (!file || node.type !== 'image' || this.readonly || !this.effectiveConfig.uploadImage) return;
+    const uploadImage = this.effectiveConfig.uploadImage;
+    if (!file || node.type !== 'image' || this.readonly || !uploadImage) return;
+    const runUploadImage = uploadImage;
     if (this.imageUploadLoadingNodeId) return;
 
     const nodeId = node.id;
@@ -1624,18 +1635,18 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.imageUploadErrorMessage = '';
 
     try {
-      if (file.type && !this.isSupportedImageUploadFile(file)) {
+      if (!this.isSupportedImageUploadFile(file)) {
         throw new Error('Please choose a PNG, JPEG, WebP, or GIF image file.');
       }
       this.imageUploadPreviewNodeId = nodeId;
       this.imageUploadPreviewName = file.name || 'Selected image';
       this.setImageUploadPreviewUrl(file);
-      const result = await this.effectiveConfig.uploadImage(file, {
+      const result = await runUploadImage(file, {
         nodeId,
         currentUrl: String(node.attrs['src'] || ''),
         currentAlt: String(node.attrs['alt'] || ''),
       });
-      if (requestId !== this.imageUploadRequestId) return;
+      if (requestId !== this.imageUploadRequestId || this.readonly || !this.effectiveConfig.uploadImage) return;
       const liveNode = this.findNode(nodeId);
       if (!liveNode || liveNode.type !== 'image') {
         this.clearImageUploadPreview();
@@ -1666,7 +1677,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   private isSupportedImageUploadFile(file: File): boolean {
-    return ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type);
+    const supportedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (file.type) return supportedTypes.includes(file.type);
+    return /\.(png|jpe?g|webp|gif)$/i.test(file.name || '');
   }
 
   private setImageUploadPreviewUrl(file: File): void {
@@ -1684,6 +1697,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.imageUploadPreviewNodeId = '';
     this.imageUploadPreviewUrl = '';
     this.imageUploadPreviewName = '';
+  }
+
+  private invalidateImageUpload(): void {
+    if (!this.imageUploadLoadingNodeId && !this.imageUploadPreviewUrl && !this.imageUploadErrorMessage) return;
+    this.imageUploadRequestId += 1;
+    this.imageUploadLoadingNodeId = '';
+    this.imageUploadErrorNodeId = '';
+    this.imageUploadErrorMessage = '';
+    this.clearImageUploadPreview();
   }
 
   private revokeImageUploadObjectUrl(): void {
@@ -2685,6 +2707,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.closeOutputModal();
     this.closeRichTextSource();
     this.closeRichTextModal();
+    this.invalidateImageUpload();
     this.destroyTiptapEditors();
     this.emailDocument = document;
     this.selectedNodeId = this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id || BODY_NODE_ID;

@@ -1044,6 +1044,7 @@ describe('NgxEmailStudio', () => {
 
     expect(studioText(fixture)).toContain('Upload image');
     expect(query<HTMLInputElement>(fixture, '.nes-file-input')?.getAttribute('accept')).toBe('image/png,image/jpeg,image/webp,image/gif');
+    expect(query<HTMLInputElement>(fixture, '.nes-file-input')?.getAttribute('tabindex')).toBe('-1');
     const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
     await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'hero.png' } } as unknown as Event);
 
@@ -1124,6 +1125,71 @@ describe('NgxEmailStudio', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-preview');
   });
 
+  it('should invalidate pending uploads when the host replaces the document even if node ids are reused', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:reuse-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const imageNode: EmailNode = { id: 'image_upload_reused', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['image-bytes'], 'reuse.png', { type: 'image/png' });
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'reuse.png' } } as unknown as Event);
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [{ id: 'image_upload_reused', type: 'image', attrs: { src: 'https://example.com/reused-new.jpg' } }] } satisfies EmailDocument);
+    fixture.detectChanges();
+    resolveUpload('https://cdn.example.com/old-upload.png');
+    await pending;
+
+    expect(component.emailDocument.body[0].id).toBe('image_upload_reused');
+    expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/reused-new.jpg');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reuse-preview');
+  });
+
+  it('should ignore pending upload completions when readonly or upload config changes before completion', async () => {
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const imageNode: EmailNode = { id: 'image_upload_cancel', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['image-bytes'], 'cancel.png', { type: 'image/png' });
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'cancel.png' } } as unknown as Event);
+    fixture.componentRef.setInput('readonly', true);
+    fixture.detectChanges();
+    resolveUpload('https://cdn.example.com/ignored.png');
+    await pending;
+
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.isAnyImageUploading()).toBe(false);
+  });
+
+  it('should block a second image upload while one upload is pending', async () => {
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const imageA: EmailNode = { id: 'image_upload_a', type: 'image', attrs: { src: 'https://example.com/a.jpg' } };
+    const imageB: EmailNode = { id: 'image_upload_b', type: 'image', attrs: { src: 'https://example.com/b.jpg' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageA, imageB] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageA.id;
+    fixture.detectChanges();
+    const activeA = component.emailDocument.body[0];
+    const activeB = component.emailDocument.body[1];
+
+    const pending = component.uploadImageForNode(activeA, { target: { files: { 0: new File(['a'], 'a.png', { type: 'image/png' }), length: 1, item: () => null }, value: 'a.png' } } as unknown as Event);
+    expect(component.isAnyImageUploading()).toBe(true);
+    await component.uploadImageForNode(activeB, { target: { files: { 0: new File(['b'], 'b.png', { type: 'image/png' }), length: 1, item: () => null }, value: 'b.png' } } as unknown as Event);
+    expect(handler).toHaveBeenCalledTimes(1);
+    resolveUpload('https://cdn.example.com/a.png');
+    await pending;
+  });
+
   it('should reject unsupported image upload file types before calling the upload hook', async () => {
     const imageNode: EmailNode = { id: 'image_upload_svg', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
     const handler = vi.fn(async () => 'https://cdn.example.com/ignored.svg');
@@ -1141,6 +1207,12 @@ describe('NgxEmailStudio', () => {
     expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
     expect(component.imageUploadErrorFor(activeImage)).toContain('PNG, JPEG, WebP, or GIF');
     expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'image_upload_failed' }));
+
+    const emptyMimeHandler = vi.fn(async () => 'https://cdn.example.com/ignored.txt');
+    fixture.componentRef.setInput('config', { uploadImage: emptyMimeHandler });
+    fixture.detectChanges();
+    await component.uploadImageForNode(activeImage, { target: { files: { 0: new File(['not-image'], 'bad.txt', { type: '' }), length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'bad.txt' } } as unknown as Event);
+    expect(emptyMimeHandler).not.toHaveBeenCalled();
   });
 
   it('should not upload images in readonly mode', async () => {
