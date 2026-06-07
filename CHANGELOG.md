@@ -2,6 +2,16 @@
 
 All notable changes to `ngx-email-studio` are documented here.
 
+## 21.0.3
+
+- Added the Data Set merge-tag helper modal for host-provided reference keys.
+- Added the Text Transform tool with whole-email Simplified/Traditional Chinese conversion and safe merge-tag preservation.
+- Added the Image Upload Helper for image blocks via `config.uploadImage(file, context)`, including local preview, uploaded URL writeback, optional alt updates, undo/history integration, and PNG/JPEG/WebP/GIF validation.
+- Hardened Image Upload Helper async state: stale uploads are ignored after document replacement, readonly/config changes, handler mutation, removed nodes, unsafe URLs, failures, or unsupported files.
+- Clarified install docs and peer dependencies, including `@angular/platform-browser` and automatic `opencc-js` installation.
+- Added Google Analytics to the demo page only; the npm package remains free of analytics scripts.
+- Published `ngx-email-studio@21.0.3` to npm with the `latest` dist-tag.
+
 ## 21.0.2
 
 - Added document-level undo/redo controls for builder editing.
