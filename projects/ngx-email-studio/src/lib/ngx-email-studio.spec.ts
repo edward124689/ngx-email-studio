@@ -395,6 +395,31 @@ describe('NgxEmailStudio', () => {
     expect(query<HTMLButtonElement>(fixture, '.nes-transform-trigger')?.disabled).toBe(true);
   });
 
+  it('should avoid merge-token collisions and preserve malformed or ignored HTML text safely', async () => {
+    const document: EmailDocument = {
+      version: '1',
+      body: [
+        { id: 'text1', type: 'text', attrs: { content: '<p>literal __NES_MERGE_TAG_0__ plus {%CLIENT_NAME%}</p>' } },
+        { id: 'text2', type: 'text', attrs: { content: '</div><p>汉语 outside</p><script>汉语 script</script><style>.x{font-family:"汉"}</style>' } },
+      ],
+    };
+    fixture.componentRef.setInput('document', document);
+    fixture.detectChanges();
+    component.transformModalOpen = true;
+    component.transformAction = 'simplified-to-traditional';
+
+    await (component as any).refreshTransformPreview();
+    await component.applyTransform();
+
+    const first = String(component.emailDocument.body[0].attrs['content']);
+    const second = String(component.emailDocument.body[1].attrs['content']);
+    expect(first).toContain('literal __NES_MERGE_TAG_0__ plus {%CLIENT_NAME%}');
+    expect(first.match(/\{%CLIENT_NAME%\}/g)?.length).toBe(1);
+    expect(second).toContain('漢語 outside');
+    expect(second).toContain('汉语 script');
+    expect(second).toContain('font-family:"汉"');
+  });
+
   it('should emit structured save and change payloads', () => {
     fixture.detectChanges();
     const saveSpy = vi.fn();

@@ -43,7 +43,7 @@ import { EmailStudioTransformAction, EmailStudioTransformPreview, EmailStudioTra
 
             <label>
               Action
-              <select [ngModel]="action" (ngModelChange)="actionChange.emit($event)">
+              <select id="transform-action" [ngModel]="action" [disabled]="readonly || applying" (ngModelChange)="actionChange.emit($event)">
                 <option value="simplified-to-traditional">Simplified Chinese → Traditional Chinese</option>
                 <option value="traditional-to-simplified">Traditional Chinese → Simplified Chinese</option>
                 <option value="normalize-spaces">Normalize spaces</option>
@@ -80,9 +80,9 @@ import { EmailStudioTransformAction, EmailStudioTransformPreview, EmailStudioTra
 
         <footer class="nes-modal-footer">
           <button type="button" (click)="close.emit()">Cancel</button>
-          <button type="button" class="nes-primary" [disabled]="loading || readonly || !preview || preview.changedCount === 0" (click)="apply.emit()">
+          <button type="button" class="nes-primary" [disabled]="loading || applying || readonly || !preview || preview.changedCount === 0" (click)="apply.emit()">
             <i class="nes-icon fa fa-check" aria-hidden="true"></i>
-            Apply transform
+            {{ applying ? 'Applying…' : 'Apply transform' }}
           </button>
         </footer>
       </section>
@@ -94,6 +94,7 @@ export class NgxEmailStudioTransformModal {
   @Input() scope: EmailStudioTransformScope = 'document';
   @Input() preview: EmailStudioTransformPreview | null = null;
   @Input() loading = false;
+  @Input() applying = false;
   @Input() readonly = false;
   @Input() errorMessage = '';
 

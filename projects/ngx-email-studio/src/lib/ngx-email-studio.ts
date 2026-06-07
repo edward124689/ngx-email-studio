@@ -700,6 +700,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         [scope]="transformScope"
         [preview]="transformPreview"
         [loading]="transformPreviewLoading"
+        [applying]="transformApplyLoading"
         [readonly]="readonly"
         [errorMessage]="transformErrorMessage"
         (close)="closeTransformModal()"
@@ -1042,6 +1043,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   transformScope: EmailStudioTransformScope = 'document';
   transformPreview: EmailStudioTransformPreview | null = null;
   transformPreviewLoading = false;
+  transformApplyLoading = false;
   transformErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
@@ -1062,6 +1064,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   private dataSetCopyStateTimer: ReturnType<typeof setTimeout> | undefined;
   private transformPreviewRequestId = 0;
+  private transformApplyRequestId = 0;
+  private transformDestroyed = false;
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1145,6 +1149,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   ngOnDestroy(): void {
+    this.transformDestroyed = true;
+    this.transformPreviewRequestId += 1;
+    this.transformApplyRequestId += 1;
     this.destroyTiptapEditors();
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
     if (this.dataSetCopyStateTimer) clearTimeout(this.dataSetCopyStateTimer);
@@ -1899,11 +1906,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.transformModalOpen = false;
     this.transformPreview = null;
     this.transformPreviewLoading = false;
+    this.transformApplyLoading = false;
     this.transformErrorMessage = '';
     this.transformPreviewRequestId += 1;
+    this.transformApplyRequestId += 1;
   }
 
   setTransformAction(action: EmailStudioTransformAction): void {
+    if (this.readonly) return;
     this.transformAction = action;
     void this.refreshTransformPreview();
   }
@@ -1914,9 +1924,13 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   }
 
   async applyTransform(): Promise<void> {
-    if (this.readonly || this.transformPreviewLoading) return;
+    if (this.readonly || this.transformPreviewLoading || this.transformApplyLoading) return;
+    const requestId = ++this.transformApplyRequestId;
+    this.transformApplyLoading = true;
+    this.transformErrorMessage = '';
     try {
       const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope);
+      if (this.transformDestroyed || requestId !== this.transformApplyRequestId || !this.transformModalOpen) return;
       if (result.changedCount === 0) {
         this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
         return;
@@ -1925,8 +1939,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       this.closeTransformModal();
       this.emitDocument();
     } catch (details) {
+      if (this.transformDestroyed || requestId !== this.transformApplyRequestId) return;
       this.transformErrorMessage = 'Unable to transform content. Please try again.';
       this.error.emit({ code: 'text_transform_failed', message: 'Unable to transform content.', details });
+    } finally {
+      if (!this.transformDestroyed && requestId === this.transformApplyRequestId) this.transformApplyLoading = false;
     }
   }
 
@@ -1937,15 +1954,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.transformErrorMessage = '';
     try {
       const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope);
-      if (requestId !== this.transformPreviewRequestId) return;
+      if (this.transformDestroyed || requestId !== this.transformPreviewRequestId) return;
       this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
     } catch (details) {
-      if (requestId !== this.transformPreviewRequestId) return;
+      if (this.transformDestroyed || requestId !== this.transformPreviewRequestId) return;
       this.transformPreview = null;
       this.transformErrorMessage = 'Unable to prepare transform preview.';
       this.error.emit({ code: 'text_transform_preview_failed', message: 'Unable to prepare transform preview.', details });
     } finally {
-      if (requestId === this.transformPreviewRequestId) {
+      if (!this.transformDestroyed && requestId === this.transformPreviewRequestId) {
         this.transformPreviewLoading = false;
         this.changeDetector.detectChanges();
       }

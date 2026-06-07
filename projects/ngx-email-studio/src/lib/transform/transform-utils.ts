@@ -27,10 +27,10 @@ export async function transformEmailDocumentText(
   for (const node of targets) {
     if (node.type === 'text') {
       const beforeHtml = String(node.attrs['content'] ?? '');
-      const afterHtml = transformRichTextHtml(beforeHtml, converter);
+      const { html: afterHtml, changed } = transformRichTextHtml(beforeHtml, converter);
       beforeParts.push(extractHtmlText(beforeHtml));
       afterParts.push(extractHtmlText(afterHtml));
-      if (afterHtml !== beforeHtml) {
+      if (changed) {
         node.attrs = { ...node.attrs, content: afterHtml };
         changedCount += 1;
       }
@@ -82,39 +82,54 @@ function isTransformableNode(node: EmailNode | undefined): node is EmailNode {
   return !!node && (node.type === 'text' || node.type === 'button');
 }
 
-function transformRichTextHtml(html: string, converter: TextConverter): string {
+function transformRichTextHtml(html: string, converter: TextConverter): { html: string; changed: boolean } {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
-  const root = doc.body.firstElementChild;
-  if (!root) return html;
+  const doc = parser.parseFromString('', 'text/html');
+  const template = doc.createElement('template');
+  template.innerHTML = html;
 
-  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const walker = doc.createTreeWalker(template.content, 4);
   const textNodes: Text[] = [];
   while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+  let changed = false;
   for (const textNode of textNodes) {
-    textNode.nodeValue = transformTextPreservingMergeTags(textNode.nodeValue || '', converter);
+    if (isIgnoredTextNode(textNode)) continue;
+    const before = textNode.nodeValue || '';
+    const after = transformTextPreservingMergeTags(before, converter);
+    if (after !== before) {
+      textNode.nodeValue = after;
+      changed = true;
+    }
   }
-  return root.innerHTML;
+  return { html: changed ? template.innerHTML : html, changed };
 }
 
 function extractHtmlText(html: string): string {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
-  return doc.body.firstElementChild?.textContent || '';
+  const doc = parser.parseFromString('', 'text/html');
+  const template = doc.createElement('template');
+  template.innerHTML = html;
+  return template.content.textContent || '';
+}
+
+function isIgnoredTextNode(textNode: Text): boolean {
+  const parent = textNode.parentElement;
+  if (!parent) return false;
+  return ['SCRIPT', 'STYLE', 'TEXTAREA', 'TITLE'].includes(parent.tagName);
 }
 
 function transformTextPreservingMergeTags(value: string, converter: TextConverter): string {
-  const masks: string[] = [];
-  const masked = value.replace(MERGE_TAG_PATTERN, (match) => {
-    const token = `__NES_MERGE_TAG_${masks.length}__`;
-    masks.push(match);
-    return token;
-  });
-  let transformed = converter(masked);
-  masks.forEach((tag, index) => {
-    transformed = transformed.replaceAll(`__NES_MERGE_TAG_${index}__`, tag);
-  });
-  return transformed;
+  let result = '';
+  let lastIndex = 0;
+  MERGE_TAG_PATTERN.lastIndex = 0;
+  for (const match of value.matchAll(MERGE_TAG_PATTERN)) {
+    const index = match.index ?? 0;
+    result += converter(value.slice(lastIndex, index));
+    result += match[0];
+    lastIndex = index + match[0].length;
+  }
+  result += converter(value.slice(lastIndex));
+  return result;
 }
 
 function normalizeTextSpaces(value: string): string {
