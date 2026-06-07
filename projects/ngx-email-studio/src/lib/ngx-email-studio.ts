@@ -1615,9 +1615,11 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const file = input?.files?.[0];
     if (input) input.value = '';
     if (!file || node.type !== 'image' || this.readonly || !this.effectiveConfig.uploadImage) return;
+    if (this.imageUploadLoadingNodeId) return;
 
+    const nodeId = node.id;
     const requestId = ++this.imageUploadRequestId;
-    this.imageUploadLoadingNodeId = node.id;
+    this.imageUploadLoadingNodeId = nodeId;
     this.imageUploadErrorNodeId = '';
     this.imageUploadErrorMessage = '';
 
@@ -1625,27 +1627,33 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
       if (file.type && !file.type.startsWith('image/')) {
         throw new Error('Please choose an image file.');
       }
-      this.imageUploadPreviewNodeId = node.id;
+      this.imageUploadPreviewNodeId = nodeId;
       this.imageUploadPreviewName = file.name || 'Selected image';
       this.setImageUploadPreviewUrl(file);
       const result = await this.effectiveConfig.uploadImage(file, {
-        nodeId: node.id,
+        nodeId,
         currentUrl: String(node.attrs['src'] || ''),
         currentAlt: String(node.attrs['alt'] || ''),
       });
       if (requestId !== this.imageUploadRequestId) return;
+      const liveNode = this.findNode(nodeId);
+      if (!liveNode || liveNode.type !== 'image') {
+        this.clearImageUploadPreview();
+        return;
+      }
       const uploadResult = this.normalizeImageUploadResult(result);
       const url = normalizeImageSrcValue(uploadResult.url);
       if (!url) throw new Error('The upload helper did not return a safe image URL.');
-      const nextAttrs: Record<string, string | number | boolean> = { ...node.attrs, src: url };
+      const nextAttrs: Record<string, string | number | boolean> = { ...liveNode.attrs, src: url };
       if (typeof uploadResult.alt === 'string' && uploadResult.alt.trim()) nextAttrs['alt'] = uploadResult.alt.trim();
-      node.attrs = nextAttrs;
+      liveNode.attrs = nextAttrs;
       this.clearImageUploadPreview();
       this.emitDocument();
     } catch (details) {
       if (requestId !== this.imageUploadRequestId) return;
+      this.clearImageUploadPreview();
       const message = details instanceof Error && details.message ? details.message : 'Unable to upload image. Please try again.';
-      this.imageUploadErrorNodeId = node.id;
+      this.imageUploadErrorNodeId = nodeId;
       this.imageUploadErrorMessage = message;
       this.error.emit({ code: 'image_upload_failed', message, details });
     } finally {

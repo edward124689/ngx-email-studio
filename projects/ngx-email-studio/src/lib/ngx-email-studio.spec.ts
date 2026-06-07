@@ -1049,25 +1049,78 @@ describe('NgxEmailStudio', () => {
     expect(handler).toHaveBeenCalledTimes(1);
     expect(activeImage.attrs['src']).toBe('https://cdn.example.com/hero.png');
     expect(activeImage.attrs['alt']).toBe('Uploaded hero');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-preview');
+    expect(component.imagePreviewSrc(activeImage)).toBe('https://cdn.example.com/hero.png');
     expect(component.canUndoDocument).toBe(true);
     component.undoDocument();
     expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/old.jpg');
   });
 
   it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:unsafe-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
     const imageNode: EmailNode = { id: 'image_upload_fail', type: 'image', attrs: { src: 'https://example.com/original.jpg', alt: 'Original' } };
     const errorSpy = vi.spyOn(component.error, 'emit');
     fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
     fixture.componentRef.setInput('config', { uploadImage: async () => 'javascript:alert(1)' });
     component.selectedNodeId = imageNode.id;
     fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
 
     const file = new File(['image-bytes'], 'bad.png', { type: 'image/png' });
-    await component.uploadImageForNode(imageNode, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'bad.png' } } as unknown as Event);
+    await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'bad.png' } } as unknown as Event);
 
-    expect(imageNode.attrs['src']).toBe('https://example.com/original.jpg');
-    expect(component.imageUploadErrorFor(imageNode)).toContain('safe image URL');
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.imageUploadErrorFor(activeImage)).toContain('safe image URL');
+    expect(component.imagePreviewSrc(activeImage)).toBe('https://example.com/original.jpg');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:unsafe-preview');
     expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'image_upload_failed' }));
+  });
+
+  it('should clear local previews and keep the existing image URL when the upload hook rejects', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:reject-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const imageNode: EmailNode = { id: 'image_upload_reject', type: 'image', attrs: { src: 'https://example.com/original.jpg', alt: 'Original' } };
+    const errorSpy = vi.spyOn(component.error, 'emit');
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: async () => { throw new Error('Upload API failed.'); } });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['image-bytes'], 'broken.png', { type: 'image/png' });
+    await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'broken.png' } } as unknown as Event);
+
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.imageUploadErrorFor(activeImage)).toBe('Upload API failed.');
+    expect(component.imagePreviewSrc(activeImage)).toBe('https://example.com/original.jpg');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:reject-preview');
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'image_upload_failed', message: 'Upload API failed.' }));
+  });
+
+  it('should ignore stale upload completions when the image node is no longer in the current document', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:stale-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const imageNode: EmailNode = { id: 'image_upload_stale', type: 'image', attrs: { src: 'https://example.com/original.jpg', alt: 'Original' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['image-bytes'], 'stale.png', { type: 'image/png' });
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'stale.png' } } as unknown as Event);
+    component.emailDocument = { version: '0.0.1', body: [{ id: 'replacement_image', type: 'image', attrs: { src: 'https://example.com/replacement.jpg' } }] };
+    component.selectedNodeId = 'replacement_image';
+    resolveUpload('https://cdn.example.com/stale.png');
+    await pending;
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(component.emailDocument.body[0].id).toBe('replacement_image');
+    expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/replacement.jpg');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-preview');
   });
 
   it('should not upload images in readonly mode', async () => {
