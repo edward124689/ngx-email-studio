@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, DoCheck, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
@@ -1030,7 +1030,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
   `,
   styleUrl: './ngx-email-studio.css',
 })
-export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
+export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() mjml?: string;
   @Input() document?: EmailDocument;
   @Input() previewSize: EmailPreviewSize = 'desktop';
@@ -1108,6 +1108,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private transformDestroyed = false;
   private imageUploadRequestId = 0;
   private imageUploadObjectUrl = '';
+  private imageUploadHandlerSnapshot: EmailStudioImageUploadHandler | undefined;
+  private imageUploadInvalidateScheduled = false;
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1306,6 +1308,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config'] || changes['readonly']) {
       this.invalidateImageUpload();
+      this.imageUploadHandlerSnapshot = this.effectiveConfig.uploadImage;
     }
 
     if (changes['config']) {
@@ -1320,6 +1323,14 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
           ? structuredClone(this.document)
           : this.createStarterDocument();
       this.replaceEmailDocument(nextDocument, false);
+    }
+  }
+
+  ngDoCheck(): void {
+    const currentUploadHandler = this.effectiveConfig.uploadImage;
+    if (this.imageUploadHandlerSnapshot !== currentUploadHandler) {
+      this.imageUploadHandlerSnapshot = currentUploadHandler;
+      this.scheduleImageUploadInvalidation();
     }
   }
 
@@ -1646,7 +1657,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
         currentUrl: String(node.attrs['src'] || ''),
         currentAlt: String(node.attrs['alt'] || ''),
       });
-      if (requestId !== this.imageUploadRequestId || this.readonly || !this.effectiveConfig.uploadImage) return;
+      if (requestId !== this.imageUploadRequestId || this.readonly || this.effectiveConfig.uploadImage !== runUploadImage) {
+        this.clearImageUploadPreview();
+        return;
+      }
       const liveNode = this.findNode(nodeId);
       if (!liveNode || liveNode.type !== 'image') {
         this.clearImageUploadPreview();
@@ -1697,6 +1711,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.imageUploadPreviewNodeId = '';
     this.imageUploadPreviewUrl = '';
     this.imageUploadPreviewName = '';
+  }
+
+  private scheduleImageUploadInvalidation(): void {
+    if (this.imageUploadInvalidateScheduled) return;
+    this.imageUploadInvalidateScheduled = true;
+    queueMicrotask(() => {
+      this.imageUploadInvalidateScheduled = false;
+      if (this.transformDestroyed) return;
+      this.invalidateImageUpload();
+    });
   }
 
   private invalidateImageUpload(): void {

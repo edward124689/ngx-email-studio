@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 
-import { EmailDocument, EmailNode, NgxEmailStudio } from './ngx-email-studio';
+import { EmailDocument, EmailNode, EmailStudioConfig, NgxEmailStudio } from './ngx-email-studio';
 import { sanitizeRichTextContent } from './tiptap/rich-text-sanitizer';
 import { installTiptapBlankClickGuard } from './tiptap/tiptap-controller';
 
@@ -1168,6 +1168,57 @@ describe('NgxEmailStudio', () => {
 
     expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
     expect(component.isAnyImageUploading()).toBe(false);
+  });
+
+  it('should ignore pending upload completions when uploadImage is mutated in-place', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:mutated-config-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const config: EmailStudioConfig = { uploadImage: handler };
+    const imageNode: EmailNode = { id: 'image_upload_mutated_config', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', config);
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: new File(['image-bytes'], 'mutated.png', { type: 'image/png' }), length: 1, item: () => null }, value: 'mutated.png' } } as unknown as Event);
+    config.uploadImage = undefined;
+    resolveUpload('https://cdn.example.com/ignored.png');
+    await pending;
+
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.isAnyImageUploading()).toBe(false);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mutated-config-preview');
+  });
+
+  it('should invalidate pending uploads when uploadImage handler is mutated in-place during change detection', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:mutated-handler-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: string) => void;
+    const oldHandler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const newHandler = vi.fn(async () => 'https://cdn.example.com/new.png');
+    const config: EmailStudioConfig = { uploadImage: oldHandler };
+    const imageNode: EmailNode = { id: 'image_upload_mutated_handler', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', config);
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: new File(['image-bytes'], 'old.png', { type: 'image/png' }), length: 1, item: () => null }, value: 'old.png' } } as unknown as Event);
+    config.uploadImage = newHandler;
+    component.ngDoCheck();
+    await Promise.resolve();
+    resolveUpload('https://cdn.example.com/old.png');
+    await pending;
+
+    expect(oldHandler).toHaveBeenCalledTimes(1);
+    expect(newHandler).not.toHaveBeenCalled();
+    expect(activeImage.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.isAnyImageUploading()).toBe(false);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mutated-handler-preview');
   });
 
   it('should block a second image upload while one upload is pending', async () => {
