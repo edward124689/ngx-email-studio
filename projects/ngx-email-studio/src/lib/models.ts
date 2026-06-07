@@ -53,6 +53,11 @@ export interface EmailStudioConfig {
   fromLabel?: string;
 }
 
+export interface EmailStudioDataSetItem {
+  key: string;
+  desc?: string;
+}
+
 export interface EmailStudioError {
   code: string;
   message: string;

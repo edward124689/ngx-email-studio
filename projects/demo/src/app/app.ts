@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { NgxEmailStudio, EmailDocument, EmailStudioConfig } from 'ngx-email-studio';
+import { NgxEmailStudio, EmailDocument, EmailStudioConfig, EmailStudioDataSetItem } from 'ngx-email-studio';
 
 @Component({
   selector: 'app-root',
@@ -11,6 +11,13 @@ export class App {
   title = 'ngx-email-studio-demo';
   latestMjml = '';
   latestHtml = '';
+
+  mergeTags: EmailStudioDataSetItem[] = [
+    { key: '{%CLIENT_NAME%}', desc: 'Client name' },
+    { key: '{%ORDER_ID%}', desc: 'Order ID' },
+    { key: '{%DELIVERY_DATE%}', desc: 'Estimated delivery date' },
+    { key: '{%SUPPORT_EMAIL%}', desc: 'Support contact email' },
+  ];
 
   studioConfig: EmailStudioConfig = {
     title: 'Email Studio',

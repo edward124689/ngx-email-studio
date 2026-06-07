@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
 
+import { NgxEmailStudioDataSetModal } from './components/data-set-modal.component';
 import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
@@ -22,6 +23,7 @@ import {
   EmailPreviewSize,
   EmailSizeUnit,
   EmailStudioConfig,
+  EmailStudioDataSetItem,
   EmailStudioError,
   EmailStudioResult,
   PaletteBlockType,
@@ -50,6 +52,7 @@ export type {
   EmailPreviewSize,
   EmailSizeUnit,
   EmailStudioConfig,
+  EmailStudioDataSetItem,
   EmailStudioError,
   EmailStudioResult,
   PaletteBlockType,
@@ -102,7 +105,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
   selector: 'ngx-email-studio',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, DragDropModule, NgxEmailStudioImportModal, NgxEmailStudioOutputModal],
+  imports: [CommonModule, FormsModule, DragDropModule, NgxEmailStudioImportModal, NgxEmailStudioDataSetModal, NgxEmailStudioOutputModal],
   providers: [
     { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
@@ -120,6 +123,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             <button type="button" class="nes-history-btn" data-history-action="undo" aria-label="Undo" title="Undo (⌘Z / Ctrl+Z)" (click)="undoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
             <button type="button" class="nes-history-btn" data-history-action="redo" aria-label="Redo" title="Redo (⌘⇧Z / Ctrl+Y)" (click)="redoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
           </div>
+          <button type="button" class="nes-data-set-trigger" *ngIf="hasDataSetItems" (click)="openDataSetModal()"><i class="nes-icon fa fa-database" aria-hidden="true"></i> Data set</button>
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
@@ -672,6 +676,15 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         (importMjml)="importMjml()"
       />
 
+      <ngx-email-studio-data-set-modal
+        *ngIf="dataSetModalOpen"
+        [items]="normalizedDataSet"
+        [copiedKey]="dataSetCopiedKey"
+        [copyState]="dataSetCopyState"
+        (close)="closeDataSetModal()"
+        (copy)="copyDataSetKey($event)"
+      />
+
       <div class="nes-modal-backdrop" *ngIf="expandedRichTextNode" (click)="closeRichTextModal()">
         <section class="nes-rich-text-modal" role="dialog" aria-modal="true" aria-label="Rich text editor" (click)="$event.stopPropagation()">
           <header>
@@ -967,6 +980,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   @Input() readonly = false;
   @Input() showSave?: boolean;
   @Input() config?: EmailStudioConfig | null = DEFAULT_EMAIL_STUDIO_CONFIG;
+  @Input() dataSet: EmailStudioDataSetItem[] = [];
 
   @Output() mjmlChange = new EventEmitter<string>();
   @Output() documentChange = new EventEmitter<EmailDocument>();
@@ -998,6 +1012,9 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   dragInProgress = false;
   importModalOpen = false;
   importErrorMessage = '';
+  dataSetModalOpen = false;
+  dataSetCopiedKey = '';
+  dataSetCopyState = '';
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
   sourceEditorScope: TiptapScope | null = null;
@@ -1015,6 +1032,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   };
   private tiptapToolbarStateTimers: Partial<Record<TiptapScope, ReturnType<typeof setTimeout>>> = {};
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
+  private dataSetCopyStateTimer: ReturnType<typeof setTimeout> | undefined;
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1072,6 +1090,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (this.outputModalType) this.closeOutputModal();
     if (this.sourceEditorScope) this.closeRichTextSource();
     if (this.importModalOpen) this.closeImportModal();
+    if (this.dataSetModalOpen) this.closeDataSetModal();
     if (this.expandedRichTextNode) this.closeRichTextModal();
   }
 
@@ -1098,6 +1117,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   ngOnDestroy(): void {
     this.destroyTiptapEditors();
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
+    if (this.dataSetCopyStateTimer) clearTimeout(this.dataSetCopyStateTimer);
   }
 
   get connectedDropListIds(): string[] {
@@ -1108,6 +1128,16 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     const query = this.paletteSearch.trim().toLowerCase();
     if (!query) return this.palette;
     return this.palette.filter((item) => `${item.label} ${item.description} ${item.type}`.toLowerCase().includes(query));
+  }
+
+  get normalizedDataSet(): EmailStudioDataSetItem[] {
+    return (this.dataSet || [])
+      .map((item) => ({ key: String(item?.key || '').trim(), desc: String(item?.desc || '').trim() }))
+      .filter((item) => !!item.key);
+  }
+
+  get hasDataSetItems(): boolean {
+    return this.normalizedDataSet.length > 0;
   }
 
   get selectedNode(): EmailNode | undefined {
@@ -1789,6 +1819,43 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.importErrorMessage = '';
   }
 
+  openDataSetModal(): void {
+    if (!this.hasDataSetItems) return;
+    this.closeTransientMenus();
+    this.dataSetCopyState = '';
+    this.dataSetCopiedKey = '';
+    this.dataSetModalOpen = true;
+  }
+
+  closeDataSetModal(): void {
+    this.dataSetModalOpen = false;
+    this.dataSetCopyState = '';
+    this.dataSetCopiedKey = '';
+  }
+
+  async copyDataSetKey(key: string): Promise<void> {
+    const content = String(key || '').trim();
+    if (!content) return;
+    this.dataSetCopiedKey = content;
+    try {
+      if (globalThis.navigator?.clipboard?.writeText) {
+        await globalThis.navigator.clipboard.writeText(content);
+        this.setDataSetCopyState('Copied');
+        return;
+      }
+      if (this.fallbackCopyToClipboard(content)) {
+        this.setDataSetCopyState('Copied');
+        return;
+      }
+    } catch {
+      if (this.fallbackCopyToClipboard(content)) {
+        this.setDataSetCopyState('Copied');
+        return;
+      }
+    }
+    this.setDataSetCopyState('Copy failed');
+  }
+
   importMjml(): void {
     if (this.readonly) return;
     try {
@@ -2142,6 +2209,15 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.copyStateTimer = setTimeout(() => (this.copyState = ''), 1800);
   }
 
+  private setDataSetCopyState(state: string): void {
+    this.dataSetCopyState = state;
+    if (this.dataSetCopyStateTimer) clearTimeout(this.dataSetCopyStateTimer);
+    this.dataSetCopyStateTimer = setTimeout(() => {
+      this.dataSetCopyState = '';
+      this.dataSetCopiedKey = '';
+    }, 1800);
+  }
+
   private fallbackCopyToClipboard(content: string): boolean {
     return fallbackCopyOutputToClipboard(content);
   }
@@ -2164,6 +2240,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private applyHistorySnapshot(snapshot: EmailHistorySnapshot): void {
     this.closeTransientMenus();
     this.closeImportModal();
+    this.closeDataSetModal();
     this.closeOutputModal();
     this.closeRichTextSource();
     this.closeRichTextModal();

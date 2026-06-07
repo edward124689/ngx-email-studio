@@ -221,6 +221,90 @@ describe('NgxEmailStudio', () => {
     expect(query(configHiddenFixture, '.nes-save-trigger')).toBeNull();
   });
 
+
+  it('should show a data set action only when merge tags are provided', () => {
+    fixture.detectChanges();
+    expect(query(fixture, '.nes-data-set-trigger')).toBeNull();
+
+    fixture.componentRef.setInput('dataSet', [
+      { key: '  {%CLIENT_NAME%}  ', desc: 'Client name' },
+      { key: '', desc: 'Ignored empty key' },
+    ]);
+    fixture.detectChanges();
+
+    const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Data set', 'Import', 'Export', 'Save']);
+    expect(component.normalizedDataSet).toEqual([{ key: '{%CLIENT_NAME%}', desc: 'Client name' }]);
+  });
+
+  it('should open the data set modal and filter by key or description', async () => {
+    fixture.componentRef.setInput('dataSet', [
+      { key: '{%CLIENT_NAME%}', desc: 'Client name' },
+      { key: '{%ORDER_ID%}', desc: 'Order ID' },
+    ]);
+    fixture.detectChanges();
+
+    query<HTMLButtonElement>(fixture, '.nes-data-set-trigger')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, '.nes-data-set-modal')).toBeTruthy();
+    expect(studioText(fixture)).toContain('{%CLIENT_NAME%}');
+    expect(studioText(fixture)).toContain('{%ORDER_ID%}');
+
+    const search = query<HTMLInputElement>(fixture, '.nes-data-set-search input');
+    search!.value = 'client';
+    search!.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(studioText(fixture)).toContain('{%CLIENT_NAME%}');
+    expect(studioText(fixture)).not.toContain('{%ORDER_ID%}');
+  });
+
+  it('should copy a data set key only after clipboard success', async () => {
+    const originalClipboard = globalThis.navigator.clipboard;
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: { writeText } });
+
+    try {
+      fixture.componentRef.setInput('dataSet', [{ key: '{%CLIENT_NAME%}', desc: 'Client name' }]);
+      fixture.detectChanges();
+      query<HTMLButtonElement>(fixture, '.nes-data-set-trigger')?.click();
+      fixture.detectChanges();
+
+      query<HTMLButtonElement>(fixture, '.nes-copy-btn')?.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(writeText).toHaveBeenCalledWith('{%CLIENT_NAME%}');
+      expect(studioText(fixture)).toContain('Copied');
+    } finally {
+      Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: originalClipboard });
+    }
+  });
+
+  it('should show data set copy failure when clipboard and fallback copy fail', async () => {
+    const originalClipboard = globalThis.navigator.clipboard;
+    const originalExecCommand = document.execCommand;
+    Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn(() => false) });
+
+    try {
+      fixture.componentRef.setInput('dataSet', [{ key: '{%CLIENT_NAME%}', desc: 'Client name' }]);
+      fixture.detectChanges();
+      query<HTMLButtonElement>(fixture, '.nes-data-set-trigger')?.click();
+      fixture.detectChanges();
+
+      query<HTMLButtonElement>(fixture, '.nes-copy-btn')?.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(studioText(fixture)).toContain('Copy failed');
+    } finally {
+      Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: originalClipboard });
+      Object.defineProperty(document, 'execCommand', { configurable: true, value: originalExecCommand });
+    }
+  });
+
   it('should emit structured save and change payloads', () => {
     fixture.detectChanges();
     const saveSpy = vi.fn();
