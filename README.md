@@ -19,6 +19,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Using an MJML Template](#using-an-mjml-template)
+- [Merge Tags / Data Set](#merge-tags--data-set)
 - [Component API](#component-api)
   - [Inputs](#inputs)
   - [Outputs](#outputs)
@@ -42,6 +43,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - **Drag-and-drop layout**: Angular CDK powered content palette, canvas, sections, rows, columns, and nested blocks.
 - **Builder shell**: module library, searchable palette, nested outline, preview size chips, selected-block controls, and tabbed inspector.
 - **Tiptap rich text editor**: headings, lists, inline formatting, links, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
+- **Merge-tag helper**: pass a `dataSet` of placeholder keys and descriptions so users can search available merge tags and copy keys into the email content.
 - **Responsive preview**: switch between desktop/tablet/mobile/custom preview widths.
 - **Editable social links**: import/export `<mj-social>` with multiple `<mj-social-element>` entries.
 - **Safe import boundaries**: sanitizes rich text, URLs, class/id values, colors, and imported attributes before preview/export.
@@ -78,7 +80,7 @@ Import the standalone component and render it:
 
 ```ts
 import { Component } from '@angular/core';
-import { NgxEmailStudio, EmailStudioResult } from 'ngx-email-studio';
+import { NgxEmailStudio, EmailStudioDataSetItem, EmailStudioResult } from 'ngx-email-studio';
 
 @Component({
   selector: 'app-email-builder-page',
@@ -88,6 +90,7 @@ import { NgxEmailStudio, EmailStudioResult } from 'ngx-email-studio';
     <ngx-email-studio
       [mjml]="initialMjml"
       [showSave]="true"
+      [dataSet]="mergeTags"
       (change)="onChange($event)"
       (save)="onSave($event)"
     />
@@ -109,6 +112,13 @@ export class EmailBuilderPage {
       </mj-body>
     </mjml>
   `;
+
+  mergeTags: EmailStudioDataSetItem[] = [
+    { key: '{%CLIENT_NAME%}', desc: 'Client name' },
+    { key: '{%ORDER_ID%}', desc: 'Order ID' },
+    { key: '{%DELIVERY_DATE%}', desc: 'Estimated delivery date' },
+    { key: '{%SUPPORT_EMAIL%}', desc: 'Support contact email' },
+  ];
 
   onChange(result: EmailStudioResult): void {
     // Emits after builder edits/imports.
@@ -147,6 +157,37 @@ Example with social links:
 
 The editor stores social links as one editable Social block containing multiple icon/name, href, and background color rows, then exports them back to `<mj-social>` / `<mj-social-element>`.
 
+## Merge Tags / Data Set
+
+Host apps can provide a list of merge-tag placeholders with optional descriptions. When the list contains at least one valid key, the builder shows a `Data set` button in the top toolbar before `Import`.
+
+```ts
+import { EmailStudioDataSetItem } from 'ngx-email-studio';
+
+mergeTags: EmailStudioDataSetItem[] = [
+  { key: '{%CLIENT_NAME%}', desc: 'Client name' },
+  { key: '{%ORDER_ID%}', desc: 'Order ID' },
+  { key: '{%DELIVERY_DATE%}', desc: 'Estimated delivery date' },
+  { key: '{%SUPPORT_EMAIL%}', desc: 'Support contact email' },
+];
+```
+
+```html
+<ngx-email-studio
+  [dataSet]="mergeTags"
+  (change)="draft = $event"
+/>
+```
+
+The modal is a reference helper only: users can search keys/descriptions and copy a key such as `{%CLIENT_NAME%}` into the email content. It does not render, replace, or preview template data.
+
+```ts
+export interface EmailStudioDataSetItem {
+  key: string;
+  desc?: string;
+}
+```
+
 ## Component API
 
 ### Inputs
@@ -158,6 +199,7 @@ The editor stores social links as one editable Social block containing multiple 
 | `previewSize` | `'desktop' \| 'tablet' \| 'mobile' \| number` | Preview width preset or custom pixel width. |
 | `readonly` | `boolean` | Disables editing controls when true. |
 | `showSave` | `boolean` | Shows or hides the top Save button. Can also be controlled by `config.showSave`. |
+| `dataSet` | `EmailStudioDataSetItem[]` | Optional merge-tag list. When valid keys are provided, shows a searchable `Data set` modal for copying placeholder keys. |
 | `config` | `EmailStudioConfig` | Optional builder configuration. |
 
 ### Outputs
