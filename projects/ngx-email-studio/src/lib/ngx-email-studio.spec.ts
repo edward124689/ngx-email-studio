@@ -1015,6 +1015,78 @@ describe('NgxEmailStudio', () => {
     expect(importedImage?.attrs['widthUnit']).toBe('%');
   });
 
+  it('should hide the image upload helper when config.uploadImage is not provided', () => {
+    const imageNode: EmailNode = { id: 'image_upload_hidden', type: 'image', attrs: { src: 'https://example.com/hero.jpg', alt: 'Hero' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+
+    expect(studioText(fixture)).not.toContain('Upload image');
+    expect(query(fixture, '.nes-image-upload-helper')).toBeNull();
+  });
+
+  it('should call config.uploadImage and write the returned URL and alt text to the image block', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:local-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const imageNode: EmailNode = { id: 'image_upload', type: 'image', attrs: { src: 'https://example.com/old.jpg', alt: 'Old alt' } };
+    const handler = vi.fn(async (file: File, context: { nodeId: string; currentUrl?: string; currentAlt?: string }) => {
+      expect(file.name).toBe('hero.png');
+      expect(context).toEqual({ nodeId: 'image_upload', currentUrl: 'https://example.com/old.jpg', currentAlt: 'Old alt' });
+      return { url: 'https://cdn.example.com/hero.png', alt: 'Uploaded hero' };
+    });
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+    (component as any).resetDocumentHistory();
+    fixture.detectChanges();
+
+    expect(studioText(fixture)).toContain('Upload image');
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    await component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'hero.png' } } as unknown as Event);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(activeImage.attrs['src']).toBe('https://cdn.example.com/hero.png');
+    expect(activeImage.attrs['alt']).toBe('Uploaded hero');
+    expect(component.canUndoDocument).toBe(true);
+    component.undoDocument();
+    expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/old.jpg');
+  });
+
+  it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {
+    const imageNode: EmailNode = { id: 'image_upload_fail', type: 'image', attrs: { src: 'https://example.com/original.jpg', alt: 'Original' } };
+    const errorSpy = vi.spyOn(component.error, 'emit');
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: async () => 'javascript:alert(1)' });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+
+    const file = new File(['image-bytes'], 'bad.png', { type: 'image/png' });
+    await component.uploadImageForNode(imageNode, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'bad.png' } } as unknown as Event);
+
+    expect(imageNode.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(component.imageUploadErrorFor(imageNode)).toContain('safe image URL');
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'image_upload_failed' }));
+  });
+
+  it('should not upload images in readonly mode', async () => {
+    const imageNode: EmailNode = { id: 'image_upload_readonly', type: 'image', attrs: { src: 'https://example.com/original.jpg' } };
+    const handler = vi.fn(async () => 'https://cdn.example.com/ignored.png');
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    fixture.componentRef.setInput('readonly', true);
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    await component.uploadImageForNode(imageNode, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'hero.png' } } as unknown as Event);
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(imageNode.attrs['src']).toBe('https://example.com/original.jpg');
+    expect(query<HTMLButtonElement>(fixture, '.nes-image-upload-btn')?.disabled).toBe(true);
+  });
+
   it('should expose content alignment controls and update alignable content modules', () => {
     const textNode = component.emailDocument.body[0].children?.[0];
     expect(textNode?.type).toBe('text');

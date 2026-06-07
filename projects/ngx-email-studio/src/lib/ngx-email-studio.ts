@@ -11,7 +11,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeLineHeightValue } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -26,6 +26,9 @@ import {
   EmailStudioConfig,
   EmailStudioDataSetItem,
   EmailStudioError,
+  EmailStudioImageUploadContext,
+  EmailStudioImageUploadHandler,
+  EmailStudioImageUploadResult,
   EmailStudioResult,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
@@ -59,6 +62,9 @@ export type {
   EmailStudioConfig,
   EmailStudioDataSetItem,
   EmailStudioError,
+  EmailStudioImageUploadContext,
+  EmailStudioImageUploadHandler,
+  EmailStudioImageUploadResult,
   EmailStudioResult,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
@@ -484,10 +490,37 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                 </ng-container>
               </div>
 
-              <label *ngIf="node.type === 'image'">
-                Image URL
-                <input [ngModel]="node.attrs['src']" (ngModelChange)="updateAttr(node, 'src', $event)" />
-              </label>
+              <div *ngIf="node.type === 'image'" class="nes-image-source-panel">
+                <label>
+                  Image URL
+                  <input [ngModel]="node.attrs['src']" (ngModelChange)="updateAttr(node, 'src', $event)" />
+                </label>
+                <div class="nes-image-upload-helper" *ngIf="hasImageUploadHelper">
+                  <input
+                    #imageUploadInput
+                    class="nes-file-input"
+                    type="file"
+                    accept="image/*"
+                    [disabled]="readonly || isImageUploading(node)"
+                    (change)="uploadImageForNode(node, $event)"
+                  />
+                  <button type="button" class="nes-secondary-action nes-image-upload-btn" [disabled]="readonly || isImageUploading(node)" (click)="imageUploadInput.click()">
+                    <i class="nes-icon fa fa-upload" aria-hidden="true"></i>
+                    {{ isImageUploading(node) ? 'Uploading image…' : 'Upload image' }}
+                  </button>
+                  <p class="nes-muted">Choose a local image. The host app uploads it and returns the final URL.</p>
+                </div>
+                <div class="nes-image-upload-error" *ngIf="imageUploadErrorFor(node)">{{ imageUploadErrorFor(node) }}</div>
+                <div class="nes-image-preview" *ngIf="imagePreviewSrc(node) as previewSrc">
+                  <div class="nes-image-preview-frame">
+                    <img [src]="previewSrc" [alt]="node.attrs['alt'] || 'Image preview'" />
+                  </div>
+                  <div class="nes-image-preview-meta">
+                    <span>{{ imagePreviewLabel(node) }}</span>
+                    <span *ngIf="isImageUploading(node)">Uploading…</span>
+                  </div>
+                </div>
+              </div>
               <label *ngIf="node.type === 'image'">
                 Alt text
                 <input [ngModel]="node.attrs['alt']" (ngModelChange)="updateAttr(node, 'alt', $event)" />
@@ -1045,6 +1078,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   transformPreviewLoading = false;
   transformApplyLoading = false;
   transformErrorMessage = '';
+  imageUploadLoadingNodeId = '';
+  imageUploadPreviewNodeId = '';
+  imageUploadPreviewUrl = '';
+  imageUploadPreviewName = '';
+  imageUploadErrorNodeId = '';
+  imageUploadErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
   sourceEditorScope: TiptapScope | null = null;
@@ -1066,6 +1105,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private transformPreviewRequestId = 0;
   private transformApplyRequestId = 0;
   private transformDestroyed = false;
+  private imageUploadRequestId = 0;
+  private imageUploadObjectUrl = '';
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1152,6 +1193,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.transformDestroyed = true;
     this.transformPreviewRequestId += 1;
     this.transformApplyRequestId += 1;
+    this.imageUploadRequestId += 1;
+    this.revokeImageUploadObjectUrl();
     this.destroyTiptapEditors();
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
     if (this.dataSetCopyStateTimer) clearTimeout(this.dataSetCopyStateTimer);
@@ -1216,6 +1259,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   get effectiveConfig(): EmailStudioConfig {
     return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
+  }
+
+  get hasImageUploadHelper(): boolean {
+    return typeof this.effectiveConfig.uploadImage === 'function';
   }
 
   get resolvedRichTextEditor(): RichTextEditorMode {
@@ -1542,6 +1589,95 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (key === 'content') value = this.sanitizeRichTextContent(value);
     node.attrs = { ...node.attrs, [key]: value };
     this.emitDocument();
+  }
+
+  imagePreviewSrc(node: EmailNode): string {
+    if (node.type !== 'image') return '';
+    if (this.imageUploadPreviewNodeId === node.id && this.imageUploadPreviewUrl) return this.imageUploadPreviewUrl;
+    return String(node.attrs['src'] || '').trim();
+  }
+
+  imagePreviewLabel(node: EmailNode): string {
+    if (this.imageUploadPreviewNodeId === node.id && this.imageUploadPreviewName) return `Selected file: ${this.imageUploadPreviewName}`;
+    return String(node.attrs['src'] || '').trim() ? 'Current image preview' : 'Image preview';
+  }
+
+  isImageUploading(node: EmailNode): boolean {
+    return this.imageUploadLoadingNodeId === node.id;
+  }
+
+  imageUploadErrorFor(node: EmailNode): string {
+    return this.imageUploadErrorNodeId === node.id ? this.imageUploadErrorMessage : '';
+  }
+
+  async uploadImageForNode(node: EmailNode, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (input) input.value = '';
+    if (!file || node.type !== 'image' || this.readonly || !this.effectiveConfig.uploadImage) return;
+
+    const requestId = ++this.imageUploadRequestId;
+    this.imageUploadLoadingNodeId = node.id;
+    this.imageUploadErrorNodeId = '';
+    this.imageUploadErrorMessage = '';
+
+    try {
+      if (file.type && !file.type.startsWith('image/')) {
+        throw new Error('Please choose an image file.');
+      }
+      this.imageUploadPreviewNodeId = node.id;
+      this.imageUploadPreviewName = file.name || 'Selected image';
+      this.setImageUploadPreviewUrl(file);
+      const result = await this.effectiveConfig.uploadImage(file, {
+        nodeId: node.id,
+        currentUrl: String(node.attrs['src'] || ''),
+        currentAlt: String(node.attrs['alt'] || ''),
+      });
+      if (requestId !== this.imageUploadRequestId) return;
+      const uploadResult = this.normalizeImageUploadResult(result);
+      const url = normalizeImageSrcValue(uploadResult.url);
+      if (!url) throw new Error('The upload helper did not return a safe image URL.');
+      const nextAttrs: Record<string, string | number | boolean> = { ...node.attrs, src: url };
+      if (typeof uploadResult.alt === 'string' && uploadResult.alt.trim()) nextAttrs['alt'] = uploadResult.alt.trim();
+      node.attrs = nextAttrs;
+      this.clearImageUploadPreview();
+      this.emitDocument();
+    } catch (details) {
+      if (requestId !== this.imageUploadRequestId) return;
+      const message = details instanceof Error && details.message ? details.message : 'Unable to upload image. Please try again.';
+      this.imageUploadErrorNodeId = node.id;
+      this.imageUploadErrorMessage = message;
+      this.error.emit({ code: 'image_upload_failed', message, details });
+    } finally {
+      if (requestId === this.imageUploadRequestId) this.imageUploadLoadingNodeId = '';
+    }
+  }
+
+  private normalizeImageUploadResult(result: string | EmailStudioImageUploadResult): EmailStudioImageUploadResult {
+    return typeof result === 'string' ? { url: result } : result;
+  }
+
+  private setImageUploadPreviewUrl(file: File): void {
+    this.revokeImageUploadObjectUrl();
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      this.imageUploadPreviewUrl = '';
+      return;
+    }
+    this.imageUploadObjectUrl = URL.createObjectURL(file);
+    this.imageUploadPreviewUrl = this.imageUploadObjectUrl;
+  }
+
+  private clearImageUploadPreview(revoke = true): void {
+    if (revoke) this.revokeImageUploadObjectUrl();
+    this.imageUploadPreviewNodeId = '';
+    this.imageUploadPreviewUrl = '';
+    this.imageUploadPreviewName = '';
+  }
+
+  private revokeImageUploadObjectUrl(): void {
+    if (!this.imageUploadObjectUrl || typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') return;
+    URL.revokeObjectURL(this.imageUploadObjectUrl);
+    this.imageUploadObjectUrl = '';
   }
 
   updateColorAttr(node: EmailNode, key: string, value: string): void {

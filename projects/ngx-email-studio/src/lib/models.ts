@@ -40,12 +40,30 @@ export interface EmailStudioResult {
   };
 }
 
+export interface EmailStudioImageUploadContext {
+  nodeId: string;
+  currentUrl?: string;
+  currentAlt?: string;
+}
+
+export interface EmailStudioImageUploadResult {
+  url: string;
+  alt?: string;
+}
+
+export type EmailStudioImageUploadHandler = (
+  file: File,
+  context: EmailStudioImageUploadContext,
+) => Promise<string | EmailStudioImageUploadResult> | string | EmailStudioImageUploadResult;
+
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
   richTextEditor?: RichTextEditorMode;
   showHtmlPreview?: boolean;
   /** Show the top-right Save button. Defaults to true. */
   showSave?: boolean;
+  /** Optional host-provided image upload hook. Return an image URL to write back to the selected image block. */
+  uploadImage?: EmailStudioImageUploadHandler;
   title?: string;
   breadcrumb?: string;
   brandLabel?: string;

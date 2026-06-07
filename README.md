@@ -20,6 +20,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - [Quick Start](#quick-start)
 - [Using an MJML Template](#using-an-mjml-template)
 - [Merge Tags / Data Set](#merge-tags--data-set)
+- [Image Upload Helper](#image-upload-helper)
 - [Text Transform](#text-transform)
 - [Component API](#component-api)
   - [Inputs](#inputs)
@@ -45,6 +46,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - **Builder shell**: module library, searchable palette, nested outline, preview size chips, selected-block controls, and tabbed inspector.
 - **Tiptap rich text editor**: headings, lists, inline formatting, links, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
 - **Merge-tag helper**: pass a `dataSet` of placeholder keys and descriptions so users can search available merge tags and copy keys into the email content.
+- **Image upload helper**: provide `config.uploadImage` so image blocks can pick a local file, preview it, call your upload API, and write the returned URL back into Image URL.
 - **Text Transform**: preview and apply Simplified ↔ Traditional Chinese conversion or whitespace normalization to the whole email.
 - **Responsive preview**: switch between desktop/tablet/mobile/custom preview widths.
 - **Editable social links**: import/export `<mj-social>` with multiple `<mj-social-element>` entries.
@@ -191,6 +193,37 @@ export interface EmailStudioDataSetItem {
   desc?: string;
 }
 ```
+
+## Image Upload Helper
+
+Image blocks can show an `Upload image` helper beside the regular `Image URL` field when the host app provides `config.uploadImage`. The library handles the file picker, local preview, loading/error state, history, and writing the returned URL back to the image block. The host app owns the real upload API, auth, storage provider, and server-side validation.
+
+```ts
+import { EmailStudioConfig } from 'ngx-email-studio';
+
+const config: EmailStudioConfig = {
+  uploadImage: async (file, context) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('nodeId', context.nodeId);
+
+    const res = await fetch('/api/email-assets', {
+      method: 'POST',
+      body: form,
+    });
+
+    if (!res.ok) throw new Error('Image upload failed');
+    const data = await res.json();
+
+    return {
+      url: data.url,
+      alt: data.alt,
+    };
+  },
+};
+```
+
+`uploadImage` may return either a string URL or `{ url, alt? }`. If `alt` is returned, it updates the image block alt text. Returned URLs are normalized with the same image URL safety rules used by the editor. When `uploadImage` is omitted, the upload button is hidden and users can still paste an Image URL manually. In `readonly` mode, upload is disabled.
 
 ## Text Transform
 

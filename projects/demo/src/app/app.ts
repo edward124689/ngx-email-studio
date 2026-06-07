@@ -23,6 +23,14 @@ export class App {
     title: 'Email Studio',
     fromLabel: 'hello@brand.test',
     richTextEditor: this.resolveRichTextEditor(),
+    uploadImage: async (file) => {
+      // Demo-only mock: real apps should upload `file` to their API/CDN and return that URL.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        url: `https://placehold.co/900x420/png?text=${encodeURIComponent(file.name)}`,
+        alt: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded image',
+      };
+    },
   };
 
   private resolveRichTextEditor(): EmailStudioConfig['richTextEditor'] {
