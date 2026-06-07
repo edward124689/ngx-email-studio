@@ -639,6 +639,25 @@ describe('NgxEmailStudio', () => {
     expect(component.documentColorText('backgroundColor')).toBe('#ffffff');
     expect(component.lastHtml).toContain('width="100%"');
     expect(component.lastHtml).toContain('style="width:100%;max-width:600px;');
+    expect(component.lastHtml).toContain('border-radius:16px;overflow:hidden;');
+    expect(component.emailBorderRadiusCss).toBe('16px');
+    expect(component.emailBorderStyle).toBe('none');
+  });
+
+  it('should let body settings control email wrapper border and radius', () => {
+    fixture.detectChanges();
+
+    component.updateDocumentAttr('contentBorderRadius', 0);
+    component.updateDocumentAttr('contentBorderWidth', 2);
+    component.updateDocumentColorAttr('contentBorderColor', '#ABCDEF');
+    (component as any).refreshOutputs(false);
+
+    expect(component.emailBorderRadiusCss).toBe('0px');
+    expect(component.emailBorderStyle).toBe('2px solid #abcdef');
+    expect(component.emailDocument.attrs?.['contentBorderRadius']).toBe(0);
+    expect(component.emailDocument.attrs?.['contentBorderWidth']).toBe(2);
+    expect(component.emailDocument.attrs?.['contentBorderColor']).toBe('#abcdef');
+    expect(component.lastHtml).toContain('border-radius:0px;border:2px solid #abcdef;overflow:hidden;');
   });
 
   it('should default body background to lowercase white while blocks stay transparent until set', () => {
@@ -2772,7 +2791,7 @@ describe('NgxEmailStudio', () => {
     expect(compactComponentStyles).toContain('.nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover');
     expect(compactComponentStyles).toContain('.nes-render-column.cdk-drop-list-dragging .nes-drop-hit-pad, .nes-render-section.cdk-drop-list-dragging .nes-drop-hit-pad { opacity: 0; background: transparent; }');
     expect(compactComponentStyles).toContain('.nes-node.is-selected, .nes-child-node.is-selected, .nes-render-column.is-selected { border-color: var(--nes-accent); box-shadow: inset 0 0 0 1px var(--nes-accent); }');
-    expect(compactComponentStyles).toContain('.nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; user-select: none; -webkit-user-select: none; }');
+    expect(compactComponentStyles).toContain('.nes-canvas { min-height: 520px; max-width: 100%; margin: 0 auto; padding: 0; transition: width .2s ease, max-width .2s ease, background .15s ease, border-radius .15s ease, border-color .15s ease; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); box-sizing: border-box; overflow: hidden; user-select: none; -webkit-user-select: none; }');
     expect(compactComponentStyles).toContain('.nes-shell.is-dragging .nes-floating-tools { display: none; }');
     expect(componentStyles).not.toContain('.nes-canvas.cdk-drop-list-dragging { outline:');
     expect(componentStyles).not.toContain('.nes-render-column.cdk-drop-list-dragging, .nes-render-section.cdk-drop-list-dragging, .nes-canvas.cdk-drop-list-dragging');

@@ -286,6 +286,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   [style.width]="emailCanvasWidthCss"
                   [style.max-width]="emailCanvasMaxWidthCss"
                   [style.background]="emailBackgroundColor"
+                  [style.border-radius]="emailBorderRadiusCss"
+                  [style.border]="emailBorderStyle"
                 >
                   <article
                     role="button"
@@ -357,6 +359,29 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               </label>
               <div class="nes-control-row">
                 <label>
+                  Email border radius
+                  <span class="nes-unit-field">
+                    <input type="number" min="0" [ngModel]="dimensionValue(documentAttrs, 'contentBorderRadius', 16)" (ngModelChange)="updateDocumentAttr('contentBorderRadius', +$event)" />
+                    <span class="nes-static-unit">px</span>
+                  </span>
+                </label>
+                <label>
+                  Email border width
+                  <span class="nes-unit-field">
+                    <input type="number" min="0" [ngModel]="dimensionValue(documentAttrs, 'contentBorderWidth', 0)" (ngModelChange)="updateDocumentAttr('contentBorderWidth', +$event)" />
+                    <span class="nes-static-unit">px</span>
+                  </span>
+                </label>
+              </div>
+              <label>
+                Email border color
+                <span class="nes-color-control">
+                  <input type="color" [ngModel]="colorPickerValue(documentAttrs['contentBorderColor'], '#d9e2ec')" (ngModelChange)="updateDocumentColorAttr('contentBorderColor', $event)" />
+                  <input [ngModel]="documentColorText('contentBorderColor')" (ngModelChange)="updateDocumentColorAttr('contentBorderColor', $event)" placeholder="#d9e2ec" />
+                </span>
+              </label>
+              <div class="nes-control-row">
+                <label>
                   Email width
                   <span class="nes-unit-field">
                     <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'width', 600)" (ngModelChange)="updateDocumentAttr('width', +$event)" />
@@ -375,7 +400,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </span>
                 </label>
               </div>
-              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code>, HTML table width, and max-width separately.</p>
+              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code>, HTML wrapper width, border, and rounded corners separately.</p>
             </div>
           </ng-container>
           <ng-template #blockSelection>
@@ -1318,6 +1343,17 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     return this.containedCssSize(this.emailMaxWidthCss);
   }
 
+  get emailBorderRadiusCss(): string {
+    return `${this.nonNegativeNumber(this.documentAttrs['contentBorderRadius'], 16)}px`;
+  }
+
+  get emailBorderStyle(): string {
+    const width = this.nonNegativeNumber(this.documentAttrs['contentBorderWidth'], 0);
+    if (width <= 0) return 'none';
+    const color = normalizeColorValue(this.documentAttrs['contentBorderColor']) || '#d9e2ec';
+    return `${width}px solid ${color}`;
+  }
+
   get effectiveConfig(): EmailStudioConfig {
     return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
   }
@@ -1849,6 +1885,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   dimensionUnit(attrs: Record<string, string | number | boolean>, key: string, fallback: EmailSizeUnit): EmailSizeUnit {
     return dimensionUnit(attrs, key, fallback);
+  }
+
+  private nonNegativeNumber(value: unknown, fallback: number): number {
+    const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
   }
 
   sectionWidthCss(section: EmailNode): string {

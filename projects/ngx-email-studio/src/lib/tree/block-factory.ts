@@ -10,6 +10,9 @@ export function defaultDocumentAttrs(): Record<string, string | number | boolean
     widthUnit: '%',
     maxWidth: 600,
     maxWidthUnit: 'px',
+    contentBorderRadius: 16,
+    contentBorderWidth: 0,
+    contentBorderColor: '#d9e2ec',
   };
 }
 

@@ -35,6 +35,7 @@ export function renderHtml(document: EmailDocument): string {
   const emailWidth = dimensionCss(attrs, 'width', 100, '%');
   const emailMaxWidth = dimensionCss(attrs, 'maxWidth', 600, 'px');
   const emailWidthAttr = dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
+  const emailChromeStyle = emailWrapperChromeStyle(attrs);
   const outlookWidth = escapeAttr(outlookHtmlWidth(attrs));
   const rows = document.body.map((node) => nodeToHtml(node, 6)).join('\n');
   return [
@@ -83,7 +84,7 @@ export function renderHtml(document: EmailDocument): string {
     '      <tr>',
     '        <td align="center">',
     `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}border-radius:16px;overflow:hidden;font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     rows,
     '          </table>',
     '          <!--[if mso | IE]></td></tr></table><![endif]-->',
@@ -228,7 +229,22 @@ function autoColumnWidth(row: EmailNode): string {
 }
 
 function outlookHtmlWidth(attrs: Record<string, string | number | boolean>): string {
-  if (dimensionUnit(attrs, 'maxWidth', 'px') === 'px') return String(dimensionValue(attrs, 'maxWidth', 600));
-  if (dimensionUnit(attrs, 'width', '%') === 'px') return String(dimensionValue(attrs, 'width', 600));
+  const maxWidth = dimensionValue(attrs, 'maxWidth', 600);
+  if (dimensionUnit(attrs, 'maxWidth', 'px') === 'px' && Number.isFinite(maxWidth) && maxWidth > 0) return String(Math.round(maxWidth));
+  const width = dimensionValue(attrs, 'width', 600);
+  if (dimensionUnit(attrs, 'width', '%') === 'px' && Number.isFinite(width) && width > 0) return String(Math.round(width));
   return '600';
+}
+
+function emailWrapperChromeStyle(attrs: Record<string, string | number | boolean>): string {
+  const radius = nonNegativeNumber(attrs['contentBorderRadius'], 16);
+  const width = nonNegativeNumber(attrs['contentBorderWidth'], 0);
+  const color = colorAttrValue(attrs['contentBorderColor']) || '#d9e2ec';
+  const border = width > 0 ? `border:${width}px solid ${escapeAttr(color)};` : '';
+  return `border-radius:${radius}px;${border}overflow:hidden;`;
+}
+
+function nonNegativeNumber(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
 }
