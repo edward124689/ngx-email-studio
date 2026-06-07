@@ -207,7 +207,7 @@ describe('NgxEmailStudio', () => {
   it('should put Save at the right side and allow hosts to hide it', () => {
     fixture.detectChanges();
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
-    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Export', 'Save']);
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Transform', 'Import', 'Export', 'Save']);
     expect(actions.at(-1)?.classList.contains('nes-save-trigger')).toBe(true);
 
     const hiddenFixture = TestBed.createComponent(NgxEmailStudio);
@@ -233,7 +233,7 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
-    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Data set', 'Import', 'Export', 'Save']);
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Data set', 'Transform', 'Import', 'Export', 'Save']);
     expect(component.normalizedDataSet).toEqual([{ key: '{%CLIENT_NAME%}', desc: 'Client name' }]);
   });
 
@@ -303,6 +303,92 @@ describe('NgxEmailStudio', () => {
       Object.defineProperty(globalThis.navigator, 'clipboard', { configurable: true, value: originalClipboard });
       Object.defineProperty(document, 'execCommand', { configurable: true, value: originalExecCommand });
     }
+  });
+
+
+  it('should preview and apply selected text transforms while preserving merge tags and attributes', async () => {
+    const document: EmailDocument = {
+      version: '1',
+      body: [
+        { id: 'text1', type: 'text', attrs: { content: '<p>简体发票 {%CLIENT_NAME%}<a href="/汉">链接</a></p>' } },
+        { id: 'button1', type: 'button', attrs: { label: '查看发票', href: '/checkout' } },
+      ],
+    };
+    fixture.componentRef.setInput('document', document);
+    fixture.detectChanges();
+    component.selectedNodeId = 'text1';
+    (component as any).resetDocumentHistory();
+    fixture.detectChanges();
+
+    component.transformModalOpen = true;
+    component.transformScope = 'selected-node';
+    await (component as any).refreshTransformPreview();
+
+    expect(component.transformModalOpen).toBe(true);
+    expect(component.transformScope).toBe('selected-node');
+    expect(component.transformPreview?.before).toContain('简体发票');
+    expect(component.transformPreview?.after).toContain('簡體發票');
+    expect(component.transformPreview?.after).toContain('{%CLIENT_NAME%}');
+
+    await component.applyTransform();
+    await fixture.whenStable();
+
+    const textNode = component.emailDocument.body[0];
+    const buttonNode = component.emailDocument.body[1];
+    expect(textNode.attrs['content']).toContain('簡體發票');
+    expect(textNode.attrs['content']).toContain('{%CLIENT_NAME%}');
+    expect(textNode.attrs['content']).toContain('href="/汉"');
+    expect(buttonNode.attrs['label']).toBe('查看发票');
+
+    component.undoDocument();
+    expect(component.emailDocument.body[0].attrs['content']).toContain('简体发票');
+  });
+
+  it('should transform whole email text blocks and button labels', async () => {
+    const document: EmailDocument = {
+      version: '1',
+      body: [
+        { id: 'text1', type: 'text', attrs: { content: '<p>优惠发票</p>' } },
+        { id: 'button1', type: 'button', attrs: { label: '查看发票', href: '/发票' } },
+      ],
+    };
+    fixture.componentRef.setInput('document', document);
+    fixture.detectChanges();
+    component.selectedNodeId = 'text1';
+    (component as any).resetDocumentHistory();
+
+    component.transformModalOpen = true;
+    component.transformScope = 'document';
+    await (component as any).refreshTransformPreview();
+    await component.applyTransform();
+    await fixture.whenStable();
+
+    expect(component.emailDocument.body[0].attrs['content']).toContain('優惠發票');
+    expect(component.emailDocument.body[1].attrs['label']).toBe('查看發票');
+    expect(component.emailDocument.body[1].attrs['href']).toBe('/发票');
+  });
+
+  it('should normalize spacing and block transform apply in readonly mode', async () => {
+    const document: EmailDocument = {
+      version: '1',
+      body: [{ id: 'text1', type: 'text', attrs: { content: '<p>Hello   ,   world</p>' } }],
+    };
+    fixture.componentRef.setInput('document', document);
+    fixture.detectChanges();
+    component.selectedNodeId = 'text1';
+    (component as any).resetDocumentHistory();
+
+    component.transformModalOpen = true;
+    component.transformAction = 'normalize-spaces';
+    await (component as any).refreshTransformPreview();
+    await component.applyTransform();
+    expect(component.emailDocument.body[0].attrs['content']).toContain('Hello, world');
+
+    fixture.componentRef.setInput('readonly', true);
+    fixture.detectChanges();
+    component.openTransformModal();
+    expect(component.transformModalOpen).toBe(false);
+    expect(query<HTMLButtonElement>(fixture, '.nes-transform-trigger')?.disabled).toBe(true);
   });
 
   it('should emit structured save and change payloads', () => {
@@ -2511,7 +2597,7 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const actionButtons = queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions .nes-export-trigger');
-    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Import', 'Export', 'Save']);
+    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Transform', 'Import', 'Export', 'Save']);
 
     const exportButton = query<HTMLButtonElement>(fixture, '.nes-export-trigger')!;
     exportButton.click();

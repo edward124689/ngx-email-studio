@@ -6,6 +6,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
 
 import { NgxEmailStudioDataSetModal } from './components/data-set-modal.component';
+import { NgxEmailStudioTransformModal } from './components/transform-modal.component';
 import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
@@ -26,6 +27,9 @@ import {
   EmailStudioDataSetItem,
   EmailStudioError,
   EmailStudioResult,
+  EmailStudioTransformAction,
+  EmailStudioTransformPreview,
+  EmailStudioTransformScope,
   PaletteBlockType,
   PaletteItem,
   RichTextEditorMode,
@@ -35,6 +39,7 @@ import {
   TiptapTextAlignValue,
 } from './models';
 import { buildSandboxedPreviewShell, fallbackCopyToClipboard as fallbackCopyOutputToClipboard } from './output/output-utils';
+import { isTransformableNode, transformEmailDocumentText } from './transform/transform-utils';
 import { sanitizeRichTextContent as sanitizeRichTextHtml } from './tiptap/rich-text-sanitizer';
 import { createTiptapEditor as createManagedTiptapEditor, syncTiptapContent as syncManagedTiptapContent } from './tiptap/tiptap-controller';
 import { TIPTAP_BLOCK_OPTIONS, TIPTAP_FONT_SIZE_OPTIONS, TIPTAP_LINE_HEIGHT_OPTIONS } from './tiptap/tiptap-options';
@@ -55,6 +60,9 @@ export type {
   EmailStudioDataSetItem,
   EmailStudioError,
   EmailStudioResult,
+  EmailStudioTransformAction,
+  EmailStudioTransformPreview,
+  EmailStudioTransformScope,
   PaletteBlockType,
   PaletteItem,
   RichTextEditorMode,
@@ -105,7 +113,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
   selector: 'ngx-email-studio',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, DragDropModule, NgxEmailStudioImportModal, NgxEmailStudioDataSetModal, NgxEmailStudioOutputModal],
+  imports: [CommonModule, FormsModule, DragDropModule, NgxEmailStudioImportModal, NgxEmailStudioDataSetModal, NgxEmailStudioTransformModal, NgxEmailStudioOutputModal],
   providers: [
     { provide: CDK_DRAG_CONFIG, useValue: { dragStartThreshold: 1, pointerDirectionChangeThreshold: 2, previewContainer: 'parent' } },
   ],
@@ -124,6 +132,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             <button type="button" class="nes-history-btn" data-history-action="redo" aria-label="Redo" title="Redo (⌘⇧Z / Ctrl+Y)" (click)="redoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
           </div>
           <button type="button" class="nes-data-set-trigger" *ngIf="hasDataSetItems" (click)="openDataSetModal()"><i class="nes-icon fa fa-database" aria-hidden="true"></i> Data set</button>
+          <button type="button" class="nes-transform-trigger" [disabled]="readonly" (click)="openTransformModal()"><i class="nes-icon fa fa-language" aria-hidden="true"></i> Transform</button>
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
             <button type="button" class="nes-export-trigger" (click)="toggleExportMenu(); $event.stopPropagation()" aria-haspopup="menu" [attr.aria-expanded]="exportMenuOpen">
@@ -685,6 +694,21 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         (copy)="copyDataSetKey($event)"
       />
 
+      <ngx-email-studio-transform-modal
+        *ngIf="transformModalOpen"
+        [action]="transformAction"
+        [scope]="transformScope"
+        [preview]="transformPreview"
+        [loading]="transformPreviewLoading"
+        [readonly]="readonly"
+        [canUseSelectedScope]="canUseTransformSelectedScope"
+        [errorMessage]="transformErrorMessage"
+        (close)="closeTransformModal()"
+        (actionChange)="setTransformAction($event)"
+        (scopeChange)="setTransformScope($event)"
+        (apply)="applyTransform()"
+      />
+
       <div class="nes-modal-backdrop" *ngIf="expandedRichTextNode" (click)="closeRichTextModal()">
         <section class="nes-rich-text-modal" role="dialog" aria-modal="true" aria-label="Rich text editor" (click)="$event.stopPropagation()">
           <header>
@@ -1015,6 +1039,12 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   dataSetModalOpen = false;
   dataSetCopiedKey = '';
   dataSetCopyState = '';
+  transformModalOpen = false;
+  transformAction: EmailStudioTransformAction = 'simplified-to-traditional';
+  transformScope: EmailStudioTransformScope = 'selected-node';
+  transformPreview: EmailStudioTransformPreview | null = null;
+  transformPreviewLoading = false;
+  transformErrorMessage = '';
   outputModalType: 'mjml' | 'html' | null = null;
   expandedRichTextNode?: EmailNode;
   sourceEditorScope: TiptapScope | null = null;
@@ -1033,6 +1063,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private tiptapToolbarStateTimers: Partial<Record<TiptapScope, ReturnType<typeof setTimeout>>> = {};
   private copyStateTimer: ReturnType<typeof setTimeout> | undefined;
   private dataSetCopyStateTimer: ReturnType<typeof setTimeout> | undefined;
+  private transformPreviewRequestId = 0;
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1091,6 +1122,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     if (this.sourceEditorScope) this.closeRichTextSource();
     if (this.importModalOpen) this.closeImportModal();
     if (this.dataSetModalOpen) this.closeDataSetModal();
+    if (this.transformModalOpen) this.closeTransformModal();
     if (this.expandedRichTextNode) this.closeRichTextModal();
   }
 
@@ -1138,6 +1170,10 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   get hasDataSetItems(): boolean {
     return this.normalizedDataSet.length > 0;
+  }
+
+  get canUseTransformSelectedScope(): boolean {
+    return isTransformableNode(this.selectedNode);
   }
 
   get selectedNode(): EmailNode | undefined {
@@ -1856,6 +1892,72 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.setDataSetCopyState('Copy failed');
   }
 
+  openTransformModal(): void {
+    if (this.readonly) return;
+    this.closeTransientMenus();
+    this.transformScope = this.canUseTransformSelectedScope ? 'selected-node' : 'document';
+    this.transformErrorMessage = '';
+    this.transformModalOpen = true;
+    void this.refreshTransformPreview();
+  }
+
+  closeTransformModal(): void {
+    this.transformModalOpen = false;
+    this.transformPreview = null;
+    this.transformPreviewLoading = false;
+    this.transformErrorMessage = '';
+    this.transformPreviewRequestId += 1;
+  }
+
+  setTransformAction(action: EmailStudioTransformAction): void {
+    this.transformAction = action;
+    void this.refreshTransformPreview();
+  }
+
+  setTransformScope(scope: EmailStudioTransformScope): void {
+    this.transformScope = scope === 'selected-node' && !this.canUseTransformSelectedScope ? 'document' : scope;
+    void this.refreshTransformPreview();
+  }
+
+  async applyTransform(): Promise<void> {
+    if (this.readonly || this.transformPreviewLoading) return;
+    try {
+      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope, this.selectedNodeId);
+      if (result.changedCount === 0) {
+        this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
+        return;
+      }
+      this.emailDocument = result.document;
+      this.closeTransformModal();
+      this.emitDocument();
+    } catch (details) {
+      this.transformErrorMessage = 'Unable to transform content. Please try again.';
+      this.error.emit({ code: 'text_transform_failed', message: 'Unable to transform content.', details });
+    }
+  }
+
+  private async refreshTransformPreview(): Promise<void> {
+    if (!this.transformModalOpen) return;
+    const requestId = ++this.transformPreviewRequestId;
+    this.transformPreviewLoading = true;
+    this.transformErrorMessage = '';
+    try {
+      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope, this.selectedNodeId);
+      if (requestId !== this.transformPreviewRequestId) return;
+      this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
+    } catch (details) {
+      if (requestId !== this.transformPreviewRequestId) return;
+      this.transformPreview = null;
+      this.transformErrorMessage = 'Unable to prepare transform preview.';
+      this.error.emit({ code: 'text_transform_preview_failed', message: 'Unable to prepare transform preview.', details });
+    } finally {
+      if (requestId === this.transformPreviewRequestId) {
+        this.transformPreviewLoading = false;
+        this.changeDetector.detectChanges();
+      }
+    }
+  }
+
   importMjml(): void {
     if (this.readonly) return;
     try {
@@ -2241,6 +2343,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.closeTransientMenus();
     this.closeImportModal();
     this.closeDataSetModal();
+    this.closeTransformModal();
     this.closeOutputModal();
     this.closeRichTextSource();
     this.closeRichTextModal();
@@ -2418,6 +2521,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   private replaceEmailDocument(document: EmailDocument, emitChange: boolean): void {
     this.closeTransientMenus();
     this.closeImportModal();
+    this.closeDataSetModal();
+    this.closeTransformModal();
     this.closeOutputModal();
     this.closeRichTextSource();
     this.closeRichTextModal();

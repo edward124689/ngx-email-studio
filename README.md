@@ -20,6 +20,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - [Quick Start](#quick-start)
 - [Using an MJML Template](#using-an-mjml-template)
 - [Merge Tags / Data Set](#merge-tags--data-set)
+- [Text Transform](#text-transform)
 - [Component API](#component-api)
   - [Inputs](#inputs)
   - [Outputs](#outputs)
@@ -44,6 +45,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - **Builder shell**: module library, searchable palette, nested outline, preview size chips, selected-block controls, and tabbed inspector.
 - **Tiptap rich text editor**: headings, lists, inline formatting, links, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
 - **Merge-tag helper**: pass a `dataSet` of placeholder keys and descriptions so users can search available merge tags and copy keys into the email content.
+- **Text Transform**: preview and apply Simplified ↔ Traditional Chinese conversion or whitespace normalization to the selected text block or whole email.
 - **Responsive preview**: switch between desktop/tablet/mobile/custom preview widths.
 - **Editable social links**: import/export `<mj-social>` with multiple `<mj-social-element>` entries.
 - **Safe import boundaries**: sanitizes rich text, URLs, class/id values, colors, and imported attributes before preview/export.
@@ -187,6 +189,25 @@ export interface EmailStudioDataSetItem {
   desc?: string;
 }
 ```
+
+## Text Transform
+
+The top toolbar includes a `Transform` action for content-level text transformations. It opens a preview modal before applying changes, so users can compare the current text with the transformed result.
+
+Supported actions:
+
+- Simplified Chinese → Traditional Chinese
+- Traditional Chinese → Simplified Chinese
+- Normalize spaces
+
+Supported scopes:
+
+- Selected text block, when the selected block is transformable
+- Whole email, covering rich-text blocks and button labels
+
+Transform only changes user-visible text nodes. It preserves rich-text HTML tags and attributes such as links, styles, and classes. Merge-tag placeholders like `{%CLIENT_NAME%}` are masked during conversion and restored unchanged.
+
+Apply participates in the normal document history, so users can undo a transform with the global `Undo` control. In `readonly` mode the Transform action is disabled.
 
 ## Component API
 
