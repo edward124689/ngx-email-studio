@@ -1,0 +1,115 @@
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #e8eef7;
+  color: #0f172a;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.demo-page {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(37, 99, 235, 0.18), transparent 28%),
+    linear-gradient(135deg, #f8fbff 0%, #e8eef7 45%, #dbeafe 100%);
+}
+
+.demo-hero,
+.demo-output {
+  width: min(1440px, calc(100vw - 48px));
+  margin: 0 auto 16px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.demo-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.demo-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1;
+}
+
+.demo-hero p:not(.eyebrow) {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: #475569;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.repo-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.2);
+}
+
+ngx-email-studio {
+  display: block;
+  width: min(1440px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+
+.demo-output {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 14px 18px;
+  color: #475569;
+}
+
+.demo-output strong {
+  color: #0f172a;
+}
+
+@media (max-width: 760px) {
+  .demo-page {
+    padding: 14px;
+  }
+
+  .demo-hero,
+  .demo-output,
+  ngx-email-studio {
+    width: 100%;
+  }
+
+  .demo-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+  }
+}

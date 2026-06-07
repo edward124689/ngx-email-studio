@@ -8,6 +8,8 @@ It provides a polished visual builder shell, MJML import/export for a practical 
 
 Live demo: <https://edward124689.github.io/ngx-email-studio/>
 
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/edward124689/ngx-email-studio/tree/main/examples/stackblitz?file=src%2Fapp%2Fapp.ts)
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/edward124689/ngx-email-studio/main/docs/images/email-studio-demo.png" alt="Email Studio visual builder with content modules, email canvas, responsive preview controls, and properties inspector" width="100%" />
 </p>
@@ -16,6 +18,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 
 - [Features](#features)
 - [Version Support](#version-support)
+- [Try in StackBlitz](#try-in-stackblitz)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Using an MJML Template](#using-an-mjml-template)
@@ -62,6 +65,12 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 | `21.x` | Angular `21.x` |
 
 The first public npm release is `21.0.0`; the current stable release is tracked on the [npm package page](https://www.npmjs.com/package/ngx-email-studio) and in the [GitHub changelog](https://github.com/edward124689/ngx-email-studio/blob/main/CHANGELOG.md).
+
+## Try in StackBlitz
+
+Open a ready-to-run Angular 21 demo that installs `ngx-email-studio` from npm and shows the builder with MJML seed content, merge tags, Text Transform, and a demo-only image upload hook:
+
+<https://stackblitz.com/github/edward124689/ngx-email-studio/tree/main/examples/stackblitz?file=src%2Fapp%2Fapp.ts>
 
 ## Installation
 
