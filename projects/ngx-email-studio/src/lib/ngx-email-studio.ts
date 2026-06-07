@@ -1916,7 +1916,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   async applyTransform(): Promise<void> {
     if (this.readonly || this.transformPreviewLoading) return;
     try {
-      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope, this.selectedNodeId);
+      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope);
       if (result.changedCount === 0) {
         this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
         return;
@@ -1936,7 +1936,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     this.transformPreviewLoading = true;
     this.transformErrorMessage = '';
     try {
-      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope, this.selectedNodeId);
+      const result = await transformEmailDocumentText(this.emailDocument, this.transformAction, this.transformScope);
       if (requestId !== this.transformPreviewRequestId) return;
       this.transformPreview = { before: result.before, after: result.after, changedCount: result.changedCount };
     } catch (details) {

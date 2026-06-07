@@ -208,6 +208,8 @@ Transform only changes user-visible text nodes. It preserves rich-text HTML tags
 
 Apply participates in the normal document history, so users can undo a transform with the global `Undo` control. In `readonly` mode the Transform action is disabled.
 
+Chinese conversion is powered by `opencc-js`, which is declared as a runtime dependency of `ngx-email-studio`. Consumers do not need to install it separately when using npm, pnpm, or yarn.
+
 ## Component API
 
 ### Inputs

@@ -15,12 +15,11 @@ export interface EmailStudioTransformResult {
 export async function transformEmailDocumentText(
   document: EmailDocument,
   action: EmailStudioTransformAction,
-  scope: EmailStudioTransformScope,
-  selectedNodeId?: string,
+  _scope: EmailStudioTransformScope = 'document',
 ): Promise<EmailStudioTransformResult> {
   const converter = await createTextConverter(action);
   const nextDocument = structuredClone(document);
-  const targets = collectTransformTargets(nextDocument.body, scope, selectedNodeId);
+  const targets = collectTransformTargets(nextDocument.body);
   const beforeParts: string[] = [];
   const afterParts: string[] = [];
   let changedCount = 0;
@@ -67,21 +66,19 @@ async function createTextConverter(action: EmailStudioTransformAction): Promise<
   return opencc.Converter({ from: 'tw', to: 'cn' });
 }
 
-function collectTransformTargets(nodes: EmailNode[], scope: EmailStudioTransformScope, selectedNodeId?: string): EmailNode[] {
+function collectTransformTargets(nodes: EmailNode[]): EmailNode[] {
   const targets: EmailNode[] = [];
 
   const visit = (node: EmailNode): void => {
-    if (scope === 'document' || node.id === selectedNodeId) {
-      if (isTransformableNode(node)) targets.push(node);
-    }
-    if (scope === 'document') (node.children || []).forEach(visit);
+    if (isTransformableNode(node)) targets.push(node);
+    (node.children || []).forEach(visit);
   };
 
   nodes.forEach(visit);
   return targets;
 }
 
-export function isTransformableNode(node: EmailNode | undefined): node is EmailNode {
+function isTransformableNode(node: EmailNode | undefined): node is EmailNode {
   return !!node && (node.type === 'text' || node.type === 'button');
 }
 

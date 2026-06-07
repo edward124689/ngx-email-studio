@@ -59,7 +59,7 @@ export interface EmailStudioDataSetItem {
 }
 
 export type EmailStudioTransformAction = 'simplified-to-traditional' | 'traditional-to-simplified' | 'normalize-spaces';
-export type EmailStudioTransformScope = 'selected-node' | 'document';
+export type EmailStudioTransformScope = 'document';
 
 export interface EmailStudioTransformPreview {
   before: string;
