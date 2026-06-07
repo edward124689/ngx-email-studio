@@ -39,7 +39,7 @@ import {
   TiptapTextAlignValue,
 } from './models';
 import { buildSandboxedPreviewShell, fallbackCopyToClipboard as fallbackCopyOutputToClipboard } from './output/output-utils';
-import { isTransformableNode, transformEmailDocumentText } from './transform/transform-utils';
+import { transformEmailDocumentText } from './transform/transform-utils';
 import { sanitizeRichTextContent as sanitizeRichTextHtml } from './tiptap/rich-text-sanitizer';
 import { createTiptapEditor as createManagedTiptapEditor, syncTiptapContent as syncManagedTiptapContent } from './tiptap/tiptap-controller';
 import { TIPTAP_BLOCK_OPTIONS, TIPTAP_FONT_SIZE_OPTIONS, TIPTAP_LINE_HEIGHT_OPTIONS } from './tiptap/tiptap-options';
@@ -701,11 +701,9 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         [preview]="transformPreview"
         [loading]="transformPreviewLoading"
         [readonly]="readonly"
-        [canUseSelectedScope]="canUseTransformSelectedScope"
         [errorMessage]="transformErrorMessage"
         (close)="closeTransformModal()"
         (actionChange)="setTransformAction($event)"
-        (scopeChange)="setTransformScope($event)"
         (apply)="applyTransform()"
       />
 
@@ -1041,7 +1039,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   dataSetCopyState = '';
   transformModalOpen = false;
   transformAction: EmailStudioTransformAction = 'simplified-to-traditional';
-  transformScope: EmailStudioTransformScope = 'selected-node';
+  transformScope: EmailStudioTransformScope = 'document';
   transformPreview: EmailStudioTransformPreview | null = null;
   transformPreviewLoading = false;
   transformErrorMessage = '';
@@ -1170,10 +1168,6 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
 
   get hasDataSetItems(): boolean {
     return this.normalizedDataSet.length > 0;
-  }
-
-  get canUseTransformSelectedScope(): boolean {
-    return isTransformableNode(this.selectedNode);
   }
 
   get selectedNode(): EmailNode | undefined {
@@ -1895,7 +1889,7 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
   openTransformModal(): void {
     if (this.readonly) return;
     this.closeTransientMenus();
-    this.transformScope = this.canUseTransformSelectedScope ? 'selected-node' : 'document';
+    this.transformScope = 'document';
     this.transformErrorMessage = '';
     this.transformModalOpen = true;
     void this.refreshTransformPreview();
@@ -1914,8 +1908,8 @@ export class NgxEmailStudio implements OnChanges, AfterViewInit, AfterViewChecke
     void this.refreshTransformPreview();
   }
 
-  setTransformScope(scope: EmailStudioTransformScope): void {
-    this.transformScope = scope === 'selected-node' && !this.canUseTransformSelectedScope ? 'document' : scope;
+  setTransformScope(_scope: EmailStudioTransformScope): void {
+    this.transformScope = 'document';
     void this.refreshTransformPreview();
   }
 

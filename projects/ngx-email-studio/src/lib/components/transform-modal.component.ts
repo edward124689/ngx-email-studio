@@ -32,15 +32,8 @@ import { EmailStudioTransformAction, EmailStudioTransformPreview, EmailStudioTra
           <div class="nes-transform-controls">
             <fieldset>
               <legend>Scope</legend>
-              <label class="nes-radio-card" [class.is-disabled]="!canUseSelectedScope">
-                <input type="radio" name="transformScope" value="selected-node" [disabled]="!canUseSelectedScope" [ngModel]="scope" (ngModelChange)="scopeChange.emit($event)" />
-                <span>
-                  <strong>Selected text/button block</strong>
-                  <small>{{ canUseSelectedScope ? 'Only transform the selected content block.' : 'Select a text or button block to use this scope.' }}</small>
-                </span>
-              </label>
               <label class="nes-radio-card">
-                <input type="radio" name="transformScope" value="document" [ngModel]="scope" (ngModelChange)="scopeChange.emit($event)" />
+                <input type="radio" name="transformScope" value="document" [ngModel]="scope" disabled />
                 <span>
                   <strong>Whole email</strong>
                   <small>Transform all text blocks and button labels.</small>
@@ -98,15 +91,13 @@ import { EmailStudioTransformAction, EmailStudioTransformPreview, EmailStudioTra
 })
 export class NgxEmailStudioTransformModal {
   @Input() action: EmailStudioTransformAction = 'simplified-to-traditional';
-  @Input() scope: EmailStudioTransformScope = 'selected-node';
+  @Input() scope: EmailStudioTransformScope = 'document';
   @Input() preview: EmailStudioTransformPreview | null = null;
   @Input() loading = false;
   @Input() readonly = false;
-  @Input() canUseSelectedScope = false;
   @Input() errorMessage = '';
 
   @Output() close = new EventEmitter<void>();
   @Output() actionChange = new EventEmitter<EmailStudioTransformAction>();
-  @Output() scopeChange = new EventEmitter<EmailStudioTransformScope>();
   @Output() apply = new EventEmitter<void>();
 }

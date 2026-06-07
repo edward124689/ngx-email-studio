@@ -306,7 +306,7 @@ describe('NgxEmailStudio', () => {
   });
 
 
-  it('should preview and apply selected text transforms while preserving merge tags and attributes', async () => {
+  it('should default transform to whole email while preserving merge tags and attributes', async () => {
     const document: EmailDocument = {
       version: '1',
       body: [
@@ -320,14 +320,18 @@ describe('NgxEmailStudio', () => {
     (component as any).resetDocumentHistory();
     fixture.detectChanges();
 
-    component.transformModalOpen = true;
-    component.transformScope = 'selected-node';
+    component.openTransformModal();
     await (component as any).refreshTransformPreview();
+    fixture.detectChanges();
 
     expect(component.transformModalOpen).toBe(true);
-    expect(component.transformScope).toBe('selected-node');
+    expect(component.transformScope).toBe('document');
+    expect(studioText(fixture)).toContain('Whole email');
+    expect(studioText(fixture)).not.toContain('Selected text/button block');
     expect(component.transformPreview?.before).toContain('简体发票');
+    expect(component.transformPreview?.before).toContain('查看发票');
     expect(component.transformPreview?.after).toContain('簡體發票');
+    expect(component.transformPreview?.after).toContain('查看發票');
     expect(component.transformPreview?.after).toContain('{%CLIENT_NAME%}');
 
     await component.applyTransform();
@@ -338,7 +342,7 @@ describe('NgxEmailStudio', () => {
     expect(textNode.attrs['content']).toContain('簡體發票');
     expect(textNode.attrs['content']).toContain('{%CLIENT_NAME%}');
     expect(textNode.attrs['content']).toContain('href="/汉"');
-    expect(buttonNode.attrs['label']).toBe('查看发票');
+    expect(buttonNode.attrs['label']).toBe('查看發票');
 
     component.undoDocument();
     expect(component.emailDocument.body[0].attrs['content']).toContain('简体发票');
