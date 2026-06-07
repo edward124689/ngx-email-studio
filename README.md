@@ -63,18 +63,20 @@ The first public npm release is `21.0.0`; the current stable release is tracked 
 
 ## Installation
 
-Install the package and peer dependencies:
+Install the package:
 
 ```bash
 npm install ngx-email-studio
-npm install @angular/cdk @tiptap/core @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-text-align @tiptap/extension-text-style @tiptap/extension-table @tiptap/extension-table-row @tiptap/extension-table-cell @tiptap/extension-table-header
 ```
 
-Angular peer dependencies:
+Install Angular and editor peer dependencies if they are not already present in your app:
 
 ```bash
-npm install @angular/core@^21 @angular/common@^21 @angular/forms@^21 @angular/cdk@^21
+npm install @angular/core@^21 @angular/common@^21 @angular/forms@^21 @angular/platform-browser@^21 @angular/cdk@^21
+npm install @tiptap/core@^3 @tiptap/starter-kit@^3 @tiptap/extension-link@^3 @tiptap/extension-text-align@^3 @tiptap/extension-text-style@^3 @tiptap/extension-table@^3 @tiptap/extension-table-row@^3 @tiptap/extension-table-cell@^3 @tiptap/extension-table-header@^3
 ```
+
+`opencc-js` is a runtime dependency of `ngx-email-studio` and is installed automatically with the package.
 
 ## Quick Start
 
@@ -204,7 +206,7 @@ Scope:
 
 - Whole email, covering rich-text blocks and button labels
 
-Transform only changes user-visible text nodes. It preserves rich-text HTML tags and attributes such as links, styles, and classes. Merge-tag placeholders like `{%CLIENT_NAME%}` are masked during conversion and restored unchanged.
+Transform only changes user-visible text nodes. It preserves rich-text HTML tags and attributes such as links, styles, and classes. Merge-tag placeholders like `{%CLIENT_NAME%}` are preserved unchanged during conversion.
 
 Apply participates in the normal document history, so users can undo a transform with the global `Undo` control. In `readonly` mode the Transform action is disabled.
 
@@ -277,7 +279,7 @@ config: EmailStudioConfig = {
 
 ## Supported Content Blocks
 
-The public `21.0.0` release focuses on a practical editable MJML subset:
+The `21.x` releases focus on a practical editable MJML subset:
 
 - Body settings
 - Section
