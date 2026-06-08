@@ -103,7 +103,7 @@ interface EmailHistorySnapshot {
   selectedNodeId?: string;
 }
 
-type TiptapPromptKind = 'link' | 'cell-style';
+type TiptapPromptKind = 'link' | 'image' | 'cell-style';
 
 interface TiptapPromptConfig {
   kind: TiptapPromptKind;
@@ -491,6 +491,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                       <div class="nes-tiptap-group">
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Add link" title="Add link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'link')"><i class="nes-icon fa fa-link" aria-hidden="true"></i></button>
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Insert image" title="Insert image" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('inline', 'image')"><i class="nes-icon fa fa-picture-o" aria-hidden="true"></i></button>
                         <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('inline')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                       </div>
                       <span class="nes-tiptap-row-break" aria-hidden="true"></span>
@@ -846,6 +847,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   <div class="nes-tiptap-group">
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Add link" title="Add link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'link')"><i class="nes-icon fa fa-link" aria-hidden="true"></i></button>
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Remove link" title="Remove link" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'unlink')"><i class="nes-icon fa fa-unlink" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Insert image" title="Insert image" (mousedown)="$event.preventDefault()" (click)="runTiptapCommand('modal', 'image')"><i class="nes-icon fa fa-picture-o" aria-hidden="true"></i></button>
                     <button type="button" class="nes-tiptap-icon-btn nes-tiptap-source-btn" aria-label="Edit HTML source" title="Edit HTML source" (mousedown)="$event.preventDefault()" (click)="openRichTextSource('modal')"><i class="nes-icon fa fa-code" aria-hidden="true"></i></button>
                   </div>
                   <span class="nes-tiptap-row-break" aria-hidden="true"></span>
@@ -954,6 +956,25 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             </label>
             <div class="nes-tiptap-prompt-hint" *ngIf="prompt.kind === 'link'">
               <i class="nes-icon fa fa-shield" aria-hidden="true"></i> Supports https, mailto, tel, anchors, and root-relative URLs. Leave blank to remove the link.
+            </div>
+            <div class="nes-tiptap-prompt-hint" *ngIf="prompt.kind === 'image'">
+              <i class="nes-icon fa fa-shield" aria-hidden="true"></i> Supports safe image URLs: http(s), cid attachments, or root-relative paths.
+            </div>
+            <div class="nes-tiptap-image-upload" *ngIf="prompt.kind === 'image' && hasImageUploadHelper">
+              <input
+                #tiptapImageUploadInput
+                class="nes-file-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                tabindex="-1"
+                [disabled]="readonly || isTiptapPromptUploading()"
+                (change)="uploadTiptapImageFromPromptEvent($event)"
+              />
+              <button type="button" class="nes-secondary-action nes-image-upload-btn" [disabled]="readonly || isTiptapPromptUploading()" (click)="tiptapImageUploadInput.click()">
+                <i class="nes-icon fa fa-upload" aria-hidden="true"></i>
+                {{ isTiptapPromptUploading() ? 'Uploading image…' : 'Upload image' }}
+              </button>
+              <p class="nes-muted">Choose a local image. The host upload helper returns the final image URL.</p>
             </div>
             <div class="nes-import-error" role="alert" *ngIf="tiptapPromptError"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ tiptapPromptError }}</div>
           </div>
@@ -2411,6 +2432,79 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (command === 'redo') chain.redo().run();
     if (command === 'unlink') chain.extendMarkRange('link').unsetLink().run();
     if (command === 'link') this.openTiptapLinkModal(scope);
+    if (command === 'image') this.openTiptapImageModal(scope);
+  }
+
+  openTiptapImageModal(scope: TiptapScope): void {
+    if (this.readonly) return;
+    if (!this.tiptapEditor(scope)) return;
+    this.tiptapPrompt = {
+      kind: 'image',
+      scope,
+      title: 'Insert image',
+      eyebrow: 'Rich text tool',
+      label: 'Image URL',
+      description: 'Insert an inline image into this rich text block from a safe URL or host upload helper.',
+      placeholder: 'https://example.com/image.png',
+      icon: 'fa-picture-o',
+      value: '',
+    };
+    this.tiptapPromptValue = '';
+    this.tiptapPromptError = '';
+  }
+
+  isTiptapPromptUploading(): boolean {
+    return !!this.tiptapPrompt && this.tiptapPrompt.kind === 'image' && !!this.imageUploadLoadingNodeId;
+  }
+
+  uploadTiptapImageFromPromptEvent(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (input) input.value = '';
+    if (file) void this.uploadTiptapImageFromPrompt(file);
+  }
+
+  async uploadTiptapImageFromPrompt(file: File): Promise<void> {
+    const prompt = this.tiptapPrompt;
+    const uploadImage = this.effectiveConfig.uploadImage;
+    if (!prompt || prompt.kind !== 'image' || this.readonly || !uploadImage || this.imageUploadLoadingNodeId) return;
+    const node = prompt.scope === 'modal' ? this.expandedRichTextNode : this.selectedNode;
+    if (!node || node.type !== 'text') return;
+    const runUploadImage = uploadImage;
+    const nodeId = node.id;
+    const requestId = ++this.imageUploadRequestId;
+    this.imageUploadLoadingNodeId = nodeId;
+    this.tiptapPromptError = '';
+    try {
+      if (!this.isSupportedImageUploadFile(file)) {
+        throw new Error('Please choose a PNG, JPEG, WebP, or GIF image file.');
+      }
+      const result = await runUploadImage(file, {
+        nodeId,
+        currentUrl: this.tiptapPromptValue.trim(),
+        currentAlt: '',
+      });
+      if (requestId !== this.imageUploadRequestId || this.readonly || this.effectiveConfig.uploadImage !== runUploadImage) return;
+      const uploadResult = this.normalizeImageUploadResult(result);
+      const url = normalizeImageSrcValue(uploadResult.url);
+      if (!url) throw new Error('The upload helper did not return a safe image URL.');
+      this.insertTiptapImage(prompt.scope, url, typeof uploadResult.alt === 'string' ? uploadResult.alt.trim() : '');
+      this.closeTiptapPrompt();
+    } catch (details) {
+      if (requestId !== this.imageUploadRequestId) return;
+      const message = details instanceof Error && details.message ? details.message : 'Unable to upload image. Please try again.';
+      this.tiptapPromptError = message;
+      this.error.emit({ code: 'image_upload_failed', message, details });
+    } finally {
+      if (requestId === this.imageUploadRequestId) this.imageUploadLoadingNodeId = '';
+    }
+  }
+
+  private insertTiptapImage(scope: TiptapScope, src: string, alt = ''): void {
+    const editor = this.tiptapEditor(scope);
+    if (!editor) return;
+    this.ensureTiptapToolbarSelection(editor);
+    editor.chain().focus().setImage({ src, alt }).run();
   }
 
   openTiptapLinkModal(scope: TiptapScope): void {
@@ -2482,6 +2576,16 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
         return;
       }
       chain.setLink({ href: safeHref }).run();
+      this.closeTiptapPrompt();
+      return;
+    }
+    if (prompt.kind === 'image') {
+      const safeSrc = normalizeImageSrcValue(value);
+      if (!safeSrc) {
+        this.tiptapPromptError = 'Enter a safe image URL: http(s), cid attachment, or /relative-path.';
+        return;
+      }
+      this.insertTiptapImage(prompt.scope, safeSrc);
       this.closeTiptapPrompt();
       return;
     }
@@ -3024,7 +3128,12 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       onUpdate: (editor) => {
         const currentNode = scope === 'modal' ? this.expandedRichTextNode : this.findNode(this.tiptapInlineNodeId);
         if (!currentNode || currentNode.type !== 'text') return;
-        this.updateAttr(currentNode, 'content', editor.getHTML());
+        const rawHtml = editor.getHTML();
+        const sanitizedHtml = this.sanitizeRichTextContent(rawHtml);
+        this.updateAttr(currentNode, 'content', sanitizedHtml);
+        if (sanitizedHtml !== rawHtml && /<img\b/i.test(rawHtml)) {
+          editor.commands.setContent(sanitizedHtml || '<p></p>', { emitUpdate: false });
+        }
         this.scheduleTiptapToolbarState(scope);
       },
     });

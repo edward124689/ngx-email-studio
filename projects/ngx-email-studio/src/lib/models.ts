@@ -19,6 +19,7 @@ export type TiptapCommand =
   | 'liftListItem'
   | 'link'
   | 'unlink'
+  | 'image'
   | 'undo'
   | 'redo'
   | 'insertTable'

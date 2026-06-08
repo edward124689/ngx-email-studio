@@ -1,6 +1,6 @@
-import { normalizeColorValue, normalizeFontWeightValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue } from '../export/export-utils';
+import { normalizeColorValue, normalizeFontWeightValue, normalizeHrefValue, normalizeHtmlClassValue, normalizeHtmlIdValue, normalizeImageSrcValue } from '../export/export-utils';
 
-const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'STRIKE', 'A', 'UL', 'OL', 'LI', 'BR', 'SPAN', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 
 export function sanitizeRichTextContent(value: unknown): string {
   const raw = String(value || '');
@@ -63,6 +63,26 @@ function sanitizeRichTextElement(element: HTMLElement): void {
       else element.removeAttribute('href');
       continue;
     }
+    if (element.tagName === 'IMG') {
+      if (name === 'src') {
+        const src = normalizeImageSrcValue(attr.value);
+        if (src) element.setAttribute('src', src);
+        else element.remove();
+        continue;
+      }
+      if (name === 'alt' || name === 'title') {
+        const text = safeImageText(attr.value);
+        if (text) element.setAttribute(name, text);
+        else element.removeAttribute(attr.name);
+        continue;
+      }
+      if (name === 'width') {
+        const width = safeImageWidth(attr.value);
+        if (width) element.setAttribute('width', width);
+        else element.removeAttribute(attr.name);
+        continue;
+      }
+    }
     if (element.tagName === 'A' && (name === 'target' || name === 'rel' || name === 'title')) continue;
     if ((element.tagName === 'TD' || element.tagName === 'TH') && (name === 'colspan' || name === 'rowspan')) {
       const safeNumber = Math.max(1, Math.min(12, Number.parseInt(attr.value, 10) || 1));
@@ -85,6 +105,9 @@ function sanitizeRichTextElement(element: HTMLElement): void {
   }
   if (element.tagName === 'A') {
     element.setAttribute('rel', 'noopener noreferrer');
+  }
+  if (element.tagName === 'IMG' && !normalizeImageSrcValue(element.getAttribute('src'))) {
+    element.remove();
   }
 }
 
@@ -128,6 +151,15 @@ function isRichTextBlockElement(tagName: string): boolean {
 
 function isRichTextInlineElement(tagName: string): boolean {
   return tagName === 'SPAN' || tagName === 'STRONG' || tagName === 'B' || tagName === 'EM' || tagName === 'I' || tagName === 'U' || tagName === 'S' || tagName === 'STRIKE' || tagName === 'A';
+}
+
+function safeImageText(value: string): string {
+  return value.replace(/[<>]/g, '').trim().slice(0, 160);
+}
+
+function safeImageWidth(value: string): string {
+  const raw = String(value || '').trim();
+  return /^([1-9][0-9]{0,3}|10000)$/.test(raw) ? raw : '';
 }
 
 

@@ -62,7 +62,14 @@ export function normalizeHrefValue(value: unknown): string {
 export function normalizeImageSrcValue(value: unknown): string {
   const raw = String(value ?? '').trim();
   if (!raw) return '';
-  if (/^https?:/i.test(raw)) return raw;
+  if (/^https?:/i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      return url.hostname ? raw : '';
+    } catch {
+      return '';
+    }
+  }
   if (/^\/(?!\/)/.test(raw)) return raw;
   if (/^cid:[A-Za-z0-9._%+\-@]+$/i.test(raw)) return raw;
   return '';

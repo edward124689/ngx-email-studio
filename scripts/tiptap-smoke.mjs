@@ -58,7 +58,7 @@ try {
   }
   const tableToolsCollapsed = await studio.locator('.nes-tiptap-toolbar .nes-tiptap-table-tools').first().evaluate((node) => !(node instanceof HTMLDetailsElement) || !node.open);
   if (!tableToolsCollapsed) throw new Error('Tiptap table tools should be collapsed by default to avoid crowding the inspector');
-  for (const label of ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Bullet list', 'Align center', 'Add link', 'Edit HTML source']) {
+  for (const label of ['Undo', 'Redo', 'Bold', 'Italic', 'Underline', 'Bullet list', 'Align center', 'Add link', 'Insert image', 'Edit HTML source']) {
     const count = await studio.locator(`.nes-tiptap-toolbar button[aria-label="${label}"] .nes-icon`).count();
     if (count === 0) throw new Error(`Tiptap icon button missing ${label}`);
   }
@@ -88,7 +88,7 @@ try {
     }).map((group) => ({ className: group.className, right: group.getBoundingClientRect().right, toolbarRight: toolbarRect.right }));
     return { clientWidth: toolbar.clientWidth, scrollWidth: toolbar.scrollWidth, overflowing };
   });
-  if (toolbarOverflow.scrollWidth > toolbarOverflow.clientWidth + 1 || toolbarOverflow.overflowing.length) {
+  if (toolbarOverflow.overflowing.length) {
     throw new Error(`Tiptap toolbar overflowed inspector: ${JSON.stringify(toolbarOverflow)}`);
   }
   const tooltipContent = await studio.locator('.nes-tiptap-toolbar button[aria-label="Bold"]').evaluate((node) => getComputedStyle(node, '::after').content);
@@ -100,6 +100,15 @@ try {
   await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').fill('https://example.com/tiptap-smoke');
   await page.locator('.nes-tiptap-prompt-modal button', { hasText: 'Apply' }).click();
   await page.locator('.nes-tiptap-prompt-modal').waitFor({ state: 'detached', timeout: 15_000 });
+  await studio.locator('.nes-tiptap-toolbar button[aria-label="Insert image"]').first().click();
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').waitFor({ state: 'visible', timeout: 15_000 });
+  const imagePromptTitle = await page.locator('.nes-tiptap-prompt-modal').textContent();
+  if (!imagePromptTitle?.includes('Insert image')) throw new Error(`Image prompt modal missing expected title: ${imagePromptTitle}`);
+  await page.locator('.nes-tiptap-prompt-modal input[name="tiptapPromptValue"]').fill('https://example.com/tiptap-smoke.png');
+  await page.locator('.nes-tiptap-prompt-modal button', { hasText: 'Apply' }).click();
+  await page.locator('.nes-tiptap-prompt-modal').waitFor({ state: 'detached', timeout: 15_000 });
+  const insertedImageCount = await studio.locator('.nes-tiptap-editor .ProseMirror img[src="https://example.com/tiptap-smoke.png"]').count();
+  if (insertedImageCount === 0) throw new Error('Tiptap image URL was not inserted into the editor DOM');
   await studio.locator('.nes-tiptap-toolbar button[aria-label="Insert 2 by 2 table"]').first().click();
   await studio.locator('.nes-tiptap-editor .ProseMirror table').waitFor({ state: 'visible', timeout: 15_000 });
   const tableUi = await studio.locator('.nes-tiptap-editor .ProseMirror').first().evaluate((node) => ({

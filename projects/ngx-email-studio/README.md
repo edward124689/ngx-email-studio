@@ -84,7 +84,7 @@ Install Angular and editor peer dependencies if they are not already present in 
 
 ```bash
 npm install @angular/core@^21 @angular/common@^21 @angular/forms@^21 @angular/platform-browser@^21 @angular/cdk@^21
-npm install @tiptap/core@^3 @tiptap/starter-kit@^3 @tiptap/extension-link@^3 @tiptap/extension-text-align@^3 @tiptap/extension-text-style@^3 @tiptap/extension-table@^3 @tiptap/extension-table-row@^3 @tiptap/extension-table-cell@^3 @tiptap/extension-table-header@^3
+npm install @tiptap/core@^3 @tiptap/starter-kit@^3 @tiptap/extension-link@^3 @tiptap/extension-image@^3 @tiptap/extension-text-align@^3 @tiptap/extension-text-style@^3 @tiptap/extension-table@^3 @tiptap/extension-table-row@^3 @tiptap/extension-table-cell@^3 @tiptap/extension-table-header@^3
 ```
 
 `opencc-js` is a runtime dependency of `ngx-email-studio` and is installed automatically with the package.

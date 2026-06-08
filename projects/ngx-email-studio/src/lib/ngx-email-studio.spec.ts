@@ -2344,6 +2344,49 @@ describe('NgxEmailStudio', () => {
     expect(readonlyToolbar.querySelector('button[aria-label="Redo"]')?.hasAttribute('disabled')).toBe(true);
   });
 
+  it('should insert safe Tiptap images through URL and upload helper modals', async () => {
+    const uploadFile = new File(['png'], 'hero.png', { type: 'image/png' });
+    const uploadSpy = vi.fn().mockResolvedValue({ url: 'https://cdn.example.com/hero.png', alt: 'Uploaded hero' });
+    fixture.componentRef.setInput('config', { uploadImage: uploadSpy });
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+    expect(studioRoot(fixture).querySelector('.nes-tiptap-toolbar button[aria-label="Insert image"]')).toBeTruthy();
+
+    (component as any).openTiptapImageModal('inline');
+    expect(component.tiptapPrompt?.title).toBe('Insert image');
+    component.tiptapPromptValue = 'javascript:alert(1)';
+    component.applyTiptapPrompt();
+    expect(component.tiptapPromptError).toContain('safe image URL');
+    expect(String(textNode.attrs['content'])).not.toContain('javascript');
+
+    component.tiptapPromptValue = 'https://images.example.com/banner.jpg';
+    component.applyTiptapPrompt();
+    expect(component.tiptapPrompt).toBeNull();
+    expect(String(textNode.attrs['content'])).toContain('<img');
+    expect(String(textNode.attrs['content'])).toContain('src="https://images.example.com/banner.jpg"');
+    expect(component.lastMjml).toContain('src="https://images.example.com/banner.jpg"');
+
+    (component as any).openTiptapImageModal('inline');
+    await (component as any).uploadTiptapImageFromPrompt(uploadFile);
+    expect(uploadSpy).toHaveBeenCalledWith(uploadFile, expect.objectContaining({ nodeId: textNode.id, currentUrl: '' }));
+    expect(String(textNode.attrs['content'])).toContain('src="https://cdn.example.com/hero.png"');
+    expect(String(textNode.attrs['content'])).toContain('alt="Uploaded hero"');
+  });
+
+  it('should sanitize rich text images at source/import and keep unsafe image URLs out', () => {
+    const sanitized = (component as any).sanitizeRichTextContent('<p>Hero</p><img src="https://images.example.com/safe.png" alt="Safe hero" width="320"><img src="javascript:alert(1)" alt="Unsafe"><img alt="No src"><img src="https://" alt="No host">');
+
+    expect(sanitized).toContain('<img');
+    expect(sanitized).toContain('src="https://images.example.com/safe.png"');
+    expect(sanitized).toContain('alt="Safe hero"');
+    expect(sanitized).not.toContain('javascript');
+    expect(sanitized).not.toContain('Unsafe');
+    expect(sanitized).not.toContain('No src');
+    expect(sanitized).not.toContain('No host');
+  });
+
   it('should use polished Tiptap tool modals instead of browser prompts for link and table cell values', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;

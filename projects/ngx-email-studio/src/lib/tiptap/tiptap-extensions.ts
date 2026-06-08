@@ -1,4 +1,5 @@
 import { Extension, Node } from '@tiptap/core';
+import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import { Table } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -316,6 +317,7 @@ export const TIPTAP_EXTENSIONS = [
   BlockTypography,
   HtmlIdentityAttributes,
   Link.configure({ openOnClick: false, autolink: true, defaultProtocol: 'https' }),
+  Image.configure({ inline: false, allowBase64: false }),
   Table.configure({ resizable: true, cellMinWidth: 48 }),
   TableRow,
   StyledTableHeader,
