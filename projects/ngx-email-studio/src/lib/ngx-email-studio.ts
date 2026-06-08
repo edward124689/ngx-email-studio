@@ -603,7 +603,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               <div *ngIf="node.type === 'social'" class="nes-field-block nes-social-editor">
                 <div class="nes-control-heading">Social links</div>
                 <div class="nes-social-item-editor" *ngFor="let item of socialEditorItems(node); let i = index; trackBy: trackSocialItem">
-                  <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">{{ socialIconLabel(item.name) }}</span>
+                  <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">
+                    <img *ngIf="socialLogoSrc(item) as logoSrc" [src]="logoSrc" [alt]="item.name || 'Social logo'" />
+                    <ng-container *ngIf="!socialLogoSrc(item)">{{ socialIconLabel(item.name) }}</ng-container>
+                  </span>
                   <label>
                     Icon
                     <input [ngModel]="item.name" (ngModelChange)="updateSocialItemAttr(node, i, 'name', $event)" placeholder="facebook" />
@@ -612,6 +615,26 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     Href
                     <input [ngModel]="item.href" (ngModelChange)="updateSocialItemAttr(node, i, 'href', $event)" placeholder="https://" />
                   </label>
+                  <label>
+                    Logo URL
+                    <input [ngModel]="item.logoUrl || ''" (ngModelChange)="updateSocialItemAttr(node, i, 'logoUrl', $event)" placeholder="https://cdn.example.com/icon.png" />
+                  </label>
+                  <div class="nes-social-logo-upload" *ngIf="hasImageUploadHelper">
+                    <input
+                      #socialLogoUploadInput
+                      class="nes-file-input nes-social-logo-upload-input"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      tabindex="-1"
+                      [disabled]="readonly || isAnyImageUploading()"
+                      (change)="uploadSocialLogoForItem(node, i, $event)"
+                    />
+                    <button type="button" class="nes-secondary-action nes-image-upload-btn" [disabled]="readonly || isAnyImageUploading()" (click)="socialLogoUploadInput.click()">
+                      <i class="nes-icon fa fa-upload" aria-hidden="true"></i>
+                      {{ isSocialLogoUploading(node, i) ? 'Uploading logo…' : 'Upload logo' }}
+                    </button>
+                    <div class="nes-image-upload-error" role="alert" *ngIf="socialLogoUploadErrorFor(node, i)">{{ socialLogoUploadErrorFor(node, i) }}</div>
+                  </div>
                   <label>
                     Icon bg
                     <span class="nes-color-control">
@@ -1144,7 +1167,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           <a class="nes-render-button" [style.background]="backgroundFor(node)" [style.color]="buttonTextColorCss(node)" [style.border-radius]="buttonBorderRadiusCss(node)">{{ node.attrs['label'] }}</a>
         </div>
         <div *ngSwitchCase="'social'" class="nes-render-social-wrap" [class.is-vertical]="socialModeValue(node) === 'vertical'" [class.is-align-center]="contentAlign(node) === 'center'" [class.is-align-right]="contentAlign(node) === 'right'" [style.text-align]="contentAlign(node)" [style.background]="backgroundFor(node)" [style.padding]="contentPaddingCss(node, 0)">
-          <button type="button" class="nes-render-social-icon" *ngFor="let item of socialItems(node); trackBy: trackSocialItem" [attr.data-href]="item.href" [attr.aria-label]="socialPreviewLabel(item.name)" [style.background]="item.backgroundColor" [style.width]="socialIconSizeCss(node)" [style.height]="socialIconSizeCss(node)" [style.line-height]="socialIconSizeCss(node)" [style.font-size]="socialFontSizeCss(node)" (click)="handleSocialIconPreviewClick($event, node.id)">{{ socialIconLabel(item.name) }}</button>
+          <button type="button" class="nes-render-social-icon" *ngFor="let item of socialItems(node); trackBy: trackSocialItem" [attr.data-href]="item.href" [attr.aria-label]="socialPreviewLabel(item.name)" [class.has-logo]="!!socialLogoSrc(item)" [style.background]="item.backgroundColor" [style.width]="socialIconSizeCss(node)" [style.height]="socialIconSizeCss(node)" [style.line-height]="socialIconSizeCss(node)" [style.font-size]="socialFontSizeCss(node)" (click)="handleSocialIconPreviewClick($event, node.id)">
+            <img *ngIf="socialLogoSrc(item) as logoSrc" [src]="logoSrc" [alt]="item.name || 'Social logo'" />
+            <ng-container *ngIf="!socialLogoSrc(item)">{{ socialIconLabel(item.name) }}</ng-container>
+          </button>
         </div>
         <hr *ngSwitchCase="'divider'" class="nes-render-divider" />
         <div *ngSwitchCase="'spacer'" [style.height.px]="node.attrs['height'] || 24"></div>
@@ -2142,6 +2168,86 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   socialIconLabel(name: string): string {
     return getSocialIconLabel(name);
+  }
+
+  socialLogoSrc(item: SocialItem): string {
+    return normalizeImageSrcValue(item.logoUrl);
+  }
+
+  socialUploadNodeId(node: EmailNode, index: number): string {
+    return `${node.id}:${index}`;
+  }
+
+  isSocialLogoUploading(node: EmailNode, index: number): boolean {
+    return this.imageUploadLoadingNodeId === this.socialUploadNodeId(node, index);
+  }
+
+  socialLogoUploadErrorFor(node: EmailNode, index: number): string {
+    return this.imageUploadErrorNodeId === this.socialUploadNodeId(node, index) ? this.imageUploadErrorMessage : '';
+  }
+
+  async uploadSocialLogoForItem(node: EmailNode, index: number, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (input) input.value = '';
+    const uploadImage = this.effectiveConfig.uploadImage;
+    if (!file || node.type !== 'social' || this.readonly || !uploadImage) return;
+    if (this.imageUploadLoadingNodeId) return;
+    const items = this.socialEditorItems(node);
+    const item = items[index];
+    if (!item) return;
+
+    const uploadNodeId = this.socialUploadNodeId(node, index);
+    const requestId = ++this.imageUploadRequestId;
+    const runUploadImage = uploadImage;
+    this.imageUploadLoadingNodeId = uploadNodeId;
+    this.imageUploadErrorNodeId = '';
+    this.imageUploadErrorMessage = '';
+
+    try {
+      if (!this.isSupportedImageUploadFile(file)) {
+        throw new Error('Please choose a PNG, JPEG, WebP, or GIF image file.');
+      }
+      this.imageUploadPreviewNodeId = uploadNodeId;
+      this.imageUploadPreviewName = file.name || 'Selected logo';
+      this.setImageUploadPreviewUrl(file);
+      const result = await runUploadImage(file, {
+        nodeId: uploadNodeId,
+        currentUrl: String(item.logoUrl || ''),
+        currentAlt: String(item.name || ''),
+      });
+      if (requestId !== this.imageUploadRequestId || this.readonly || this.effectiveConfig.uploadImage !== runUploadImage) {
+        this.clearImageUploadPreview();
+        return;
+      }
+      const liveNode = this.findNode(node.id);
+      if (!liveNode || liveNode.type !== 'social') {
+        this.clearImageUploadPreview();
+        return;
+      }
+      const uploadResult = this.normalizeImageUploadResult(result);
+      const url = normalizeImageSrcValue(uploadResult.url);
+      if (!url) throw new Error('The upload helper did not return a safe image URL.');
+      const liveItems = this.socialEditorItems(liveNode).map((socialItem) => ({ ...socialItem }));
+      if (!liveItems[index]) {
+        this.clearImageUploadPreview();
+        return;
+      }
+      liveItems[index].logoUrl = url;
+      if (typeof uploadResult.alt === 'string' && uploadResult.alt.trim()) liveItems[index].name = uploadResult.alt.trim();
+      liveNode.attrs = { ...liveNode.attrs, items: serializeSocialDraftItems(liveItems) };
+      this.clearImageUploadPreview();
+      this.emitDocument();
+    } catch (details) {
+      if (requestId !== this.imageUploadRequestId) return;
+      this.clearImageUploadPreview();
+      const message = details instanceof Error && details.message ? details.message : 'Unable to upload image. Please try again.';
+      this.imageUploadErrorNodeId = uploadNodeId;
+      this.imageUploadErrorMessage = message;
+      this.error.emit({ code: 'image_upload_failed', message, details });
+    } finally {
+      if (requestId === this.imageUploadRequestId) this.imageUploadLoadingNodeId = '';
+    }
   }
 
   socialPreviewLabel(name: string): string {

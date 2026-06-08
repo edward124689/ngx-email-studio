@@ -1103,6 +1103,44 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body[0].attrs['src']).toBe('https://example.com/old.jpg');
   });
 
+  it('should upload custom logos for social links and export them as social images', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:social-logo-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const socialNode: EmailNode = {
+      id: 'social_upload',
+      type: 'social',
+      attrs: {
+        items: JSON.stringify([{ name: 'facebook', href: 'https://example.com/fb', backgroundColor: '#A1A0A0' }]),
+      },
+    };
+    const handler = vi.fn(async (file: File, context: { nodeId: string; currentUrl?: string; currentAlt?: string }) => {
+      expect(file.name).toBe('facebook.png');
+      expect(context).toEqual({ nodeId: 'social_upload:0', currentUrl: '', currentAlt: 'facebook' });
+      return { url: 'https://cdn.example.com/facebook.png', alt: 'Facebook logo' };
+    });
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [socialNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = socialNode.id;
+    fixture.detectChanges();
+    const activeSocial = component.emailDocument.body[0];
+
+    expect(studioText(fixture)).toContain('Upload logo');
+    const input = query<HTMLInputElement>(fixture, '.nes-social-logo-upload-input');
+    expect(input?.getAttribute('accept')).toBe('image/png,image/jpeg,image/webp,image/gif');
+    expect(input?.getAttribute('tabindex')).toBe('-1');
+
+    const file = new File(['image-bytes'], 'facebook.png', { type: 'image/png' });
+    await component.uploadSocialLogoForItem(activeSocial, 0, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'facebook.png' } } as unknown as Event);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const item = JSON.parse(String(activeSocial.attrs['items']))[0];
+    expect(item.logoUrl).toBe('https://cdn.example.com/facebook.png');
+    expect(item.name).toBe('Facebook logo');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:social-logo-preview');
+    expect((component as any).compileMjml({ version: '0.0.1', body: [activeSocial] })).toContain('src="https://cdn.example.com/facebook.png"');
+    expect((component as any).renderHtml({ version: '0.0.1', body: [activeSocial] })).toContain('<img src="https://cdn.example.com/facebook.png"');
+  });
+
   it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:unsafe-preview') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });

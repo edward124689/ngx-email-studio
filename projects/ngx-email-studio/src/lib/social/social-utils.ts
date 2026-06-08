@@ -1,9 +1,10 @@
-import { normalizeColorValue, normalizeCssSizeValue, normalizeHrefValue, safeAlign } from '../export/export-utils';
+import { normalizeColorValue, normalizeCssSizeValue, normalizeHrefValue, normalizeImageSrcValue, safeAlign } from '../export/export-utils';
 
 export interface SocialItem {
   name: string;
   href: string;
   backgroundColor: string;
+  logoUrl?: string;
 }
 
 export const DEFAULT_SOCIAL_ITEMS: SocialItem[] = [
@@ -21,6 +22,7 @@ export function serializeSocialDraftItems(items: SocialItem[]): string {
     name: String(item.name ?? ''),
     href: String(item.href ?? ''),
     backgroundColor: String(item.backgroundColor ?? ''),
+    ...(String(item.logoUrl ?? '').trim() ? { logoUrl: String(item.logoUrl ?? '').trim() } : {}),
   })));
 }
 
@@ -49,11 +51,15 @@ function draftSocialItems(value: unknown): SocialItem[] {
   if (!Array.isArray(value)) return [...DEFAULT_SOCIAL_ITEMS];
   const items = value
     .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-    .map((item) => ({
-      name: String(item['name'] ?? ''),
-      href: String(item['href'] ?? ''),
-      backgroundColor: String(item['backgroundColor'] ?? ''),
-    }));
+    .map((item) => {
+      const logoUrl = String(item['logoUrl'] ?? item['src'] ?? '');
+      return {
+        name: String(item['name'] ?? ''),
+        href: String(item['href'] ?? ''),
+        backgroundColor: String(item['backgroundColor'] ?? ''),
+        ...(logoUrl.trim() ? { logoUrl } : {}),
+      };
+    });
   return items.length ? items : [...DEFAULT_SOCIAL_ITEMS];
 }
 
@@ -71,7 +77,8 @@ export function normalizeSocialItem(value: unknown): SocialItem | null {
   const name = normalizeSocialName(raw['name']);
   const href = normalizeHrefValue(raw['href']) || '#';
   const backgroundColor = normalizeColorValue(raw['backgroundColor']) || '#A1A0A0';
-  return { name, href, backgroundColor };
+  const logoUrl = normalizeImageSrcValue(raw['logoUrl'] ?? raw['src']);
+  return { name, href, backgroundColor, ...(logoUrl ? { logoUrl } : {}) };
 }
 
 export function normalizeSocialName(value: unknown): string {

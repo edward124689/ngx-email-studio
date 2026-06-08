@@ -205,7 +205,7 @@ export interface EmailStudioDataSetItem {
 
 ## Image Upload Helper
 
-Image blocks can show an `Upload image` helper beside the regular `Image URL` field when the host app provides `config.uploadImage`. Tiptap rich-text image insertion reuses the same helper from the `Insert image` modal, so users can either paste a safe image URL or upload a local file and insert the returned URL into rich text. The library handles the file picker, local preview for image blocks, loading/error state, history, and writing the returned URL back to the target image block or rich-text image. The host app owns the real upload API, auth, storage provider, and server-side validation.
+Image blocks can show an `Upload image` helper beside the regular `Image URL` field when the host app provides `config.uploadImage`. Tiptap rich-text image insertion reuses the same helper from the `Insert image` modal, so users can either paste a safe image URL or upload a local file and insert the returned URL into rich text. Social links can also use the same helper from each social item's `Upload logo` action to upload a custom icon/logo image for `<mj-social-element src="...">`. The library handles the file picker, local preview for image blocks, loading/error state, history, and writing the returned URL back to the target image block, rich-text image, or social logo. The host app owns the real upload API, auth, storage provider, and server-side validation.
 
 ```ts
 import { EmailStudioConfig } from 'ngx-email-studio';

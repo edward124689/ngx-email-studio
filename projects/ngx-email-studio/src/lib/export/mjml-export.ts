@@ -66,7 +66,11 @@ function socialToMjml(node: EmailNode): string {
   const mode = socialMode(node.attrs['mode']);
   const iconSize = socialCssSize(node.attrs['iconSize'], '30px');
   const fontSize = socialCssSize(node.attrs['fontSize'], '15px');
-  const children = items.map((item) => `<mj-social-element name="${escapeAttr(item.name)}" href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" background-color="${escapeAttr(colorAttrValue(item.backgroundColor) || '#A1A0A0')}"></mj-social-element>`).join('');
+  const children = items.map((item) => {
+    const logoUrl = normalizeImageSrcValue(item.logoUrl);
+    const src = logoUrl ? ` src="${escapeAttr(logoUrl)}"` : '';
+    return `<mj-social-element name="${escapeAttr(item.name)}" href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" background-color="${escapeAttr(colorAttrValue(item.backgroundColor) || '#A1A0A0')}"${src}></mj-social-element>`;
+  }).join('');
   const containerBackground = colorAttrValue(node.attrs['backgroundColor']);
   const background = containerBackground ? ` container-background-color="${escapeAttr(containerBackground)}"` : '';
   return `<mj-social font-size="${escapeAttr(fontSize)}" icon-size="${escapeAttr(iconSize)}" mode="${escapeAttr(mode)}"${alignAttr(node)}${paddingAttr(node)}${background}>${children}</mj-social>`;

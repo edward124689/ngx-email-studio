@@ -297,7 +297,8 @@ function parseSocialBlock(element: Element, unsupported: string[], idFactory: Em
       const name = child.getAttribute('name') || child.textContent?.trim() || 'social';
       const href = normalizeHrefValue(child.getAttribute('href')) || '#';
       const backgroundColor = importedColor(child.getAttribute('background-color')) || importedColor(element.getAttribute('background-color')) || '#A1A0A0';
-      return { name, href, backgroundColor };
+      const logoUrl = normalizeImageSrcValue(child.getAttribute('src'));
+      return { name, href, backgroundColor, ...(logoUrl ? { logoUrl } : {}) };
     });
   if (!items.length) return undefined;
   const containerBackground = importedColor(element.getAttribute('container-background-color'));
