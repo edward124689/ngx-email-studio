@@ -660,6 +660,23 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('border-radius:0px;border:2px solid #abcdef;overflow:hidden;');
   });
 
+  it('should let body settings control the email font size with a 13px default', () => {
+    fixture.detectChanges();
+    (component as any).refreshOutputs(false);
+
+    expect(component.emailFontSizeCss).toBe('13px');
+    const canvas = fixture.nativeElement.querySelector('.nes-canvas') as HTMLElement;
+    expect(canvas.style.fontSize).toBe('13px');
+    expect(component.lastHtml).toContain('font-family:Arial,sans-serif;font-size:13px;');
+
+    component.updateDocumentAttr('contentFontSize', 16);
+    (component as any).refreshOutputs(false);
+
+    expect(component.emailFontSizeCss).toBe('16px');
+    expect(component.emailDocument.attrs?.['contentFontSize']).toBe(16);
+    expect(component.lastHtml).toContain('font-family:Arial,sans-serif;font-size:16px;');
+  });
+
   it('should default body background to lowercase white while blocks stay transparent until set', () => {
     const document: EmailDocument = {
       version: '0.0.1',

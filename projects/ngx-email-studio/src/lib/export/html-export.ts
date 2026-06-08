@@ -36,6 +36,7 @@ export function renderHtml(document: EmailDocument): string {
   const emailMaxWidth = dimensionCss(attrs, 'maxWidth', 600, 'px');
   const emailWidthAttr = dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
   const emailChromeStyle = emailWrapperChromeStyle(attrs);
+  const emailFontSize = emailFontSizeCss(attrs);
   const outlookWidth = escapeAttr(outlookHtmlWidth(attrs));
   const rows = document.body.map((node) => nodeToHtml(node, 6)).join('\n');
   return [
@@ -84,7 +85,7 @@ export function renderHtml(document: EmailDocument): string {
     '      <tr>',
     '        <td align="center">',
     `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:Arial,sans-serif;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:Arial,sans-serif;font-size:${emailFontSize};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     rows,
     '          </table>',
     '          <!--[if mso | IE]></td></tr></table><![endif]-->',
@@ -242,6 +243,11 @@ function emailWrapperChromeStyle(attrs: Record<string, string | number | boolean
   const color = colorAttrValue(attrs['contentBorderColor']) || '#d9e2ec';
   const border = width > 0 ? `border:${width}px solid ${escapeAttr(color)};` : '';
   return `border-radius:${radius}px;${border}overflow:hidden;`;
+}
+
+function emailFontSizeCss(attrs: Record<string, string | number | boolean>): string {
+  const normalized = normalizeCssSizeValue(attrs['contentFontSize']);
+  return normalized || `${nonNegativeNumber(attrs['contentFontSize'], 13)}px`;
 }
 
 function nonNegativeNumber(value: unknown, fallback: number): number {

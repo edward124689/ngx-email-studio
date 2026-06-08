@@ -13,6 +13,7 @@ export function defaultDocumentAttrs(): Record<string, string | number | boolean
     contentBorderRadius: 16,
     contentBorderWidth: 0,
     contentBorderColor: '#d9e2ec',
+    contentFontSize: 13,
   };
 }
 

@@ -296,6 +296,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   [style.background]="emailBackgroundColor"
                   [style.border-radius]="emailBorderRadiusCss"
                   [style.border]="emailBorderStyle"
+                  [style.font-size]="emailFontSizeCss"
                 >
                   <article
                     role="button"
@@ -381,6 +382,15 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </span>
                 </label>
               </div>
+              <div class="nes-control-row">
+                <label>
+                  Email font size
+                  <span class="nes-unit-field">
+                    <input type="number" min="1" [ngModel]="dimensionValue(documentAttrs, 'contentFontSize', 13)" (ngModelChange)="updateDocumentAttr('contentFontSize', +$event)" />
+                    <span class="nes-static-unit">px</span>
+                  </span>
+                </label>
+              </div>
               <label>
                 Email border color
                 <span class="nes-color-control">
@@ -408,7 +418,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </span>
                 </label>
               </div>
-              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code>, HTML wrapper width, border, and rounded corners separately.</p>
+              <p class="nes-muted">Controls the exported <code>&lt;mj-body&gt;</code>, HTML wrapper width, font size, border, and rounded corners separately.</p>
             </div>
           </ng-container>
           <ng-template #blockSelection>
@@ -1401,6 +1411,10 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (width <= 0) return 'none';
     const color = normalizeColorValue(this.documentAttrs['contentBorderColor']) || '#d9e2ec';
     return `${width}px solid ${color}`;
+  }
+
+  get emailFontSizeCss(): string {
+    return `${this.nonNegativeNumber(this.documentAttrs['contentFontSize'], 13)}px`;
   }
 
   get effectiveConfig(): EmailStudioConfig {
