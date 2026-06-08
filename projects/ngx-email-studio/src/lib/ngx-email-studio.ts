@@ -603,7 +603,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               <div *ngIf="node.type === 'social'" class="nes-field-block nes-social-editor">
                 <div class="nes-control-heading">Social links</div>
                 <div class="nes-social-item-editor" *ngFor="let item of socialEditorItems(node); let i = index; trackBy: trackSocialItem">
-                  <span class="nes-social-editor-preview" [style.background]="item.backgroundColor">
+                  <span class="nes-social-editor-preview" [class.has-logo]="!!socialLogoSrc(item)" [style.background]="item.backgroundColor">
                     <img *ngIf="socialLogoSrc(item) as logoSrc" [src]="logoSrc" [alt]="item.name || 'Social logo'" />
                     <ng-container *ngIf="!socialLogoSrc(item)">{{ socialIconLabel(item.name) }}</ng-container>
                   </span>

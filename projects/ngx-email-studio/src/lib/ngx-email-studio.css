@@ -190,12 +190,14 @@ ngx-email-studio button:disabled { opacity: .42; cursor: not-allowed; filter: gr
 .nes-render-social-wrap.is-vertical.is-align-center { align-items: center; }
 .nes-render-social-wrap.is-vertical.is-align-right { align-items: flex-end; }
 .nes-render-social-icon { display: inline-grid; place-items: center; margin: 0 4px; padding: 0; border: 0; border-radius: 999px; color: #fff; text-align: center; text-decoration: none; font-family: Arial, sans-serif; font-weight: 800; vertical-align: middle; cursor: pointer; overflow: hidden; }
-.nes-render-social-icon img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 999px; }
+.nes-render-social-icon.has-logo { border-radius: 0; overflow: visible; background: transparent !important; }
+.nes-render-social-icon img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .nes-social-editor { display: grid; gap: 10px; }
 .nes-social-item-editor { display: grid; grid-template-columns: auto minmax(70px, .7fr) minmax(120px, 1fr); gap: 8px; align-items: end; padding: 10px; border: 1px solid #dbe3ef; border-radius: 12px; background: #f8fafc; }
 .nes-social-item-editor label:nth-of-type(3), .nes-social-item-editor label:nth-of-type(4), .nes-social-item-editor .nes-social-logo-upload, .nes-social-item-editor .nes-small-danger { grid-column: 2 / -1; }
 .nes-social-editor-preview { display: inline-grid; grid-row: span 3; place-items: center; width: 32px; height: 32px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 900; overflow: hidden; }
-.nes-social-editor-preview img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 999px; }
+.nes-social-editor-preview.has-logo { border-radius: 0; overflow: visible; background: transparent !important; }
+.nes-social-editor-preview img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .nes-social-logo-upload { display: grid; gap: 6px; }
 .nes-small-danger { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
 .nes-render-divider { border: 0; border-top: 1px solid #d0d5dd; margin: 16px 24px; }

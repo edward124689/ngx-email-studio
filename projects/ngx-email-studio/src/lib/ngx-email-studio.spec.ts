@@ -1138,7 +1138,10 @@ describe('NgxEmailStudio', () => {
     expect(item.name).toBe('Facebook logo');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:social-logo-preview');
     expect((component as any).compileMjml({ version: '0.0.1', body: [activeSocial] })).toContain('src="https://cdn.example.com/facebook.png"');
-    expect((component as any).renderHtml({ version: '0.0.1', body: [activeSocial] })).toContain('<img src="https://cdn.example.com/facebook.png"');
+    const html = (component as any).renderHtml({ version: '0.0.1', body: [activeSocial] });
+    const imgTag = html.match(/<img[^>]+src="https:\/\/cdn\.example\.com\/facebook\.png"[^>]*>/)?.[0] || '';
+    expect(imgTag).toContain('<img src="https://cdn.example.com/facebook.png"');
+    expect(imgTag).not.toContain('border-radius');
   });
 
   it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {

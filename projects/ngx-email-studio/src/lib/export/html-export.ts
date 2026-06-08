@@ -204,7 +204,7 @@ function socialToHtml(node: EmailNode, depth = 0): string {
     const background = colorAttrValue(item.backgroundColor) || '#A1A0A0';
     const logoUrl = normalizeImageSrcValue(item.logoUrl);
     const content = logoUrl
-      ? `<img src="${escapeAttr(logoUrl)}" alt="${escapeAttr(item.name)}" width="${escapeAttr(iconSize)}" height="${escapeAttr(iconSize)}" style="display:block;border:0;width:${escapeAttr(iconSize)};height:${escapeAttr(iconSize)};border-radius:999px;" />`
+      ? `<img src="${escapeAttr(logoUrl)}" alt="${escapeAttr(item.name)}" width="${escapeAttr(iconSize)}" height="${escapeAttr(iconSize)}" style="display:block;border:0;width:${escapeAttr(iconSize)};height:${escapeAttr(iconSize)};" />`
       : escapeHtml(socialIconLabel(item.name));
     return `<a href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" aria-label="${escapeAttr(item.name)}" style="display:inline-block;width:${escapeAttr(iconSize)};height:${escapeAttr(iconSize)};line-height:${escapeAttr(iconSize)};border-radius:999px;background:${escapeAttr(background)};color:#ffffff;text-align:center;text-decoration:none;font-family:Arial,sans-serif;font-size:${escapeAttr(fontSize)};font-weight:bold;">${content}</a>`;
   }).join(gap);
