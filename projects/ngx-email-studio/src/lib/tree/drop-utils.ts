@@ -2,7 +2,7 @@ import { EmailNode, PaletteItem } from '../models';
 import { nodeContainsId } from './node-utils';
 
 export function isPaletteItem(value: unknown): value is PaletteItem {
-  return !!value && typeof value === 'object' && 'type' in value && 'label' in value && 'description' in value;
+  return !!value && typeof value === 'object' && 'label' in value && 'description' in value && ('type' in value || 'templateMjml' in value);
 }
 
 export function isEmailNode(value: unknown): value is EmailNode {

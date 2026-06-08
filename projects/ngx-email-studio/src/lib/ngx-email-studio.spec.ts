@@ -2535,6 +2535,68 @@ describe('NgxEmailStudio', () => {
     expect(component.emailDocument.body.length).toBe(before);
   });
 
+  it('should render host-provided config templates and import their MJML as editable modules', () => {
+    fixture.componentRef.setInput('config', {
+      templates: [
+        {
+          icon: 'fa-star',
+          name: 'Promo template',
+          desc: 'Reusable promo MJML from host config',
+          mjml: '<mj-section background-color="#ecfdf3"><mj-column><mj-text font-size="20px">Promo headline</mj-text><mj-button href="https://example.com" background-color="#16a34a">Shop now</mj-button></mj-column></mj-section>',
+        },
+        {
+          icon: 'https://placehold.co/48x48/2563eb/ffffff.png?text=T',
+          name: 'Image icon template',
+          desc: 'Uses image URL icon',
+          mjml: '<mj-section><mj-column><mj-text>Image icon body</mj-text></mj-column></mj-section>',
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    expect(component.paletteItems.length).toBe(component.palette.length + 2);
+    expect(studioText(fixture)).toContain('Promo template');
+    expect(studioText(fixture)).toContain('Image icon template');
+    expect(query(fixture, '.nes-fa-template-icon.fa-star')).toBeTruthy();
+    expect(query(fixture, '.nes-block-icon img')).toBeTruthy();
+
+    const before = component.emailDocument.body.length;
+    const template = component.paletteItems.find((item) => item.label === 'Promo template')!;
+    component.addBlock(template);
+
+    expect(component.emailDocument.body.length).toBe(before + 1);
+    const added = component.emailDocument.body.at(-1)!;
+    expect(added.type).toBe('section');
+    expect(added.children?.[0].type).toBe('text');
+    expect(String(added.children?.[0].attrs['content'])).toContain('Promo headline');
+    expect(component.lastMjml).toContain('Promo headline');
+  });
+
+  it('should sanitize template icon choices and wrap MJML snippets before parsing', () => {
+    fixture.componentRef.setInput('config', {
+      templates: [
+        {
+          icon: 'javascript:alert(1)',
+          name: 'Snippet template',
+          desc: 'Wrapped snippet',
+          mjml: '<mj-section><mj-column><mj-text>Wrapped snippet body</mj-text></mj-column></mj-section>',
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    const template = component.paletteItems.find((item) => item.label === 'Snippet template')!;
+
+    expect(template.icon).toBe('fa-th-large');
+    expect(template.templateIconUrl).toBe('');
+
+    component.addBlock(template);
+
+    expect(component.emailDocument.body.at(-1)?.type).toBe('section');
+    expect(component.lastMjml).toContain('Wrapped snippet body');
+    expect(component.lastMjml).not.toContain('javascript:alert');
+  });
+
   it('should remove visible drop zones and use red insertion-line styling', () => {
     fixture.detectChanges();
 

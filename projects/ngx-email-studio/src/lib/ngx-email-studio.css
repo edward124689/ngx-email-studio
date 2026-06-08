@@ -105,6 +105,8 @@ ngx-email-studio button:disabled { opacity: .42; cursor: not-allowed; filter: gr
 .nes-block-list.cdk-drop-list-dragging .nes-block:not(.cdk-drag-preview):hover { z-index: auto; border-color: #e2e8f0; background: linear-gradient(180deg, #ffffff, #f8fafc); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); transform: none; }
 .nes-block:active { cursor: grabbing; }
 .nes-block-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; color: var(--nes-accent); background: #eff6ff; flex: 0 0 auto; }
+.nes-block-icon img { display: block; width: 24px; height: 24px; object-fit: contain; border-radius: 7px; }
+.nes-fa-template-icon { display: inline-block; color: currentColor; font: normal normal normal 18px/1 FontAwesome, "Font Awesome 4", "Font Awesome 5 Free", sans-serif; }
 .nes-block-copy { display: block; min-width: 0; }
 .nes-block strong, .nes-block small { display: block; }
 .nes-block strong { font-size: 12px; line-height: 1.2; text-wrap: balance; }

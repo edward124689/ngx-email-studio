@@ -301,6 +301,14 @@ config: EmailStudioConfig = {
   showSave: true,
   title: 'Email Studio',
   fromLabel: 'hello@example.com',
+  templates: [
+    {
+      icon: 'fa-star', // Font Awesome 4.7 class, or use an image URL
+      name: 'Promo banner',
+      desc: 'Reusable MJML promo section',
+      mjml: '<mj-section><mj-column><mj-text>Promo</mj-text></mj-column></mj-section>',
+    },
+  ],
 };
 ```
 
@@ -313,6 +321,7 @@ config: EmailStudioConfig = {
 | `richTextEditor` | `'tiptap' \| 'plain'` | `'tiptap'` | Rich text provider. Use `'plain'` for textarea-only editing. |
 | `showHtmlPreview` | `boolean` | `true` | Enables HTML preview actions in the export modal. |
 | `showSave` | `boolean` | `true` | Shows the Save button. |
+| `templates` | `{ icon?: string; name: string; desc?: string; mjml: string }[]` | — | Host-provided MJML templates shown as draggable Content modules. `icon` accepts a Font Awesome 4.7 class such as `fa-star` or a safe image URL. |
 | `title` | `string` | — | Optional builder title text. |
 | `breadcrumb` | `string` | — | Optional breadcrumb/status text for host apps. |
 | `brandLabel` | `string` | — | Optional brand label. |

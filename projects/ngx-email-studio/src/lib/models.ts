@@ -56,6 +56,14 @@ export type EmailStudioImageUploadHandler = (
   context: EmailStudioImageUploadContext,
 ) => Promise<string | EmailStudioImageUploadResult> | string | EmailStudioImageUploadResult;
 
+export interface EmailStudioTemplateModule {
+  /** Font Awesome 4.7 class (for example `fa-star`) or a safe image URL. */
+  icon?: string;
+  name: string;
+  desc?: string;
+  mjml: string;
+}
+
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
   richTextEditor?: RichTextEditorMode;
@@ -64,6 +72,8 @@ export interface EmailStudioConfig {
   showSave?: boolean;
   /** Optional host-provided image upload hook. Return an image URL to write back to the selected image block. */
   uploadImage?: EmailStudioImageUploadHandler;
+  /** Host-provided draggable MJML templates shown in the Content modules palette. */
+  templates?: EmailStudioTemplateModule[];
   title?: string;
   breadcrumb?: string;
   brandLabel?: string;
@@ -111,4 +121,6 @@ export interface PaletteItem {
   icon: string;
   description: string;
   preset?: 'hero' | 'footer';
+  templateMjml?: string;
+  templateIconUrl?: string;
 }

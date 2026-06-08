@@ -30,6 +30,7 @@ import {
   EmailStudioImageUploadHandler,
   EmailStudioImageUploadResult,
   EmailStudioResult,
+  EmailStudioTemplateModule,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
   EmailStudioTransformScope,
@@ -66,6 +67,7 @@ export type {
   EmailStudioImageUploadHandler,
   EmailStudioImageUploadResult,
   EmailStudioResult,
+  EmailStudioTemplateModule,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
   EmailStudioTransformScope,
@@ -198,7 +200,13 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               class="nes-block-list"
             >
               <article class="nes-block" *ngFor="let item of filteredPalette" cdkDrag [cdkDragDisabled]="readonly" [cdkDragData]="item" [cdkDragPreviewContainer]="'parent'" [cdkDragStartDelay]="0" (cdkDragStarted)="beginDrag()" (cdkDragEnded)="endDrag()" [attr.title]="item.description">
-                <span class="nes-block-icon"><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></span>
+                <span class="nes-block-icon">
+                  <img *ngIf="item.templateIconUrl; else faPaletteIcon" [src]="item.templateIconUrl" [alt]="item.label" />
+                  <ng-template #faPaletteIcon>
+                    <i *ngIf="item.templateMjml; else builtInPaletteIcon" [class]="'fa nes-fa-template-icon ' + item.icon" aria-hidden="true"></i>
+                    <ng-template #builtInPaletteIcon><i class="nes-icon fa" [class]="'nes-icon fa ' + item.icon" aria-hidden="true"></i></ng-template>
+                  </ng-template>
+                </span>
                 <span class="nes-block-copy">
                   <strong>{{ item.label }}</strong>
                   <small class="nes-block-description">{{ item.description }}</small>
@@ -1192,6 +1200,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private imageUploadObjectUrl = '';
   private imageUploadHandlerSnapshot: EmailStudioImageUploadHandler | undefined;
   private imageUploadInvalidateScheduled = false;
+  private templatePaletteCacheSource: EmailStudioTemplateModule[] | null = null;
+  private templatePaletteCache: PaletteItem[] = [];
+  private paletteItemsCache: PaletteItem[] = this.palette;
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1292,8 +1303,25 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   get filteredPalette(): PaletteItem[] {
     const query = this.paletteSearch.trim().toLowerCase();
-    if (!query) return this.palette;
-    return this.palette.filter((item) => `${item.label} ${item.description} ${item.type}`.toLowerCase().includes(query));
+    const items = this.paletteItems;
+    if (!query) return items;
+    return items.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(query));
+  }
+
+  get paletteItems(): PaletteItem[] {
+    return this.paletteItemsCache;
+  }
+
+  get customTemplatePaletteItems(): PaletteItem[] {
+    return this.templatePaletteCache;
+  }
+
+  private refreshTemplatePaletteCache(): void {
+    const templates = Array.isArray(this.effectiveConfig.templates) ? this.effectiveConfig.templates : [];
+    if (templates === this.templatePaletteCacheSource) return;
+    this.templatePaletteCacheSource = templates;
+    this.templatePaletteCache = templates.map((template) => this.templateToPaletteItem(template)).filter((item): item is PaletteItem => !!item);
+    this.paletteItemsCache = this.templatePaletteCache.length ? [...this.palette, ...this.templatePaletteCache] : this.palette;
   }
 
   get normalizedDataSet(): EmailStudioDataSetItem[] {
@@ -1406,6 +1434,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     }
 
     if (changes['config']) {
+      this.refreshTemplatePaletteCache();
       this.destroyTiptapEditors();
     }
 
@@ -1421,6 +1450,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   ngDoCheck(): void {
+    this.refreshTemplatePaletteCache();
     const currentUploadHandler = this.effectiveConfig.uploadImage;
     if (this.imageUploadHandlerSnapshot !== currentUploadHandler) {
       this.imageUploadHandlerSnapshot = currentUploadHandler;
@@ -1440,9 +1470,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     }
 
     if (this.isPaletteItem(event.item.data)) {
-      const node = this.createNodeForDrop(event.item.data, target.id);
-      target.data.splice(target.index, 0, node);
-      this.selectedNodeId = node.id;
+      const nodes = this.createNodesForDrop(event.item.data, target.id);
+      target.data.splice(target.index, 0, ...nodes);
+      this.selectedNodeId = nodes[0]?.id;
     } else {
       const [movedNode] = (event.previousContainer.data as EmailNode[]).splice(event.previousIndex, 1);
       const node = this.wrapForRootDrop(movedNode, target.id);
@@ -1593,9 +1623,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   addBlock(item: PaletteItem): void {
     if (this.readonly) return;
-    const node = this.wrapForRootDrop(this.createNodeFromPalette(item), this.rootDropListId);
-    this.emailDocument.body = [...this.emailDocument.body, node];
-    this.selectedNodeId = node.id;
+    const nodes = this.createNodesForDrop(item, this.rootDropListId);
+    this.emailDocument.body = [...this.emailDocument.body, ...nodes];
+    this.selectedNodeId = nodes[0]?.id;
     this.emitDocument();
   }
 
@@ -1608,6 +1638,8 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   private createNodeFromPalette(item: PaletteItem): EmailNode {
+    if (item.templateMjml) return this.createNodesFromTemplateMjml(item.templateMjml)[0] || this.createNode('text');
+
     if (item.preset === 'hero') {
       return this.createSectionWithChildren([
         this.createNode('text', {
@@ -1626,6 +1658,36 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     }
 
     return this.createNode(item.type);
+  }
+
+  private templateToPaletteItem(template: EmailStudioTemplateModule): PaletteItem | null {
+    const name = String(template?.name || '').trim();
+    const mjml = String(template?.mjml || '').trim();
+    if (!name || !mjml) return null;
+    const icon = String(template.icon || '').trim();
+    const iconUrl = this.safeTemplateIconUrl(icon);
+    return {
+      type: 'section',
+      label: name.slice(0, 80),
+      icon: iconUrl ? 'fa-th-large' : this.safeFontAwesomeIcon(icon) || 'fa-th-large',
+      description: String(template.desc || 'Custom MJML template').trim().slice(0, 140),
+      templateMjml: mjml,
+      templateIconUrl: iconUrl,
+    };
+  }
+
+  private safeFontAwesomeIcon(value: string): string {
+    const normalized = value.trim().replace(/^fa\s+/, '').split(/\s+/)[0] || '';
+    return /^fa-[a-z0-9-]{1,48}$/i.test(normalized) ? normalized : '';
+  }
+
+  private safeTemplateIconUrl(value: string): string {
+    const raw = value.trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^\/(?!\/)/.test(raw)) return raw;
+    if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(raw)) return raw;
+    return '';
   }
 
   clearDocument(): void {
@@ -3061,10 +3123,26 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
 
-  private createNodeForDrop(item: PaletteItem, containerId?: string): EmailNode {
-    const node = this.createNodeFromPalette(item);
-    if (containerId === this.rootDropListId) return this.wrapForRootDrop(node, containerId);
-    return this.normalizeNestedDropNode(node);
+  private createNodesForDrop(item: PaletteItem, containerId?: string): EmailNode[] {
+    const nodes = item.templateMjml ? this.createNodesFromTemplateMjml(item.templateMjml) : [this.createNodeFromPalette(item)];
+    if (containerId === this.rootDropListId) return nodes.map((node) => this.wrapForRootDrop(node, containerId));
+    return nodes.map((node) => this.normalizeNestedDropNode(node));
+  }
+
+  private createNodesFromTemplateMjml(mjml: string): EmailNode[] {
+    try {
+      return this.parseMjml(this.normalizeTemplateMjml(mjml)).body;
+    } catch (error) {
+      this.error.emit({ code: 'template_parse_failed', message: 'Unable to parse custom template MJML.', details: error });
+      return [this.createNode('text', { content: '<p>Template import failed. Check the MJML template markup.</p>' })];
+    }
+  }
+
+  private normalizeTemplateMjml(mjml: string): string {
+    const value = String(mjml || '').trim();
+    if (/^<mjml[\s>]/i.test(value)) return value;
+    if (/^<mj-body[\s>]/i.test(value)) return `<mjml>${value}</mjml>`;
+    return `<mjml><mj-body>${value}</mj-body></mjml>`;
   }
 
   private wrapForRootDrop(node: EmailNode, containerId?: string): EmailNode {

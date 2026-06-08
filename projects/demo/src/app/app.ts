@@ -23,6 +23,20 @@ export class App {
     title: 'Email Studio',
     fromLabel: 'hello@brand.test',
     richTextEditor: this.resolveRichTextEditor(),
+    templates: [
+      {
+        icon: 'fa-star',
+        name: 'Promo template',
+        desc: 'Host-provided MJML section from config.templates',
+        mjml: '<mj-section background-color="#ecfdf3" padding="20px"><mj-column><mj-text font-size="22px" font-weight="bold" color="#14532d">Custom promo template</mj-text><mj-text color="#166534">Drag templates from config into the canvas and edit them like normal modules.</mj-text><mj-button href="https://www.npmjs.com/package/ngx-email-studio" background-color="#16a34a">Use template</mj-button></mj-column></mj-section>',
+      },
+      {
+        icon: 'https://placehold.co/48x48/2563eb/ffffff.png?text=T',
+        name: 'Image icon template',
+        desc: 'Template card using an image URL icon',
+        mjml: '<mj-section padding="16px"><mj-column><mj-text font-size="18px" font-weight="bold">Image icon template</mj-text><mj-text>This custom template uses a safe image URL as the palette icon.</mj-text></mj-column></mj-section>',
+      },
+    ],
     uploadImage: async (file) => {
       // Demo-only mock: real apps should upload `file` to their API/CDN and return that URL.
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -31,7 +45,7 @@ export class App {
         alt: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded image',
       };
     },
-  };
+  } as EmailStudioConfig;
 
   private resolveRichTextEditor(): EmailStudioConfig['richTextEditor'] {
     const editor = new URL(globalThis.location?.href || 'http://localhost/').searchParams.get('editor');
