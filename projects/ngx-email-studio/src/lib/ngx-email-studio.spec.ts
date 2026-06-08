@@ -2581,20 +2581,62 @@ describe('NgxEmailStudio', () => {
           desc: 'Wrapped snippet',
           mjml: '<mj-section><mj-column><mj-text>Wrapped snippet body</mj-text></mj-column></mj-section>',
         },
+        {
+          icon: 'data:image/svg+xml;base64,PHN2Zy8+',
+          name: 'SVG icon template',
+          desc: 'Unsafe data SVG icon should fall back',
+          mjml: '<mj-section><mj-column><mj-text>SVG icon body</mj-text></mj-column></mj-section>',
+        },
       ],
     });
     fixture.detectChanges();
 
     const template = component.paletteItems.find((item) => item.label === 'Snippet template')!;
+    const svgTemplate = component.paletteItems.find((item) => item.label === 'SVG icon template')!;
 
     expect(template.icon).toBe('fa-th-large');
     expect(template.templateIconUrl).toBe('');
+    expect(svgTemplate.icon).toBe('fa-th-large');
+    expect(svgTemplate.templateIconUrl).toBe('');
 
     component.addBlock(template);
 
     expect(component.emailDocument.body.at(-1)?.type).toBe('section');
     expect(component.lastMjml).toContain('Wrapped snippet body');
     expect(component.lastMjml).not.toContain('javascript:alert');
+  });
+
+  it('should preserve every content block when dropping a custom template into an existing column', () => {
+    fixture.componentRef.setInput('config', {
+      templates: [
+        {
+          icon: 'fa-star',
+          name: 'Nested promo template',
+          desc: 'Multiple content modules inside one MJML section',
+          mjml: '<mj-section><mj-column><mj-text>Nested promo headline</mj-text><mj-button href="https://example.com/nested">Nested CTA</mj-button></mj-column></mj-section>',
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    expect(column).toBeTruthy();
+    const before = column?.children?.length || 0;
+    const template = component.paletteItems.find((item) => item.label === 'Nested promo template')!;
+
+    component.drop({
+      previousContainer: { data: component.paletteItems } as any,
+      container: { id: component.dropListIdFor(column!), data: column?.children || [] } as any,
+      previousIndex: component.paletteItems.indexOf(template),
+      currentIndex: before,
+      item: { data: template } as any,
+    } as any);
+
+    expect(column?.children?.length).toBe(before + 2);
+    expect(String(column?.children?.[before].attrs['content'])).toContain('Nested promo headline');
+    expect(column?.children?.[before + 1].type).toBe('button');
+    expect(column?.children?.[before + 1].attrs['label']).toBe('Nested CTA');
   });
 
   it('should remove visible drop zones and use red insertion-line styling', () => {

@@ -1686,7 +1686,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (!raw) return '';
     if (/^https?:\/\//i.test(raw)) return raw;
     if (/^\/(?!\/)/.test(raw)) return raw;
-    if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(raw)) return raw;
+    if (/^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i.test(raw)) return raw;
     return '';
   }
 
@@ -3124,9 +3124,24 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
 
   private createNodesForDrop(item: PaletteItem, containerId?: string): EmailNode[] {
-    const nodes = item.templateMjml ? this.createNodesFromTemplateMjml(item.templateMjml) : [this.createNodeFromPalette(item)];
-    if (containerId === this.rootDropListId) return nodes.map((node) => this.wrapForRootDrop(node, containerId));
-    return nodes.map((node) => this.normalizeNestedDropNode(node));
+    if (item.templateMjml) {
+      const nodes = this.createNodesFromTemplateMjml(item.templateMjml);
+      if (containerId === this.rootDropListId) return nodes.map((node) => this.wrapForRootDrop(node, containerId));
+      return nodes.flatMap((node) => this.normalizeTemplateNodesForNestedDrop(node));
+    }
+
+    const node = this.createNodeFromPalette(item);
+    if (containerId === this.rootDropListId) return [this.wrapForRootDrop(node, containerId)];
+    return [this.normalizeNestedDropNode(node)];
+  }
+
+  private normalizeTemplateNodesForNestedDrop(node: EmailNode): EmailNode[] {
+    if (node.type === 'section' || node.type === 'row' || node.type === 'column') {
+      const children = node.children || [];
+      const normalized = children.flatMap((child) => this.normalizeTemplateNodesForNestedDrop(child));
+      return normalized.length ? normalized : [this.createNode('text')];
+    }
+    return [node];
   }
 
   private createNodesFromTemplateMjml(mjml: string): EmailNode[] {
