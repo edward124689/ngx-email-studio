@@ -47,7 +47,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - **Clean HTML export**: generate a frontend HTML email export for the supported subset, including email-client friendly tables/resets.
 - **Drag-and-drop layout**: Angular CDK powered content palette, canvas, sections, rows, columns, and nested blocks.
 - **Builder shell**: module library, searchable palette, nested outline, preview size chips, selected-block controls, and tabbed inspector.
-- **Tiptap rich text editor**: headings, lists, inline formatting, links, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
+- **Tiptap rich text editor**: headings, lists, inline formatting, links, inline images by URL/upload, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
 - **Merge-tag helper**: pass a `dataSet` of placeholder keys and descriptions so users can search available merge tags and copy keys into the email content.
 - **Image upload helper**: provide `config.uploadImage` so image blocks can pick a local file, preview it, call your upload API, and write the returned URL back into Image URL.
 - **Text Transform**: preview and apply Simplified ↔ Traditional Chinese conversion or whitespace normalization to the whole email.
@@ -205,7 +205,7 @@ export interface EmailStudioDataSetItem {
 
 ## Image Upload Helper
 
-Image blocks can show an `Upload image` helper beside the regular `Image URL` field when the host app provides `config.uploadImage`. The library handles the file picker, local preview, loading/error state, history, and writing the returned URL back to the image block. The host app owns the real upload API, auth, storage provider, and server-side validation.
+Image blocks can show an `Upload image` helper beside the regular `Image URL` field when the host app provides `config.uploadImage`. Tiptap rich-text image insertion reuses the same helper from the `Insert image` modal, so users can either paste a safe image URL or upload a local file and insert the returned URL into rich text. The library handles the file picker, local preview for image blocks, loading/error state, history, and writing the returned URL back to the target image block or rich-text image. The host app owns the real upload API, auth, storage provider, and server-side validation.
 
 ```ts
 import { EmailStudioConfig } from 'ngx-email-studio';
