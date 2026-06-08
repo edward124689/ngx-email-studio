@@ -660,21 +660,30 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('border-radius:0px;border:2px solid #abcdef;overflow:hidden;');
   });
 
-  it('should let body settings control the email font size with a 13px default', () => {
+  it('should let body settings control the email typography with Ubuntu 13px defaults', () => {
     fixture.detectChanges();
     (component as any).refreshOutputs(false);
 
     expect(component.emailFontSizeCss).toBe('13px');
+    expect(component.emailFontFamilyCss).toBe('Ubuntu, Helvetica, Arial, sans-serif');
     const canvas = fixture.nativeElement.querySelector('.nes-canvas') as HTMLElement;
     expect(canvas.style.fontSize).toBe('13px');
-    expect(component.lastHtml).toContain('font-family:Arial,sans-serif;font-size:13px;');
+    expect(canvas.style.fontFamily).toBe('Ubuntu, Helvetica, Arial, sans-serif');
+    expect(component.lastHtml).toContain('<!--[if !mso]><!-->');
+    expect(component.lastHtml).toContain('<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">');
+    expect(component.lastHtml).toContain('@import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);');
+    expect(component.lastHtml).toContain('font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;');
 
     component.updateDocumentAttr('contentFontSize', 16);
+    component.updateDocumentFontFamilyAttr('contentFontFamily', 'Georgia, serif');
     (component as any).refreshOutputs(false);
 
     expect(component.emailFontSizeCss).toBe('16px');
+    expect(component.emailFontFamilyCss).toBe('Georgia, serif');
     expect(component.emailDocument.attrs?.['contentFontSize']).toBe(16);
-    expect(component.lastHtml).toContain('font-family:Arial,sans-serif;font-size:16px;');
+    expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('Georgia, serif');
+    expect(component.lastHtml).not.toContain('fonts.googleapis.com/css?family=Ubuntu');
+    expect(component.lastHtml).toContain('font-family:Georgia, serif;font-size:16px;');
   });
 
   it('should default body background to lowercase white while blocks stay transparent until set', () => {

@@ -36,7 +36,9 @@ export function renderHtml(document: EmailDocument): string {
   const emailMaxWidth = dimensionCss(attrs, 'maxWidth', 600, 'px');
   const emailWidthAttr = dimensionHtmlWidthAttr(attrs, 'width', 100, '%');
   const emailChromeStyle = emailWrapperChromeStyle(attrs);
+  const emailFontFamily = emailFontFamilyCss(attrs);
   const emailFontSize = emailFontSizeCss(attrs);
+  const emailFontImport = googleFontImportStyle(emailFontFamily);
   const outlookWidth = escapeAttr(outlookHtmlWidth(attrs));
   const rows = document.body.map((node) => nodeToHtml(node, 6)).join('\n');
   return [
@@ -47,6 +49,7 @@ export function renderHtml(document: EmailDocument): string {
     '    <!--[if !mso]><!-->',
     '    <meta http-equiv="X-UA-Compatible" content="IE=edge">',
     '    <!--<![endif]-->',
+    ...emailFontImport,
     '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">',
     '    <meta name="viewport" content="width=device-width, initial-scale=1">',
     '    <style type="text/css">',
@@ -85,7 +88,7 @@ export function renderHtml(document: EmailDocument): string {
     '      <tr>',
     '        <td align="center">',
     `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:Arial,sans-serif;font-size:${emailFontSize};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:${escapeAttr(emailFontFamily)};font-size:${emailFontSize};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     rows,
     '          </table>',
     '          <!--[if mso | IE]></td></tr></table><![endif]-->',
@@ -248,6 +251,22 @@ function emailWrapperChromeStyle(attrs: Record<string, string | number | boolean
 function emailFontSizeCss(attrs: Record<string, string | number | boolean>): string {
   const normalized = normalizeCssSizeValue(attrs['contentFontSize']);
   return normalized || `${nonNegativeNumber(attrs['contentFontSize'], 13)}px`;
+}
+
+function emailFontFamilyCss(attrs: Record<string, string | number | boolean>): string {
+  return normalizeFontFamilyValue(attrs['contentFontFamily']) || 'Ubuntu, Helvetica, Arial, sans-serif';
+}
+
+function googleFontImportStyle(fontFamily: string): string[] {
+  if (!/(^|,\s*)Ubuntu(\s*,|$)/i.test(fontFamily)) return [];
+  return [
+    '    <!--[if !mso]><!-->',
+    '    <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">',
+    '    <style type="text/css">',
+    '      @import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);',
+    '    </style>',
+    '    <!--<![endif]-->',
+  ];
 }
 
 function nonNegativeNumber(value: unknown, fallback: number): number {

@@ -297,6 +297,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   [style.border-radius]="emailBorderRadiusCss"
                   [style.border]="emailBorderStyle"
                   [style.font-size]="emailFontSizeCss"
+                  [style.font-family]="emailFontFamilyCss"
                 >
                   <article
                     role="button"
@@ -391,6 +392,10 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </span>
                 </label>
               </div>
+              <label>
+                Email font family
+                <input [ngModel]="emailFontFamilyCss" (ngModelChange)="updateDocumentFontFamilyAttr('contentFontFamily', $event)" placeholder="Ubuntu, Helvetica, Arial, sans-serif" />
+              </label>
               <label>
                 Email border color
                 <span class="nes-color-control">
@@ -1417,6 +1422,10 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     return `${this.nonNegativeNumber(this.documentAttrs['contentFontSize'], 13)}px`;
   }
 
+  get emailFontFamilyCss(): string {
+    return normalizeFontFamilyValue(this.documentAttrs['contentFontFamily']) || 'Ubuntu, Helvetica, Arial, sans-serif';
+  }
+
   get effectiveConfig(): EmailStudioConfig {
     return { ...DEFAULT_EMAIL_STUDIO_CONFIG, ...(this.config || {}) };
   }
@@ -1950,17 +1959,32 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     };
     this.emitDocument();
   }
-
   updateDocumentColorAttr(key: string, value: string): void {
     if (this.readonly) return;
-    const normalized = normalizeColorValue(value);
-    const nextAttrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
-    if (String(value ?? '').trim() === '') {
-      nextAttrs[key] = '';
+    const trimmed = String(value ?? '').trim();
+    const normalized = normalizeColorValue(trimmed);
+    const attrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
+    if (trimmed === '') {
+      attrs[key] = '';
     } else {
-      nextAttrs[key] = normalized || String(value).trim();
+      attrs[key] = normalized || trimmed;
     }
-    this.emailDocument = { ...this.emailDocument, attrs: nextAttrs };
+    this.emailDocument = { ...this.emailDocument, attrs };
+    this.emitDocument();
+  }
+
+  updateDocumentFontFamilyAttr(key: string, value: string): void {
+    if (this.readonly) return;
+    const normalized = normalizeFontFamilyValue(value);
+    const attrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
+    if (String(value ?? '').trim() === '') {
+      attrs[key] = '';
+    } else if (normalized) {
+      attrs[key] = normalized;
+    } else {
+      return;
+    }
+    this.emailDocument = { ...this.emailDocument, attrs };
     this.emitDocument();
   }
 
