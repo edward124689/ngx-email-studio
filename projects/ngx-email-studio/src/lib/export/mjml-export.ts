@@ -69,7 +69,10 @@ function socialToMjml(node: EmailNode): string {
   const children = items.map((item) => {
     const logoUrl = normalizeImageSrcValue(item.logoUrl);
     const src = logoUrl ? ` src="${escapeAttr(logoUrl)}"` : '';
-    return `<mj-social-element name="${escapeAttr(item.name)}" href="${escapeAttr(normalizeHrefValue(item.href) || '#')}" background-color="${escapeAttr(colorAttrValue(item.backgroundColor) || '#A1A0A0')}"${src}></mj-social-element>`;
+    const shapeAttrs = logoUrl
+      ? ' background-color="transparent" border-radius="0px"'
+      : ` background-color="${escapeAttr(colorAttrValue(item.backgroundColor) || '#A1A0A0')}"`;
+    return `<mj-social-element name="${escapeAttr(item.name)}" href="${escapeAttr(normalizeHrefValue(item.href) || '#')}"${shapeAttrs}${src}></mj-social-element>`;
   }).join('');
   const containerBackground = colorAttrValue(node.attrs['backgroundColor']);
   const background = containerBackground ? ` container-background-color="${escapeAttr(containerBackground)}"` : '';

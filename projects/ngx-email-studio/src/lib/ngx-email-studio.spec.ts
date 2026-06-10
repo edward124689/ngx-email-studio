@@ -1137,9 +1137,13 @@ describe('NgxEmailStudio', () => {
     expect(item.logoUrl).toBe('https://cdn.example.com/facebook.png');
     expect(item.name).toBe('Facebook logo');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:social-logo-preview');
-    expect((component as any).compileMjml({ version: '0.0.1', body: [activeSocial] })).toContain('src="https://cdn.example.com/facebook.png"');
+    const mjml = (component as any).compileMjml({ version: '0.0.1', body: [activeSocial] });
+    expect(mjml).toContain('src="https://cdn.example.com/facebook.png"');
+    expect(mjml).toContain('background-color="transparent" border-radius="0px"');
     const html = (component as any).renderHtml({ version: '0.0.1', body: [activeSocial] });
+    const anchorTag = html.match(/<a[^>]*><img[^>]+src="https:\/\/cdn\.example\.com\/facebook\.png"/)?.[0] || '';
     const imgTag = html.match(/<img[^>]+src="https:\/\/cdn\.example\.com\/facebook\.png"[^>]*>/)?.[0] || '';
+    expect(anchorTag).toContain('border-radius:0;background:transparent;');
     expect(imgTag).toContain('<img src="https://cdn.example.com/facebook.png"');
     expect(imgTag).not.toContain('border-radius');
   });
