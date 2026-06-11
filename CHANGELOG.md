@@ -2,6 +2,17 @@
 
 All notable changes to `ngx-email-studio` are documented here.
 
+## 21.0.4
+
+- Added body typography controls for email font size, font family presets/autocomplete, and safe Google Fonts CSS import settings.
+- Added body wrapper border controls and preserved wrapper radius/border styling across editable preview and frontend HTML export.
+- Added configurable custom Content module templates with safe Font Awesome/image icons and editable MJML template insertion.
+- Added Tiptap rich-text image insertion through URL or host-provided upload helper, with safe URL sanitization.
+- Added uploaded Social logo support, including square transparent custom-logo rendering in the editor, MJML export, HTML export, and import round-trips.
+- Added a ready-to-run StackBlitz consumer demo under `examples/stackblitz/` and linked consumer setup docs.
+- Improved nested custom-template drops so multi-block templates keep all flattened content when dropped into sections or columns.
+- Improved the font-family autocomplete UI, including pointer-down option selection, shell styling, and left-aligned preset rows.
+
 ## 21.0.3
 
 - Added the Data Set merge-tag helper modal for host-provided reference keys.
