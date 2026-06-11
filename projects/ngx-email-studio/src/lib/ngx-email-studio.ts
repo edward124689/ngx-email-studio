@@ -175,7 +175,13 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
       </header>
 
       <main class="nes-builder">
-        <aside class="nes-panel nes-palette">
+        <div class="nes-compact-panel-tabs" role="tablist" aria-label="Responsive builder panel">
+          <button type="button" role="tab" [attr.aria-selected]="activeCompactPanel === 'modules'" [class.is-active]="activeCompactPanel === 'modules'" (click)="activeCompactPanel = 'modules'; activeLeftTab = 'modules'">Modules</button>
+          <button type="button" role="tab" [attr.aria-selected]="activeCompactPanel === 'outline'" [class.is-active]="activeCompactPanel === 'outline'" (click)="activeCompactPanel = 'outline'; activeLeftTab = 'outline'">Outline</button>
+          <button type="button" role="tab" [attr.aria-selected]="activeCompactPanel === 'properties'" [class.is-active]="activeCompactPanel === 'properties'" (click)="activeCompactPanel = 'properties'">Properties</button>
+        </div>
+
+        <aside class="nes-panel nes-palette" [class.is-compact-hidden]="activeCompactPanel === 'properties'">
           <div class="nes-left-tabs" role="tablist" aria-label="Builder side panel">
             <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'modules'" [class.is-active]="activeLeftTab === 'modules'" (click)="activeLeftTab = 'modules'">Content modules</button>
             <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'outline'" [class.is-active]="activeLeftTab === 'outline'" (click)="activeLeftTab = 'outline'">Outline</button>
@@ -345,7 +351,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
           </div>
         </section>
 
-        <aside class="nes-panel nes-properties">
+        <aside class="nes-panel nes-properties" [class.is-compact-hidden]="activeCompactPanel !== 'properties'">
           <div class="nes-panel-head">
             <h3>Properties Inspector</h3>
             <p>{{ selectedNodeId === bodyNodeId ? 'Body / Email canvas' : selectedNode ? outlineLabel(selectedNode) : 'No block selected' }}</p>
@@ -1255,6 +1261,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   mjmlDraft = '';
   paletteSearch = '';
   activeLeftTab: 'modules' | 'outline' = 'modules';
+  activeCompactPanel: 'modules' | 'outline' | 'properties' = 'modules';
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
   canvasMode: CanvasMode = 'edit';
   exportMenuOpen = false;

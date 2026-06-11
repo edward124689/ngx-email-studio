@@ -1585,22 +1585,43 @@ describe('NgxEmailStudio', () => {
     expect(styles).toContain('@container nes-inspector (max-width: 370px) { .nes-control-row, .nes-padding-grid { grid-template-columns: 1fr; }');
   });
 
-  it('should switch to a compact non-overlay left dock between 1000px and 1299px', () => {
+  it('should merge the side panels behind compact tabs between 1000px and 1299px', () => {
     fixture.detectChanges();
     const styles = componentStyleText().replace(/\s+/g, ' ');
 
-    expect(styles).toContain('@media (min-width: 1000px) and (max-width: 1299px) { .nes-builder { grid-template-columns: 92px minmax(0, 1fr) clamp(340px, 30vw, 380px); }');
-    expect(styles).toContain('.nes-palette { padding: 12px 8px; overflow-x: hidden; }');
-    expect(styles).toContain('.nes-left-tabs { grid-template-columns: 1fr; gap: 6px; margin-bottom: 12px; }');
-    expect(styles).toContain('.nes-palette .nes-panel-head { margin-bottom: 10px; text-align: center; }');
-    expect(styles).toContain('.nes-palette .nes-panel-head h3 { font-size: 11px; line-height: 1.15; text-wrap: balance; }');
-    expect(styles).toContain('.nes-block-list { grid-template-columns: 1fr; gap: 8px; max-height: none; padding-right: 0; }');
-    expect(styles).toContain('.nes-block { min-height: 66px; padding: 8px 4px; border-radius: 13px; }');
-    expect(styles).toContain('.nes-block-description, .nes-palette .nes-panel-head p, .nes-search, .nes-outline-copy small, .nes-outline-index { display: none; }');
-    expect(styles).not.toMatch(/(^|[{}]\s)\.nes-panel-head \{ margin-bottom: 10px; text-align: center; \}/);
-    expect(styles).not.toMatch(/(^|[{},]\s)\.nes-panel-head p,/);
+    expect(styles).toContain('@media (min-width: 1000px) and (max-width: 1299px) { .nes-builder { grid-template-columns: minmax(286px, 31vw) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "panel-tabs stage" "side-panel stage"; align-items: stretch; }');
+    expect(styles).toContain('.nes-compact-panel-tabs { grid-area: panel-tabs; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(styles).toContain('.nes-palette, .nes-properties { grid-area: side-panel; width: auto; border-left: 0; border-right: 1px solid var(--nes-border); }');
+    expect(styles).toContain('.nes-panel.is-compact-hidden { display: none; }');
+    expect(styles).toContain('.nes-left-tabs { grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 14px; }');
+    expect(styles).toContain('.nes-block-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; max-height: none; padding-right: 0; }');
+    expect(styles).toContain('.nes-outline-copy small, .nes-outline-index { display: block; }');
+    expect(styles).not.toContain('grid-template-columns: 92px');
+    expect(styles).not.toMatch(/(^|[{}]\s)\.nes-panel-head \{ margin-bottom: 12px; text-align: left; \}/);
     expect(styles).not.toContain('nes-sidebar-backdrop');
     expect(styles).not.toContain('is-left-panel-open');
+  });
+
+  it('should switch the compact merged panel between modules, outline, and properties', () => {
+    fixture.detectChanges();
+
+    const compactTabs = queryAll(fixture, '.nes-compact-panel-tabs button') as NodeListOf<HTMLButtonElement>;
+    expect(compactTabs.length).toBe(3);
+    expect(component.activeCompactPanel).toBe('modules');
+    expect(component.activeLeftTab).toBe('modules');
+
+    compactTabs[1].click();
+    fixture.detectChanges();
+    expect(component.activeCompactPanel).toBe('outline');
+    expect(component.activeLeftTab).toBe('outline');
+    expect(query(fixture, '.nes-palette')?.classList.contains('is-compact-hidden')).toBe(false);
+    expect(query(fixture, '.nes-properties')?.classList.contains('is-compact-hidden')).toBe(true);
+
+    compactTabs[2].click();
+    fixture.detectChanges();
+    expect(component.activeCompactPanel).toBe('properties');
+    expect(query(fixture, '.nes-palette')?.classList.contains('is-compact-hidden')).toBe(true);
+    expect(query(fixture, '.nes-properties')?.classList.contains('is-compact-hidden')).toBe(false);
   });
 
   it('should import MJML sections with multiple columns as row nodes', () => {
