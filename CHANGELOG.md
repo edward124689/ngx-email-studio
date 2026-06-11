@@ -12,6 +12,7 @@ All notable changes to `ngx-email-studio` are documented here.
 - Added a ready-to-run StackBlitz consumer demo under `examples/stackblitz/` and linked consumer setup docs.
 - Improved nested custom-template drops so multi-block templates keep all flattened content when dropped into sections or columns.
 - Improved the font-family autocomplete UI, including pointer-down option selection, shell styling, and left-aligned preset rows.
+- Published `ngx-email-studio@21.0.4` to npm with the `latest` dist-tag.
 
 ## 21.0.3
 
