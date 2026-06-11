@@ -715,7 +715,8 @@ describe('NgxEmailStudio', () => {
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute('role')).toBe('listbox');
     const styles = (NgxEmailStudio as any).ɵcmp.styles.join('\n');
-    expect(styles).toMatch(/\.nes-font-family-panel\s*\{[^}]*position:\s*static;/);
+    expect(styles).toMatch(/\.nes-font-family-autocomplete\s*\{[^}]*position:\s*relative;/);
+    expect(styles).toMatch(/\.nes-font-family-panel\s*\{[^}]*position:\s*absolute;[^}]*left:\s*0;[^}]*right:\s*0;[^}]*top:\s*calc\(100% \+ 6px\);/);
     const options = Array.from(queryAll<HTMLElement>(fixture, '.nes-font-family-option')).map((option) => ({
       value: option.getAttribute('data-value') || '',
       label: option.querySelector('.nes-font-family-label')?.textContent?.trim() || '',
