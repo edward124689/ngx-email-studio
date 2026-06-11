@@ -183,8 +183,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
 
         <aside class="nes-panel nes-palette" [class.is-compact-hidden]="activeCompactPanel === 'properties'">
           <div class="nes-left-tabs" role="tablist" aria-label="Builder side panel">
-            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'modules'" [class.is-active]="activeLeftTab === 'modules'" (click)="activeLeftTab = 'modules'">Content modules</button>
-            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'outline'" [class.is-active]="activeLeftTab === 'outline'" (click)="activeLeftTab = 'outline'">Outline</button>
+            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'modules'" [class.is-active]="activeLeftTab === 'modules'" (click)="activeLeftTab = 'modules'; activeCompactPanel = 'modules'">Content modules</button>
+            <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'outline'" [class.is-active]="activeLeftTab === 'outline'" (click)="activeLeftTab = 'outline'; activeCompactPanel = 'outline'">Outline</button>
           </div>
 
           <ng-container *ngIf="activeLeftTab === 'modules'; else outlinePanel">

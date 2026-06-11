@@ -1617,6 +1617,21 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, '.nes-palette')?.classList.contains('is-compact-hidden')).toBe(false);
     expect(query(fixture, '.nes-properties')?.classList.contains('is-compact-hidden')).toBe(true);
 
+    const innerTabs = queryAll(fixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+    innerTabs[0].click();
+    fixture.detectChanges();
+    expect(component.activeCompactPanel).toBe('modules');
+    expect(component.activeLeftTab).toBe('modules');
+    expect(compactTabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(compactTabs[1].getAttribute('aria-selected')).toBe('false');
+
+    innerTabs[1].click();
+    fixture.detectChanges();
+    expect(component.activeCompactPanel).toBe('outline');
+    expect(component.activeLeftTab).toBe('outline');
+    expect(compactTabs[0].getAttribute('aria-selected')).toBe('false');
+    expect(compactTabs[1].getAttribute('aria-selected')).toBe('true');
+
     compactTabs[2].click();
     fixture.detectChanges();
     expect(component.activeCompactPanel).toBe('properties');
