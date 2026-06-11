@@ -9,7 +9,7 @@ import { NgxEmailStudioDataSetModal } from './components/data-set-modal.componen
 import { NgxEmailStudioTransformModal } from './components/transform-modal.component';
 import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
-import { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
+import { DEFAULT_EMAIL_FONT_FAMILY_OPTIONS, DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
 import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
@@ -30,6 +30,7 @@ import {
   EmailStudioImageUploadHandler,
   EmailStudioImageUploadResult,
   EmailStudioResult,
+  EmailStudioFontFamilyOption,
   EmailStudioTemplateModule,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
@@ -67,6 +68,7 @@ export type {
   EmailStudioImageUploadHandler,
   EmailStudioImageUploadResult,
   EmailStudioResult,
+  EmailStudioFontFamilyOption,
   EmailStudioTemplateModule,
   EmailStudioTransformAction,
   EmailStudioTransformPreview,
@@ -79,7 +81,7 @@ export type {
   TiptapScope,
   TiptapTextAlignValue,
 } from './models';
-export { DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
+export { DEFAULT_EMAIL_FONT_FAMILY_OPTIONS, DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 
 let nextEmailStudioInstanceId = 0;
 
@@ -394,7 +396,17 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               </div>
               <label>
                 Email font family
-                <input [ngModel]="emailFontFamilyCss" (ngModelChange)="updateDocumentFontFamilyAttr('contentFontFamily', $event)" placeholder="Ubuntu, Helvetica, Arial, sans-serif" />
+                <input
+                  class="nes-font-family-input"
+                  [attr.list]="fontFamilyOptionsListId"
+                  [ngModel]="emailFontFamilyCss"
+                  (ngModelChange)="updateDocumentFontFamilyAttr('contentFontFamily', $event)"
+                  placeholder="Ubuntu, Helvetica, Arial, sans-serif"
+                />
+                <datalist [id]="fontFamilyOptionsListId">
+                  <option *ngFor="let option of emailFontFamilyOptions" [value]="option.value" [attr.label]="option.label"></option>
+                </datalist>
+                <span class="nes-field-hint">Choose a preset or type a custom font stack.</span>
               </label>
               <label>
                 Email border color
@@ -1290,6 +1302,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
+  readonly fontFamilyOptionsListId = `${this.dropListIdPrefix}-font-family-options`;
   readonly bodyNodeId = BODY_NODE_ID;
   readonly rejectPaletteDrop = (): boolean => false;
   readonly canEnterContainerDropList = (drag: { data: unknown }, drop: { id?: string }): boolean => {
@@ -1450,6 +1463,23 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   get emailFontFamilyCss(): string {
     return normalizeFontFamilyValue(this.documentAttrs['contentFontFamily']) || 'Ubuntu, Helvetica, Arial, sans-serif';
+  }
+
+  get emailFontFamilyOptions(): EmailStudioFontFamilyOption[] {
+    const seen = new Set<string>();
+    return [...DEFAULT_EMAIL_FONT_FAMILY_OPTIONS, ...this.hostFontFamilyOptions]
+      .filter((option): option is EmailStudioFontFamilyOption => !!option && typeof option === 'object')
+      .map((option) => ({ label: String(option.label ?? '').trim(), value: normalizeFontFamilyValue(option.value) }))
+      .filter((option): option is EmailStudioFontFamilyOption => {
+        if (!option.label || !option.value || seen.has(option.value)) return false;
+        seen.add(option.value);
+        return true;
+      });
+  }
+
+  private get hostFontFamilyOptions(): EmailStudioFontFamilyOption[] {
+    const options = this.config?.fontFamilyOptions;
+    return Array.isArray(options) ? options : [];
   }
 
   get effectiveConfig(): EmailStudioConfig {

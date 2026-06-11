@@ -65,6 +65,13 @@ export interface EmailStudioTemplateModule {
   mjml: string;
 }
 
+export interface EmailStudioFontFamilyOption {
+  /** Short display label shown in the font-family autocomplete. */
+  label: string;
+  /** Complete email-safe CSS font-family stack written to the document. */
+  value: string;
+}
+
 export interface EmailStudioConfig {
   /** Rich text editor provider. Defaults to Tiptap; set to 'plain' for textarea-only editing. */
   richTextEditor?: RichTextEditorMode;
@@ -75,6 +82,8 @@ export interface EmailStudioConfig {
   uploadImage?: EmailStudioImageUploadHandler;
   /** Host-provided draggable MJML templates shown in the Content modules palette. */
   templates?: EmailStudioTemplateModule[];
+  /** Extra email font-family autocomplete options. Defaults stay available and valid custom stacks can still be typed. */
+  fontFamilyOptions?: EmailStudioFontFamilyOption[];
   title?: string;
   breadcrumb?: string;
   brandLabel?: string;

@@ -686,6 +686,36 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('font-family:Georgia, serif;font-size:16px;');
   });
 
+  it('should offer email font family presets while allowing custom font stacks', () => {
+    fixture.componentRef.setInput('config', {
+      fontFamilyOptions: [
+        { label: 'Brand Sans', value: '"Brand Sans", Arial, sans-serif' },
+        { label: 'Bad Font', value: 'Bad;Font, sans-serif' },
+        null,
+      ],
+    } as any);
+    component.selectedNodeId = component.bodyNodeId;
+    fixture.detectChanges();
+
+    const input = query<HTMLInputElement>(fixture, '.nes-font-family-input');
+    expect(input).toBeTruthy();
+    const listId = input?.getAttribute('list') || '';
+    expect(listId).toMatch(/^nes-\d+-font-family-options$/);
+    const options = Array.from(queryAll<HTMLOptionElement>(fixture, `#${listId} option`)).map((option) => ({
+      value: option.value,
+      label: option.getAttribute('label') || '',
+    }));
+    expect(options).toContainEqual({ label: 'Ubuntu', value: 'Ubuntu, Helvetica, Arial, sans-serif' });
+    expect(options).toContainEqual({ label: 'Brand Sans', value: '"Brand Sans", Arial, sans-serif' });
+    expect(options.some((option) => option.label === 'Bad Font')).toBe(false);
+    expect(studioText(fixture)).toContain('Choose a preset or type a custom font stack.');
+
+    component.updateDocumentFontFamilyAttr('contentFontFamily', '"Brand Sans", Arial, sans-serif');
+    (component as any).refreshOutputs(false);
+    expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('"Brand Sans", Arial, sans-serif');
+    expect(component.lastHtml).toContain('font-family:&quot;Brand Sans&quot;, Arial, sans-serif;');
+  });
+
   it('should default body background to lowercase white while blocks stay transparent until set', () => {
     const document: EmailDocument = {
       version: '0.0.1',

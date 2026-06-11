@@ -215,6 +215,7 @@ ngx-email-studio select { appearance: none; color: #0f172a; font-weight: 800; ba
 ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42px; padding: 4px; border-radius: 12px; cursor: pointer; }
 .nes-file-input { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0 !important; }
 .nes-muted { margin: 0; color: var(--nes-muted); font-size: 12px; line-height: 1.45; }
+.nes-field-hint { margin-top: -2px; color: var(--nes-muted); font-size: 11px; line-height: 1.35; }
 .nes-image-source-panel { display: grid; gap: 10px; margin: 14px 0; }
 .nes-image-source-panel label { margin: 0; }
 .nes-image-upload-helper { display: grid; gap: 8px; padding: 11px; border: 1px solid #dbeafe; border-radius: 14px; background: linear-gradient(180deg, #eff6ff, #f8fafc); }
