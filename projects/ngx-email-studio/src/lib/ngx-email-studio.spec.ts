@@ -666,12 +666,13 @@ describe('NgxEmailStudio', () => {
 
     expect(component.emailFontSizeCss).toBe('13px');
     expect(component.emailFontFamilyCss).toBe('Ubuntu, Helvetica, Arial, sans-serif');
+    expect(component.emailFontCssUrl).toBe('https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700');
     const canvas = fixture.nativeElement.querySelector('.nes-canvas') as HTMLElement;
     expect(canvas.style.fontSize).toBe('13px');
     expect(canvas.style.fontFamily).toBe('Ubuntu, Helvetica, Arial, sans-serif');
     expect(component.lastHtml).toContain('<!--[if !mso]><!-->');
     expect(component.lastHtml).toContain('<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">');
-    expect(component.lastHtml).toContain('@import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);');
+    expect(component.lastHtml).toContain('@import url("https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700");');
     expect(component.lastHtml).toContain('font-family:Ubuntu, Helvetica, Arial, sans-serif;font-size:13px;');
 
     component.updateDocumentAttr('contentFontSize', 16);
@@ -682,7 +683,7 @@ describe('NgxEmailStudio', () => {
     expect(component.emailFontFamilyCss).toBe('Georgia, serif');
     expect(component.emailDocument.attrs?.['contentFontSize']).toBe(16);
     expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('Georgia, serif');
-    expect(component.lastHtml).not.toContain('fonts.googleapis.com/css?family=Ubuntu');
+    expect(component.lastHtml).toContain('fonts.googleapis.com/css?family=Ubuntu');
     expect(component.lastHtml).toContain('font-family:Georgia, serif;font-size:16px;');
   });
 
@@ -698,7 +699,9 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const input = query<HTMLInputElement>(fixture, '.nes-font-family-input');
+    const fontCssUrlInput = query<HTMLInputElement>(fixture, '.nes-font-css-url-input');
     expect(input).toBeTruthy();
+    expect(fontCssUrlInput?.value).toBe('https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700');
     expect(input?.getAttribute('list')).toBeNull();
     expect(query(fixture, 'datalist')).toBeNull();
     expect(input?.getAttribute('role')).toBe('combobox');
@@ -711,6 +714,8 @@ describe('NgxEmailStudio', () => {
     const panel = query<HTMLElement>(fixture, '.nes-font-family-panel');
     expect(panel).toBeTruthy();
     expect(panel?.getAttribute('role')).toBe('listbox');
+    const styles = (NgxEmailStudio as any).ɵcmp.styles.join('\n');
+    expect(styles).toMatch(/\.nes-font-family-panel\s*\{[^}]*position:\s*static;/);
     const options = Array.from(queryAll<HTMLElement>(fixture, '.nes-font-family-option')).map((option) => ({
       value: option.getAttribute('data-value') || '',
       label: option.querySelector('.nes-font-family-label')?.textContent?.trim() || '',
@@ -738,7 +743,39 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
     (component as any).refreshOutputs(false);
     expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('"Brand Sans", Arial, sans-serif');
+    expect(component.emailFontFamilyCss).toBe('"Brand Sans", Arial, sans-serif');
+    expect(component.fontFamilyAutocompleteOpen).toBe(false);
+    expect(input!.value).toBe('"Brand Sans", Arial, sans-serif');
     expect(component.lastHtml).toContain('font-family:&quot;Brand Sans&quot;, Arial, sans-serif;');
+  });
+
+  it('should let body settings control the imported font CSS URL safely', () => {
+    expect(component.emailFontCssUrl).toBe('https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700');
+    (component as any).refreshOutputs(false);
+    expect(component.lastHtml).toContain('<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">');
+    expect(component.lastHtml).toContain('@import url("https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700");');
+
+    component.updateDocumentFontCssUrlAttr('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    (component as any).refreshOutputs(false);
+    expect(component.emailDocument.attrs?.['contentFontCssUrl']).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    expect(component.lastHtml).toContain('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;display=swap" rel="stylesheet" type="text/css">');
+    expect(component.lastHtml).toContain('@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap");');
+
+    component.updateDocumentFontCssUrlAttr('');
+    (component as any).refreshOutputs(false);
+    expect(component.emailDocument.attrs?.['contentFontCssUrl']).toBe('');
+    expect(component.emailFontCssUrl).toBe('');
+    expect(component.lastHtml).not.toContain('fonts.googleapis.com');
+
+    component.updateDocumentFontCssUrlAttr('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    component.onFontCssUrlInput('https://');
+    expect(component.emailDocument.attrs?.['contentFontCssUrl']).toBe('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    expect(component.fontCssUrlInputValue).toBe('https://');
+
+    component.updateDocumentFontCssUrlAttr('javascript:alert(1)');
+    (component as any).refreshOutputs(false);
+    expect(component.emailDocument.attrs?.['contentFontCssUrl']).toBeUndefined();
+    expect(component.lastHtml).not.toContain('javascript:');
   });
 
   it('should default body background to lowercase white while blocks stay transparent until set', () => {

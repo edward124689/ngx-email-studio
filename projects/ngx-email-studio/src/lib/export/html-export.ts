@@ -17,6 +17,7 @@ import {
   imageWidthCss,
   indent,
   normalizeCssSizeValue,
+  normalizeFontCssUrlValue,
   normalizeFontFamilyValue,
   normalizeFontWeightValue,
   normalizeHrefValue,
@@ -29,7 +30,8 @@ import {
 } from './export-utils';
 
 export function renderHtml(document: EmailDocument): string {
-  const attrs = { ...defaultDocumentAttrs(), ...(document.attrs || {}) };
+  const rawAttrs = document.attrs || {};
+  const attrs = { ...defaultDocumentAttrs(), ...rawAttrs };
   const bodyBackgroundStyle = backgroundStyle(attrs['backgroundColor']);
   const emailBackgroundStyle = backgroundStyle(attrs['contentBackgroundColor']);
   const emailWidth = dimensionCss(attrs, 'width', 100, '%');
@@ -38,7 +40,7 @@ export function renderHtml(document: EmailDocument): string {
   const emailChromeStyle = emailWrapperChromeStyle(attrs);
   const emailFontFamily = emailFontFamilyCss(attrs);
   const emailFontSize = emailFontSizeCss(attrs);
-  const emailFontImport = googleFontImportStyle(emailFontFamily);
+  const emailFontImport = fontCssImportStyle(attrs, rawAttrs);
   const outlookWidth = escapeAttr(outlookHtmlWidth(attrs));
   const rows = document.body.map((node) => nodeToHtml(node, 6)).join('\n');
   return [
@@ -264,13 +266,22 @@ function emailFontFamilyCss(attrs: Record<string, string | number | boolean>): s
   return normalizeFontFamilyValue(attrs['contentFontFamily']) || 'Ubuntu, Helvetica, Arial, sans-serif';
 }
 
-function googleFontImportStyle(fontFamily: string): string[] {
-  if (!/(^|,\s*)Ubuntu(\s*,|$)/i.test(fontFamily)) return [];
+function fontCssUrl(attrs: Record<string, string | number | boolean>, rawAttrs: Record<string, string | number | boolean>): string {
+  const hasExplicitUrl = Object.prototype.hasOwnProperty.call(rawAttrs, 'contentFontCssUrl');
+  if (hasExplicitUrl && String(rawAttrs['contentFontCssUrl'] ?? '').trim() === '') return '';
+  if (hasExplicitUrl) return normalizeFontCssUrlValue(rawAttrs['contentFontCssUrl']);
+  return normalizeFontCssUrlValue(attrs['contentFontCssUrl']) || 'https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700';
+}
+
+function fontCssImportStyle(attrs: Record<string, string | number | boolean>, rawAttrs: Record<string, string | number | boolean>): string[] {
+  const url = fontCssUrl(attrs, rawAttrs);
+  if (!url) return [];
+  const escapedAttrUrl = escapeAttr(url);
   return [
     '    <!--[if !mso]><!-->',
-    '    <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700" rel="stylesheet" type="text/css">',
+    `    <link href="${escapedAttrUrl}" rel="stylesheet" type="text/css">`,
     '    <style type="text/css">',
-    '      @import url(https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700);',
+    `      @import url("${url}");`,
     '    </style>',
     '    <!--<![endif]-->',
   ];

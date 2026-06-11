@@ -15,6 +15,7 @@ export function defaultDocumentAttrs(): Record<string, string | number | boolean
     contentBorderColor: '#d9e2ec',
     contentFontSize: 13,
     contentFontFamily: 'Ubuntu, Helvetica, Arial, sans-serif',
+    contentFontCssUrl: 'https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700',
   };
 }
 

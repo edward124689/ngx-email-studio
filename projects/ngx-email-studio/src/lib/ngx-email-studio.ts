@@ -11,7 +11,7 @@ import { NgxEmailStudioImportModal } from './components/import-modal.component';
 import { NgxEmailStudioOutputModal } from './components/output-modal.component';
 import { DEFAULT_EMAIL_FONT_FAMILY_OPTIONS, DEFAULT_EMAIL_STUDIO_CONFIG } from './config';
 import { BODY_NODE_ID } from './constants';
-import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
+import { dimensionCss, dimensionUnit, dimensionValue, imageWidthCss as getImageWidthCss, isAlignableContent as isAlignableEmailContent, paddingCss as nodePaddingToCss, paddingUnit as sectionPaddingUnit, paddingValue as sectionPaddingValue, sectionPaddingCss as sectionPaddingToCss, contentAlign as getContentAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontCssUrlValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue } from './export/export-utils';
 import { renderHtml as renderHtmlDocument } from './export/html-export';
 import { compileMjml as compileMjmlDocument } from './export/mjml-export';
 import { parseMjml as parseMjmlDocument } from './import/mjml-import';
@@ -396,7 +396,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               </div>
               <div class="nes-field">
                 <label [attr.for]="fontFamilyInputId">Email font family</label>
-                <span class="nes-font-family-autocomplete" (click)="$event.stopPropagation()">
+                <div class="nes-font-family-autocomplete" (click)="$event.stopPropagation()">
                   <input
                     [id]="fontFamilyInputId"
                     class="nes-font-family-input"
@@ -404,9 +404,9 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     aria-autocomplete="list"
                     [attr.aria-controls]="fontFamilyOptionsListId"
                     [attr.aria-expanded]="fontFamilyAutocompleteOpen && filteredEmailFontFamilyOptions.length > 0"
-                    [ngModel]="emailFontFamilyCss"
+                    [value]="fontFamilyInputValue"
                     (focusin)="openFontFamilyAutocomplete()"
-                    (ngModelChange)="onFontFamilyInput($event)"
+                    (input)="onFontFamilyInput($any($event.target).value)"
                     placeholder="Ubuntu, Helvetica, Arial, sans-serif"
                   />
                   <div class="nes-font-family-panel" *ngIf="fontFamilyAutocompleteOpen && filteredEmailFontFamilyOptions.length" [id]="fontFamilyOptionsListId" role="listbox">
@@ -423,8 +423,21 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                       <span class="nes-font-family-value">{{ option.value }}</span>
                     </button>
                   </div>
-                </span>
+                </div>
                 <span class="nes-field-hint">Choose a preset or type a custom font stack.</span>
+              </div>
+              <div class="nes-field">
+                <label [attr.for]="fontCssUrlInputId">Import font CSS URL</label>
+                <input
+                  [id]="fontCssUrlInputId"
+                  class="nes-font-css-url-input"
+                  [value]="fontCssUrlInputValue"
+                  (focusin)="openFontCssUrlInput()"
+                  (input)="onFontCssUrlInput($any($event.target).value)"
+                  (focusout)="closeFontCssUrlInput()"
+                  placeholder="https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700"
+                />
+                <span class="nes-field-hint">Imported into exported HTML as a safe HTTPS stylesheet URL.</span>
               </div>
               <label>
                 Email border color
@@ -1318,11 +1331,15 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   previewSrcdoc: SafeHtml | string = '';
   fontFamilyAutocompleteOpen = false;
   private fontFamilyAutocompleteQuery = '';
+  private fontFamilyInputText = '';
+  private fontCssUrlInputActive = false;
+  private fontCssUrlInputText = '';
 
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
   readonly fontFamilyInputId = `${this.dropListIdPrefix}-font-family-input`;
+  readonly fontCssUrlInputId = `${this.dropListIdPrefix}-font-css-url-input`;
   readonly fontFamilyOptionsListId = `${this.dropListIdPrefix}-font-family-options`;
   readonly bodyNodeId = BODY_NODE_ID;
   readonly rejectPaletteDrop = (): boolean => false;
@@ -1484,6 +1501,23 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   get emailFontFamilyCss(): string {
     return normalizeFontFamilyValue(this.documentAttrs['contentFontFamily']) || 'Ubuntu, Helvetica, Arial, sans-serif';
+  }
+
+  get emailFontCssUrl(): string {
+    const attrs = this.emailDocument.attrs || {};
+    if (Object.prototype.hasOwnProperty.call(attrs, 'contentFontCssUrl')) {
+      const raw = String(attrs['contentFontCssUrl'] ?? '').trim();
+      return raw === '' ? '' : normalizeFontCssUrlValue(raw);
+    }
+    return normalizeFontCssUrlValue(this.defaultDocumentAttrs()['contentFontCssUrl']) || 'https://fonts.googleapis.com/css?family=Ubuntu:300,400,500,700';
+  }
+
+  get fontCssUrlInputValue(): string {
+    return this.fontCssUrlInputActive ? this.fontCssUrlInputText : this.emailFontCssUrl;
+  }
+
+  get fontFamilyInputValue(): string {
+    return this.fontFamilyAutocompleteOpen ? this.fontFamilyInputText : this.emailFontFamilyCss;
   }
 
   get emailFontFamilyOptions(): EmailStudioFontFamilyOption[] {
@@ -1726,21 +1760,28 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.exportMenuOpen = false;
     this.fontFamilyAutocompleteOpen = false;
     this.fontFamilyAutocompleteQuery = '';
+    this.fontFamilyInputText = '';
+    this.fontCssUrlInputActive = false;
+    this.fontCssUrlInputText = '';
   }
 
   openFontFamilyAutocomplete(): void {
     this.fontFamilyAutocompleteOpen = true;
     this.fontFamilyAutocompleteQuery = '';
+    this.fontFamilyInputText = this.emailFontFamilyCss;
   }
 
   onFontFamilyInput(value: unknown): void {
+    const text = String(value ?? '');
     this.fontFamilyAutocompleteOpen = true;
-    this.fontFamilyAutocompleteQuery = String(value ?? '');
-    this.updateDocumentFontFamilyAttr('contentFontFamily', String(value ?? ''));
+    this.fontFamilyAutocompleteQuery = text;
+    this.fontFamilyInputText = text;
+    this.updateDocumentFontFamilyAttr('contentFontFamily', text);
   }
 
   selectFontFamilyOption(value: string): void {
     this.updateDocumentFontFamilyAttr('contentFontFamily', value);
+    this.fontFamilyInputText = value;
     this.fontFamilyAutocompleteOpen = false;
     this.fontFamilyAutocompleteQuery = '';
   }
@@ -2088,6 +2129,41 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     }
     this.emailDocument = { ...this.emailDocument, attrs };
     this.emitDocument();
+  }
+
+  updateDocumentFontCssUrlAttr(value: string): void {
+    if (this.readonly) return;
+    const trimmed = String(value ?? '').trim();
+    const normalized = normalizeFontCssUrlValue(trimmed);
+    const attrs = { ...this.defaultDocumentAttrs(), ...(this.emailDocument.attrs || {}) };
+    if (trimmed === '') {
+      attrs['contentFontCssUrl'] = '';
+    } else if (normalized) {
+      attrs['contentFontCssUrl'] = normalized;
+    } else {
+      delete attrs['contentFontCssUrl'];
+    }
+    this.emailDocument = { ...this.emailDocument, attrs };
+    this.emitDocument();
+  }
+
+  openFontCssUrlInput(): void {
+    this.fontCssUrlInputActive = true;
+    this.fontCssUrlInputText = this.emailFontCssUrl;
+  }
+
+  onFontCssUrlInput(value: unknown): void {
+    const text = String(value ?? '');
+    this.fontCssUrlInputActive = true;
+    this.fontCssUrlInputText = text;
+    if (text.trim() === '' || normalizeFontCssUrlValue(text)) {
+      this.updateDocumentFontCssUrlAttr(text);
+    }
+  }
+
+  closeFontCssUrlInput(): void {
+    this.fontCssUrlInputActive = false;
+    this.fontCssUrlInputText = '';
   }
 
   colorPickerValue(value: unknown, fallback = '#ffffff'): string {

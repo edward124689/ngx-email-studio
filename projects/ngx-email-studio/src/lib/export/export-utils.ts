@@ -32,6 +32,17 @@ export function normalizeFontFamilyValue(value: unknown): string {
   return /^[a-zA-Z0-9\s,'"\-]+$/.test(raw) && /[a-zA-Z]/.test(raw) && raw.length <= 120 ? raw : '';
 }
 
+export function normalizeFontCssUrlValue(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.length > 300 || /[\s"'<>\\()]/.test(raw)) return '';
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && !!url.hostname ? raw : '';
+  } catch {
+    return '';
+  }
+}
+
 export function normalizeFontWeightValue(value: unknown): string {
   const raw = String(value ?? '').trim().toLowerCase();
   return /^(normal|bold|[1-9]00)$/.test(raw) ? raw : '';

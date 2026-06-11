@@ -47,7 +47,7 @@ Live demo: <https://edward124689.github.io/ngx-email-studio/>
 - **Clean HTML export**: generate a frontend HTML email export for the supported subset, including email-client friendly tables/resets.
 - **Drag-and-drop layout**: Angular CDK powered content palette, canvas, sections, rows, columns, and nested blocks.
 - **Builder shell**: module library, searchable palette, nested outline, preview size chips, selected-block controls, and tabbed inspector.
-- **Body typography presets**: choose email-safe font-family presets with autocomplete, or type a custom sanitized font stack.
+- **Body typography presets**: choose email-safe font-family presets with autocomplete, type a custom sanitized font stack, and set a safe HTTPS font CSS import URL (defaults to Ubuntu).
 - **Tiptap rich text editor**: headings, lists, inline formatting, links, inline images by URL/upload, tables, font size, line height, text alignment, undo/redo, and sanitized source editing.
 - **Merge-tag helper**: pass a `dataSet` of placeholder keys and descriptions so users can search available merge tags and copy keys into the email content.
 - **Image upload helper**: provide `config.uploadImage` so image blocks can pick a local file, preview it, call your upload API, and write the returned URL back into Image URL.
