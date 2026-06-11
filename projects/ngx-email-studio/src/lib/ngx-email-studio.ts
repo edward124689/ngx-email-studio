@@ -416,7 +416,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                       role="option"
                       *ngFor="let option of filteredEmailFontFamilyOptions"
                       [attr.data-value]="option.value"
-                      (mousedown)="$event.preventDefault()"
+                      (mousedown)="selectFontFamilyOption(option.value); $event.preventDefault()"
                       (click)="selectFontFamilyOption(option.value)"
                     >
                       <span class="nes-font-family-label">{{ option.label }}</span>

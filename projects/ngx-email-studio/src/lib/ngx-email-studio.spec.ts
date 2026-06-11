@@ -739,7 +739,7 @@ describe('NgxEmailStudio', () => {
     expect(filteredOptions).toEqual(['"Brand Sans", Arial, sans-serif']);
 
     const brandOption = query<HTMLButtonElement>(fixture, '.nes-font-family-option');
-    brandOption?.click();
+    brandOption?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     fixture.detectChanges();
     (component as any).refreshOutputs(false);
     expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('"Brand Sans", Arial, sans-serif');
