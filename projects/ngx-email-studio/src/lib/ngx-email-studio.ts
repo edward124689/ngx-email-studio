@@ -1,6 +1,6 @@
 import { CDK_DRAG_CONFIG, CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, DoCheck, ElementRef, EventEmitter, HostListener, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, ChangeDetectorRef, Component, DoCheck, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Editor as TiptapEditor } from '@tiptap/core';
@@ -174,26 +174,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         </div>
       </header>
 
-      <main class="nes-builder" [class.is-left-panel-open]="leftPanelOverlayOpen">
-        <button
-          type="button"
-          class="nes-sidebar-backdrop"
-          *ngIf="leftPanelOverlayOpen"
-          aria-label="Close content modules panel"
-          (click)="closeLeftPanelOverlay(); $event.stopPropagation()"
-        ></button>
-        <aside
-          [id]="leftPanelId"
-          class="nes-panel nes-palette"
-          [class.is-open]="leftPanelOverlayOpen"
-          [attr.aria-hidden]="leftPanelResponsiveMode && !leftPanelOverlayOpen ? 'true' : null"
-          [attr.inert]="leftPanelResponsiveMode && !leftPanelOverlayOpen ? '' : null"
-          (click)="$event.stopPropagation()"
-        >
-          <div class="nes-palette-mobile-head">
-            <strong>{{ activeLeftTab === 'modules' ? 'Content modules' : 'Outline' }}</strong>
-            <button type="button" aria-label="Close content modules panel" (click)="closeLeftPanelOverlay()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
-          </div>
+      <main class="nes-builder">
+        <aside class="nes-panel nes-palette">
           <div class="nes-left-tabs" role="tablist" aria-label="Builder side panel">
             <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'modules'" [class.is-active]="activeLeftTab === 'modules'" (click)="activeLeftTab = 'modules'">Content modules</button>
             <button type="button" role="tab" [attr.aria-selected]="activeLeftTab === 'outline'" [class.is-active]="activeLeftTab === 'outline'" (click)="activeLeftTab = 'outline'">Outline</button>
@@ -279,7 +261,6 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               <p>{{ previewWidth }}px viewport · {{ emailWidthCss }} email width · {{ emailDocument.body.length }} blocks</p>
             </div>
             <div class="nes-stage-actions">
-              <button type="button" class="nes-sidebar-toggle" [attr.aria-expanded]="leftPanelOverlayOpen" [attr.aria-controls]="leftPanelId" (click)="openLeftPanelOverlay(); $event.stopPropagation()"><i class="nes-icon fa fa-bars" aria-hidden="true"></i> Modules</button>
               <button type="button" class="danger" (click)="clearDocument()"><i class="nes-icon fa fa-trash" aria-hidden="true"></i> Clear</button>
             </div>
           </div>
@@ -1277,8 +1258,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   activeInspectorTab: 'content' | 'style' | 'check' = 'content';
   canvasMode: CanvasMode = 'edit';
   exportMenuOpen = false;
-  leftPanelOverlayOpen = false;
-  leftPanelResponsiveMode = false;
   dragInProgress = false;
   importModalOpen = false;
   importErrorMessage = '';
@@ -1359,7 +1338,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
-  readonly leftPanelId = `${this.dropListIdPrefix}-left-panel`;
   readonly fontFamilyInputId = `${this.dropListIdPrefix}-font-family-input`;
   readonly fontCssUrlInputId = `${this.dropListIdPrefix}-font-css-url-input`;
   readonly fontFamilyOptionsListId = `${this.dropListIdPrefix}-font-family-options`;
@@ -1375,12 +1353,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     return false;
   };
 
-  constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer, private readonly changeDetector: ChangeDetectorRef, private readonly ngZone: NgZone) {}
-
-  @HostListener('window:resize')
-  onWindowResize(): void {
-    this.syncResponsiveLeftPanelState();
-  }
+  constructor(private readonly hostRef: ElementRef<HTMLElement>, private readonly sanitizer: DomSanitizer, private readonly changeDetector: ChangeDetectorRef) {}
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -1418,7 +1391,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   ngAfterViewInit(): void {
-    this.syncResponsiveLeftPanelState();
     this.syncTiptapEditors();
   }
 
@@ -1436,10 +1408,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.destroyTiptapEditors();
     if (this.copyStateTimer) clearTimeout(this.copyStateTimer);
     if (this.dataSetCopyStateTimer) clearTimeout(this.dataSetCopyStateTimer);
-    Object.values(this.tiptapToolbarStateTimers).forEach((timer) => {
-      if (timer) clearTimeout(timer);
-    });
-    this.tiptapToolbarStateTimers = {};
   }
 
   get connectedDropListIds(): string[] {
@@ -1790,28 +1758,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   closeTransientMenus(): void {
     this.exportMenuOpen = false;
-    this.leftPanelOverlayOpen = false;
     this.fontFamilyAutocompleteOpen = false;
     this.fontFamilyAutocompleteQuery = '';
     this.fontFamilyInputText = '';
     this.fontCssUrlInputActive = false;
     this.fontCssUrlInputText = '';
-  }
-
-  openLeftPanelOverlay(): void {
-    this.leftPanelOverlayOpen = true;
-    this.exportMenuOpen = false;
-  }
-
-  closeLeftPanelOverlay(): void {
-    this.leftPanelOverlayOpen = false;
-  }
-
-  syncResponsiveLeftPanelState(): void {
-    const matchMedia = globalThis.matchMedia?.bind(globalThis);
-    const isResponsive = !!matchMedia?.('(max-width: 1300px)').matches;
-    this.leftPanelResponsiveMode = isResponsive;
-    if (!isResponsive) this.closeLeftPanelOverlay();
   }
 
   openFontFamilyAutocomplete(): void {
@@ -1846,7 +1797,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   selectNodeFromOutline(id: string): void {
     this.selectNode(id);
     this.scrollNodeIntoStage(id);
-    this.closeLeftPanelOverlay();
   }
 
   selectBody(): void {
@@ -1856,7 +1806,6 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   selectBodyFromOutline(): void {
     this.selectBody();
     this.scrollStageToTop();
-    this.closeLeftPanelOverlay();
   }
 
   addBlock(item: PaletteItem): void {
@@ -3496,16 +3445,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   private scheduleTiptapToolbarState(scope: TiptapScope): void {
     if (this.tiptapToolbarStateTimers[scope]) return;
-    this.ngZone.runOutsideAngular(() => {
-      this.tiptapToolbarStateTimers[scope] = setTimeout(() => {
-        this.ngZone.run(() => {
-          this.tiptapToolbarStateTimers[scope] = undefined;
-          const editor = this.tiptapEditor(scope);
-          this.tiptapToolbarState[scope] = editor ? this.collectTiptapToolbarState(editor) : defaultTiptapToolbarState();
-          this.changeDetector.markForCheck();
-        });
-      }, 0);
-    });
+    this.tiptapToolbarStateTimers[scope] = setTimeout(() => {
+      this.tiptapToolbarStateTimers[scope] = undefined;
+      const editor = this.tiptapEditor(scope);
+      this.tiptapToolbarState[scope] = editor ? this.collectTiptapToolbarState(editor) : defaultTiptapToolbarState();
+    }, 0);
   }
 
   private collectTiptapToolbarState(editor: TiptapEditor): TiptapToolbarState {
