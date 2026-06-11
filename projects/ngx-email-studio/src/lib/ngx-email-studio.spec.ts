@@ -1592,9 +1592,13 @@ describe('NgxEmailStudio', () => {
     expect(styles).toContain('@media (min-width: 1000px) and (max-width: 1299px) { .nes-builder { grid-template-columns: 92px minmax(0, 1fr) clamp(340px, 30vw, 380px); }');
     expect(styles).toContain('.nes-palette { padding: 12px 8px; overflow-x: hidden; }');
     expect(styles).toContain('.nes-left-tabs { grid-template-columns: 1fr; gap: 6px; margin-bottom: 12px; }');
+    expect(styles).toContain('.nes-palette .nes-panel-head { margin-bottom: 10px; text-align: center; }');
+    expect(styles).toContain('.nes-palette .nes-panel-head h3 { font-size: 11px; line-height: 1.15; text-wrap: balance; }');
     expect(styles).toContain('.nes-block-list { grid-template-columns: 1fr; gap: 8px; max-height: none; padding-right: 0; }');
     expect(styles).toContain('.nes-block { min-height: 66px; padding: 8px 4px; border-radius: 13px; }');
-    expect(styles).toContain('.nes-block-description, .nes-panel-head p, .nes-search, .nes-outline-copy small, .nes-outline-index { display: none; }');
+    expect(styles).toContain('.nes-block-description, .nes-palette .nes-panel-head p, .nes-search, .nes-outline-copy small, .nes-outline-index { display: none; }');
+    expect(styles).not.toMatch(/(^|[{}]\s)\.nes-panel-head \{ margin-bottom: 10px; text-align: center; \}/);
+    expect(styles).not.toMatch(/(^|[{},]\s)\.nes-panel-head p,/);
     expect(styles).not.toContain('nes-sidebar-backdrop');
     expect(styles).not.toContain('is-left-panel-open');
   });
