@@ -394,20 +394,38 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   </span>
                 </label>
               </div>
-              <label>
-                Email font family
-                <input
-                  class="nes-font-family-input"
-                  [attr.list]="fontFamilyOptionsListId"
-                  [ngModel]="emailFontFamilyCss"
-                  (ngModelChange)="updateDocumentFontFamilyAttr('contentFontFamily', $event)"
-                  placeholder="Ubuntu, Helvetica, Arial, sans-serif"
-                />
-                <datalist [id]="fontFamilyOptionsListId">
-                  <option *ngFor="let option of emailFontFamilyOptions" [value]="option.value" [attr.label]="option.label"></option>
-                </datalist>
+              <div class="nes-field">
+                <label [attr.for]="fontFamilyInputId">Email font family</label>
+                <span class="nes-font-family-autocomplete" (click)="$event.stopPropagation()">
+                  <input
+                    [id]="fontFamilyInputId"
+                    class="nes-font-family-input"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    [attr.aria-controls]="fontFamilyOptionsListId"
+                    [attr.aria-expanded]="fontFamilyAutocompleteOpen && filteredEmailFontFamilyOptions.length > 0"
+                    [ngModel]="emailFontFamilyCss"
+                    (focusin)="openFontFamilyAutocomplete()"
+                    (ngModelChange)="onFontFamilyInput($event)"
+                    placeholder="Ubuntu, Helvetica, Arial, sans-serif"
+                  />
+                  <div class="nes-font-family-panel" *ngIf="fontFamilyAutocompleteOpen && filteredEmailFontFamilyOptions.length" [id]="fontFamilyOptionsListId" role="listbox">
+                    <button
+                      type="button"
+                      class="nes-font-family-option"
+                      role="option"
+                      *ngFor="let option of filteredEmailFontFamilyOptions"
+                      [attr.data-value]="option.value"
+                      (mousedown)="$event.preventDefault()"
+                      (click)="selectFontFamilyOption(option.value)"
+                    >
+                      <span class="nes-font-family-label">{{ option.label }}</span>
+                      <span class="nes-font-family-value">{{ option.value }}</span>
+                    </button>
+                  </div>
+                </span>
                 <span class="nes-field-hint">Choose a preset or type a custom font stack.</span>
-              </label>
+              </div>
               <label>
                 Email border color
                 <span class="nes-color-control">
@@ -1298,10 +1316,13 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   lastMjml = '';
   lastHtml = '';
   previewSrcdoc: SafeHtml | string = '';
+  fontFamilyAutocompleteOpen = false;
+  private fontFamilyAutocompleteQuery = '';
 
   private readonly dropListIdPrefix = createEmailStudioInstanceId();
   readonly rootDropListId = `${this.dropListIdPrefix}-root-drop-list`;
   readonly paletteDropListId = `${this.dropListIdPrefix}-palette-drop-list`;
+  readonly fontFamilyInputId = `${this.dropListIdPrefix}-font-family-input`;
   readonly fontFamilyOptionsListId = `${this.dropListIdPrefix}-font-family-options`;
   readonly bodyNodeId = BODY_NODE_ID;
   readonly rejectPaletteDrop = (): boolean => false;
@@ -1475,6 +1496,12 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
         seen.add(option.value);
         return true;
       });
+  }
+
+  get filteredEmailFontFamilyOptions(): EmailStudioFontFamilyOption[] {
+    const query = this.fontFamilyAutocompleteQuery.trim().toLowerCase();
+    if (!query) return this.emailFontFamilyOptions;
+    return this.emailFontFamilyOptions.filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query));
   }
 
   private get hostFontFamilyOptions(): EmailStudioFontFamilyOption[] {
@@ -1697,6 +1724,25 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   closeTransientMenus(): void {
     this.exportMenuOpen = false;
+    this.fontFamilyAutocompleteOpen = false;
+    this.fontFamilyAutocompleteQuery = '';
+  }
+
+  openFontFamilyAutocomplete(): void {
+    this.fontFamilyAutocompleteOpen = true;
+    this.fontFamilyAutocompleteQuery = '';
+  }
+
+  onFontFamilyInput(value: unknown): void {
+    this.fontFamilyAutocompleteOpen = true;
+    this.fontFamilyAutocompleteQuery = String(value ?? '');
+    this.updateDocumentFontFamilyAttr('contentFontFamily', String(value ?? ''));
+  }
+
+  selectFontFamilyOption(value: string): void {
+    this.updateDocumentFontFamilyAttr('contentFontFamily', value);
+    this.fontFamilyAutocompleteOpen = false;
+    this.fontFamilyAutocompleteQuery = '';
   }
 
   sanitizedRichText(value: unknown): string {

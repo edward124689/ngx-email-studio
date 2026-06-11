@@ -686,7 +686,7 @@ describe('NgxEmailStudio', () => {
     expect(component.lastHtml).toContain('font-family:Georgia, serif;font-size:16px;');
   });
 
-  it('should offer email font family presets while allowing custom font stacks', () => {
+  it('should offer an Angular font family autocomplete while allowing custom font stacks', () => {
     fixture.componentRef.setInput('config', {
       fontFamilyOptions: [
         { label: 'Brand Sans', value: '"Brand Sans", Arial, sans-serif' },
@@ -699,18 +699,43 @@ describe('NgxEmailStudio', () => {
 
     const input = query<HTMLInputElement>(fixture, '.nes-font-family-input');
     expect(input).toBeTruthy();
-    const listId = input?.getAttribute('list') || '';
-    expect(listId).toMatch(/^nes-\d+-font-family-options$/);
-    const options = Array.from(queryAll<HTMLOptionElement>(fixture, `#${listId} option`)).map((option) => ({
-      value: option.value,
-      label: option.getAttribute('label') || '',
+    expect(input?.getAttribute('list')).toBeNull();
+    expect(query(fixture, 'datalist')).toBeNull();
+    expect(input?.getAttribute('role')).toBe('combobox');
+    expect(input?.getAttribute('aria-autocomplete')).toBe('list');
+    expect(input?.getAttribute('aria-controls')).toMatch(/^nes-\d+-font-family-options$/);
+
+    input!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    fixture.detectChanges();
+
+    const panel = query<HTMLElement>(fixture, '.nes-font-family-panel');
+    expect(panel).toBeTruthy();
+    expect(panel?.getAttribute('role')).toBe('listbox');
+    const options = Array.from(queryAll<HTMLElement>(fixture, '.nes-font-family-option')).map((option) => ({
+      value: option.getAttribute('data-value') || '',
+      label: option.querySelector('.nes-font-family-label')?.textContent?.trim() || '',
     }));
     expect(options).toContainEqual({ label: 'Ubuntu', value: 'Ubuntu, Helvetica, Arial, sans-serif' });
     expect(options).toContainEqual({ label: 'Brand Sans', value: '"Brand Sans", Arial, sans-serif' });
     expect(options.some((option) => option.label === 'Bad Font')).toBe(false);
     expect(studioText(fixture)).toContain('Choose a preset or type a custom font stack.');
 
-    component.updateDocumentFontFamilyAttr('contentFontFamily', '"Brand Sans", Arial, sans-serif');
+    input!.value = 'Inter, Arial, sans-serif';
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    (component as any).refreshOutputs(false);
+    expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('Inter, Arial, sans-serif');
+    expect(component.lastHtml).toContain('font-family:Inter, Arial, sans-serif;');
+
+    input!.value = 'brand';
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    const filteredOptions = Array.from(queryAll<HTMLElement>(fixture, '.nes-font-family-option')).map((option) => option.getAttribute('data-value'));
+    expect(filteredOptions).toEqual(['"Brand Sans", Arial, sans-serif']);
+
+    const brandOption = query<HTMLButtonElement>(fixture, '.nes-font-family-option');
+    brandOption?.click();
+    fixture.detectChanges();
     (component as any).refreshOutputs(false);
     expect(component.emailDocument.attrs?.['contentFontFamily']).toBe('"Brand Sans", Arial, sans-serif');
     expect(component.lastHtml).toContain('font-family:&quot;Brand Sans&quot;, Arial, sans-serif;');
