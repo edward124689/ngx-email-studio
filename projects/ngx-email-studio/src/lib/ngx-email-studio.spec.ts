@@ -1901,6 +1901,47 @@ describe('NgxEmailStudio', () => {
     expect(column!.children?.length).toBe(columnBefore);
   });
 
+  it('should reroute custom template drops into the nested column under the pointer', () => {
+    fixture.detectChanges();
+    const row = component.emailDocument.body.find((node) => node.type === 'row');
+    const column = row?.children?.[0];
+    expect(column).toBeTruthy();
+    const columnElement = query<HTMLElement>(fixture, `[data-node-id="${column!.id}"]`)!;
+    const ownerDocument = columnElement.ownerDocument as Document & { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const originalElementsFromPoint = ownerDocument.elementsFromPoint;
+    Object.defineProperty(ownerDocument, 'elementsFromPoint', {
+      configurable: true,
+      value: () => [columnElement],
+    });
+    const bodyBefore = component.emailDocument.body.length;
+    const columnBefore = column!.children?.length || 0;
+    const templateItem = {
+      type: 'section',
+      label: 'Nested promo template',
+      icon: 'fa-th-large',
+      description: 'Custom MJML template',
+      templateMjml: '<mj-section><mj-column><mj-text>Nested template headline</mj-text><mj-button href="https://example.com">CTA</mj-button></mj-column></mj-section>',
+    };
+
+    try {
+      component.drop({
+        previousContainer: { data: [templateItem] } as any,
+        container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+        previousIndex: 0,
+        currentIndex: bodyBefore,
+        dropPoint: { x: 10, y: 10 },
+        item: { data: templateItem } as any,
+      } as any);
+    } finally {
+      Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
+    }
+
+    expect(component.emailDocument.body.length).toBe(bodyBefore);
+    expect(column!.children?.length).toBe(columnBefore + 2);
+    expect(column!.children?.[columnBefore].type).toBe('text');
+    expect(column!.children?.[columnBefore + 1].type).toBe('button');
+  });
+
   it('should prefer the deepest pointed column when CDK chooses an active drop-list indicator', () => {
     fixture.detectChanges();
     const row = component.emailDocument.body.find((node) => node.type === 'row');
@@ -1927,6 +1968,8 @@ describe('NgxEmailStudio', () => {
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(column!) })).toBe(true);
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.rootDropListId })).toBe(false);
       expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.dropListIdFor(section!) })).toBe(false);
+      expect(component.canEnterContainerDropList({ data: paletteSection }, { id: component.dropListIdFor(column!) })).toBe(true);
+      expect(component.canEnterContainerDropList({ data: paletteRow }, { id: component.dropListIdFor(column!) })).toBe(false);
       expect(component.canEnterContainerDropList({ data: paletteSection }, { id: component.rootDropListId })).toBe(true);
       expect(component.canEnterContainerDropList({ data: paletteRow }, { id: component.rootDropListId })).toBe(true);
     } finally {

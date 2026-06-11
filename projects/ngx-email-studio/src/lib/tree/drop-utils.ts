@@ -23,7 +23,10 @@ export function canDropIntoContainer(args: {
   const { data, containerId, paletteDropListId, rootDropListId, findTargetContainer } = args;
   if (containerId === paletteDropListId) return false;
   if (!containerId) return true;
-  if (isPaletteItem(data)) return true;
+  if (isPaletteItem(data)) {
+    if (containerId === rootDropListId) return true;
+    return !!data.templateMjml || data.type !== 'row';
+  }
   if (!isEmailNode(data)) return false;
   if (containerId === rootDropListId) return true;
 

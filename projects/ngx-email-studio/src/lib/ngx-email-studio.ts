@@ -1660,6 +1660,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   private shouldRerouteRootDropFromPoint(data: unknown): boolean {
+    if (this.isPaletteItem(data) && data.templateMjml) return true;
     if (this.isPaletteItem(data) && (data.type === 'section' || data.type === 'row')) return false;
     return true;
   }
