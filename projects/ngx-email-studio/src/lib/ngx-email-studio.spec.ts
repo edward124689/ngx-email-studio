@@ -1564,13 +1564,13 @@ describe('NgxEmailStudio', () => {
     const compactStyles = styles.replace(/\s+/g, ' ');
 
     expect(compactStyles).toContain('.nes-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: min(980px, 95vh); min-height: min(780px, 95vh);');
-    expect(compactStyles).toContain('.nes-builder { min-height: 0; display: grid; grid-template-columns: 285px minmax(0, 1fr) clamp(360px, 26vw, 420px); align-items: stretch; overflow: hidden; }');
+    expect(compactStyles).toContain('.nes-builder { min-width: 0; min-height: 0; display: grid; grid-template-columns: 285px minmax(0, 1fr) clamp(360px, 26vw, 420px); align-items: stretch; overflow: hidden; }');
     expect(compactStyles).toContain('.nes-panel { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain;');
     expect(compactStyles).toContain('.nes-stage { min-width: 0; min-height: 0; overflow: auto;');
     expect(compactStyles).toContain('.nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: visible;');
     expect(compactStyles).toContain('.nes-render-column { min-width: 0; min-height: 150px; flex: 0 1 auto;');
     expect(compactStyles).toContain('.nes-size-bar { position: sticky; top: -18px; z-index: 12;');
-    expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
+    expect(compactStyles).toContain('@media (max-width: 599px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
   });
 
   it('should keep inspector controls readable without horizontal clipping', () => {
@@ -1585,11 +1585,11 @@ describe('NgxEmailStudio', () => {
     expect(styles).toContain('@container nes-inspector (max-width: 370px) { .nes-control-row, .nes-padding-grid { grid-template-columns: 1fr; }');
   });
 
-  it('should merge the side panels behind compact tabs between 1000px and 1299px', () => {
+  it('should merge the side panels behind compact tabs between 600px and 1299px', () => {
     fixture.detectChanges();
     const styles = componentStyleText().replace(/\s+/g, ' ');
 
-    expect(styles).toContain('@media (min-width: 1000px) and (max-width: 1299px) { .nes-builder { grid-template-columns: minmax(286px, 31vw) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "panel-tabs stage" "side-panel stage"; align-items: stretch; }');
+    expect(styles).toContain('@media (min-width: 600px) and (max-width: 1299px) { .nes-builder { grid-template-columns: minmax(286px, 31vw) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "panel-tabs stage" "side-panel stage"; align-items: stretch; }');
     expect(styles).toContain('.nes-compact-panel-tabs { grid-area: panel-tabs; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(styles).toContain('.nes-palette, .nes-properties { grid-area: side-panel; width: auto; border-left: 0; border-right: 1px solid var(--nes-border); }');
     expect(styles).toContain('.nes-panel.is-compact-hidden { display: none; }');
