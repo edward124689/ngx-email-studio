@@ -1585,6 +1585,20 @@ describe('NgxEmailStudio', () => {
     expect(styles).toContain('@container nes-inspector (max-width: 370px) { .nes-control-row, .nes-padding-grid { grid-template-columns: 1fr; }');
   });
 
+  it('should switch to a compact non-overlay left dock between 1000px and 1299px', () => {
+    fixture.detectChanges();
+    const styles = componentStyleText().replace(/\s+/g, ' ');
+
+    expect(styles).toContain('@media (min-width: 1000px) and (max-width: 1299px) { .nes-builder { grid-template-columns: 92px minmax(0, 1fr) clamp(340px, 30vw, 380px); }');
+    expect(styles).toContain('.nes-palette { padding: 12px 8px; overflow-x: hidden; }');
+    expect(styles).toContain('.nes-left-tabs { grid-template-columns: 1fr; gap: 6px; margin-bottom: 12px; }');
+    expect(styles).toContain('.nes-block-list { grid-template-columns: 1fr; gap: 8px; max-height: none; padding-right: 0; }');
+    expect(styles).toContain('.nes-block { min-height: 66px; padding: 8px 4px; border-radius: 13px; }');
+    expect(styles).toContain('.nes-block-description, .nes-panel-head p, .nes-search, .nes-outline-copy small, .nes-outline-index { display: none; }');
+    expect(styles).not.toContain('nes-sidebar-backdrop');
+    expect(styles).not.toContain('is-left-panel-open');
+  });
+
   it('should import MJML sections with multiple columns as row nodes', () => {
     const mjml = `<mjml><mj-body><mj-section background-color="#f8fafc"><mj-column width="40%"><mj-text><p>Left</p></mj-text></mj-column><mj-column width="60%"><mj-image src="https://example.com/image.jpg" alt="Hero" /></mj-column></mj-section></mj-body></mjml>`;
 
