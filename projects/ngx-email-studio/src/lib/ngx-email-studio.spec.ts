@@ -1570,7 +1570,51 @@ describe('NgxEmailStudio', () => {
     expect(compactStyles).toContain('.nes-device { max-width: 100%; margin: 0 auto; transition: width .2s ease; background: #fff; border-radius: 16px; box-shadow: 0 24px 80px rgba(15, 23, 42, .14); overflow: visible;');
     expect(compactStyles).toContain('.nes-render-column { min-width: 0; min-height: 150px; flex: 0 1 auto;');
     expect(compactStyles).toContain('.nes-size-bar { position: sticky; top: -18px; z-index: 12;');
-    expect(compactStyles).toContain('@media (max-width: 700px) { .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
+    expect(compactStyles).toContain('@media (max-width: 1300px) { .nes-builder { position: relative; grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 420px); }');
+    expect(compactStyles).toContain('.nes-sidebar-toggle { display: inline-flex;');
+    expect(compactStyles).toContain('.nes-palette { position: absolute; inset: 0 auto 0 0; z-index: 21;');
+    expect(compactStyles).toContain('.nes-palette.is-open { transform: translateX(0); opacity: 1; pointer-events: auto; }');
+    expect(compactStyles).toContain('@media (max-width: 700px) { .nes-shell { height: auto; min-height: 0; overflow: visible; } .nes-builder { grid-template-columns: 1fr; height: auto; min-height: 0; overflow: visible; }');
+  });
+
+  it('should expose an overlay drawer state for the left panel', () => {
+    expect(component.leftPanelOverlayOpen).toBe(false);
+
+    component.exportMenuOpen = true;
+    component.openLeftPanelOverlay();
+    expect(component.leftPanelOverlayOpen).toBe(true);
+    expect(component.exportMenuOpen).toBe(false);
+
+    component.closeLeftPanelOverlay();
+    expect(component.leftPanelOverlayOpen).toBe(false);
+
+    component.openLeftPanelOverlay();
+    component.closeTransientMenus();
+    expect(component.leftPanelOverlayOpen).toBe(false);
+
+    const originalMatchMedia = globalThis.matchMedia;
+    try {
+      Object.defineProperty(globalThis, 'matchMedia', {
+        configurable: true,
+        value: (query: string) => ({ matches: query.includes('max-width') }),
+      });
+      component.syncResponsiveLeftPanelState();
+      expect(component.leftPanelResponsiveMode).toBe(true);
+
+      Object.defineProperty(globalThis, 'matchMedia', {
+        configurable: true,
+        value: (query: string) => ({ matches: !query.includes('max-width') }),
+      });
+      component.openLeftPanelOverlay();
+      component.syncResponsiveLeftPanelState();
+      expect(component.leftPanelResponsiveMode).toBe(false);
+      expect(component.leftPanelOverlayOpen).toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, 'matchMedia', {
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    }
   });
 
   it('should keep inspector controls readable without horizontal clipping', () => {
@@ -3040,25 +3084,32 @@ describe('NgxEmailStudio', () => {
   it('should scope outline scrolling to the clicked component instance', async () => {
     const firstFixture = TestBed.createComponent(NgxEmailStudio);
     const secondFixture = TestBed.createComponent(NgxEmailStudio);
-    firstFixture.detectChanges();
-    secondFixture.detectChanges();
+    try {
+      firstFixture.componentInstance.selectedNodeId = firstFixture.componentInstance.bodyNodeId;
+      secondFixture.componentInstance.selectedNodeId = secondFixture.componentInstance.bodyNodeId;
+      firstFixture.detectChanges();
+      secondFixture.detectChanges();
 
-    const firstStage = query(firstFixture, '.nes-stage') as HTMLElement;
-    const secondStage = query(secondFixture, '.nes-stage') as HTMLElement;
-    const firstCalls: ScrollToOptions[] = [];
-    const secondCalls: ScrollToOptions[] = [];
-    firstStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => firstCalls.push(typeof options === 'number' ? { top: y } : options || {});
-    secondStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => secondCalls.push(typeof options === 'number' ? { top: y } : options || {});
+      const firstStage = query(firstFixture, '.nes-stage') as HTMLElement;
+      const secondStage = query(secondFixture, '.nes-stage') as HTMLElement;
+      const firstCalls: ScrollToOptions[] = [];
+      const secondCalls: ScrollToOptions[] = [];
+      firstStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => firstCalls.push(typeof options === 'number' ? { top: y } : options || {});
+      secondStage.scrollTo = (options?: ScrollToOptions | number, y?: number) => secondCalls.push(typeof options === 'number' ? { top: y } : options || {});
 
-    const secondTabs = queryAll(secondFixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
-    secondTabs[1].click();
-    secondFixture.detectChanges();
-    const secondOutlineNodes = queryAll(secondFixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
-    secondOutlineNodes[1].click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+      const secondTabs = queryAll(secondFixture, '.nes-left-tabs button') as NodeListOf<HTMLButtonElement>;
+      secondTabs[1].click();
+      secondFixture.detectChanges();
+      const secondOutlineNodes = queryAll(secondFixture, '.nes-outline-node') as NodeListOf<HTMLButtonElement>;
+      secondOutlineNodes[1].click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(firstCalls.length).toBe(0);
-    expect(secondCalls.length).toBeGreaterThan(0);
+      expect(firstCalls.length).toBe(0);
+      expect(secondCalls.length).toBeGreaterThan(0);
+    } finally {
+      firstFixture.destroy();
+      secondFixture.destroy();
+    }
   });
 
   it('should keep the outline click-only without drag handles or drop targets', () => {
