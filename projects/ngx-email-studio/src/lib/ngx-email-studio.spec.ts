@@ -2111,7 +2111,7 @@ describe('NgxEmailStudio', () => {
     expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
     expect(html).toContain('#outlook a { padding:0; }');
     expect(html).toContain('table, td { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }');
-    expect(html).toContain('img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }');
+    expect(html).toContain('img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; max-width:100%; }');
     expect(html).toContain('<o:PixelsPerInch>96</o:PixelsPerInch>');
     expect(html).toContain('.nes-email-outlook-fix { width:100% !important; }');
     expect(html).toContain('@media only screen and (max-width:480px)');
