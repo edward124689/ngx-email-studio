@@ -807,7 +807,7 @@ describe('NgxEmailStudio', () => {
     expect(mjml).not.toContain('<mj-column background-color=');
     expect(mjml).not.toContain('<mj-text background-color=');
     expect(mjml).not.toContain('background-color="#FFFFFF"');
-    expect(html).toContain('<body style="margin:0;padding:0;background:#ffffff;word-spacing:normal;">');
+    expect(html).toContain('<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff;word-spacing:normal;">');
     expect(html).not.toContain('background:#FFFFFF');
   });
 
@@ -1527,8 +1527,12 @@ describe('NgxEmailStudio', () => {
     expect(button?.style.background).toBe('rgb(255, 85, 0)');
     expect(button?.style.borderRadius).toBe('18px');
     expect((localComponent as any).compileMjml(localComponent.emailDocument)).toContain('<mj-button href="#" background-color="#ff5500" border-radius="18px">Target CTA</mj-button>');
-    expect((localComponent as any).renderHtml(localComponent.emailDocument)).toContain('display:inline-block;background:#ff5500;');
-    expect((localComponent as any).renderHtml(localComponent.emailDocument)).toContain('border-radius:18px;');
+    const html = (localComponent as any).renderHtml(localComponent.emailDocument) as string;
+    expect(html).toContain('display:inline-block;background:#ff5500;');
+    expect(html).toContain('border-radius:18px;');
+    expect(html).toContain('<!--[if mso]><v:roundrect');
+    expect(html).toContain('fillcolor="#ff5500"');
+    expect(html).toContain('<w:anchorlock/>');
   });
 
   it('should import button border radius and keep preview/export radius consistent', () => {
@@ -2095,20 +2099,22 @@ describe('NgxEmailStudio', () => {
 
     const html = (component as any).renderHtml(document) as string;
 
-    expect(html).toContain('<body style="margin:0;padding:0;background:#111827;word-spacing:normal;">');
-    expect(html).toContain('style="background:#111827;padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;"');
-    expect(html).toContain('<table role="presentation" border="0" width="720" cellspacing="0" cellpadding="0" style="width:720px;max-width:720px;background:#fefce8;');
+    expect(html).toContain('<body bgcolor="#111827" style="margin:0;padding:0;background:#111827;word-spacing:normal;">');
+    expect(html).toContain('bgcolor="#111827" style="background:#111827;padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;"');
+    expect(html).toContain('<table role="presentation" border="0" width="720" cellspacing="0" cellpadding="0" bgcolor="#fefce8" style="width:720px;max-width:720px;background:#fefce8;');
     expect(html).toContain('width="720"><tr><td><![endif]-->');
   });
 
   it('should include email-client compatibility head and Outlook resets in HTML export', () => {
     const html = (component as any).renderHtml(component.emailDocument) as string;
 
-    expect(html).toContain('<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">');
+    expect(html).toContain('<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">');
     expect(html).toContain('<!--[if !mso]><!-->');
     expect(html).toContain('<meta http-equiv="X-UA-Compatible" content="IE=edge">');
     expect(html).toContain('<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">');
     expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    expect(html).toContain('<meta name="x-apple-disable-message-reformatting">');
+    expect(html).toContain('<meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">');
     expect(html).toContain('#outlook a { padding:0; }');
     expect(html).toContain('table, td { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }');
     expect(html).toContain('img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; max-width:100%; }');

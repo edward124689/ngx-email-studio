@@ -45,7 +45,7 @@ export function renderHtml(document: EmailDocument): string {
   const rows = document.body.map((node) => nodeToHtml(node, 6)).join('\n');
   return [
     '<!doctype html>',
-    '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">',
+    '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">',
     '  <head>',
     '    <title>Email Export</title>',
     '    <!--[if !mso]><!-->',
@@ -54,6 +54,8 @@ export function renderHtml(document: EmailDocument): string {
     ...emailFontImport,
     '    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">',
     '    <meta name="viewport" content="width=device-width, initial-scale=1">',
+    '    <meta name="x-apple-disable-message-reformatting">',
+    '    <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no">',
     '    <style type="text/css">',
     '      #outlook a { padding:0; }',
     '      body { margin:0; padding:0; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }',
@@ -85,12 +87,12 @@ export function renderHtml(document: EmailDocument): string {
     '      }',
     '    </style>',
     '  </head>',
-    `  <body style="margin:0;padding:0;${bodyBackgroundStyle}word-spacing:normal;">`,
-    `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="${bodyBackgroundStyle}padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `  <body${bgcolorAttr(attrs['backgroundColor'])} style="margin:0;padding:0;${bodyBackgroundStyle}word-spacing:normal;">`,
+    `    <table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0"${bgcolorAttr(attrs['backgroundColor'])} style="${bodyBackgroundStyle}padding:24px 0;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     '      <tr>',
     '        <td align="center">',
     `          <!--[if mso | IE]><table role="presentation" align="center" border="0" cellpadding="0" cellspacing="0" width="${outlookWidth}"><tr><td><![endif]-->`,
-    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0" style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:${escapeAttr(emailFontFamily)};font-size:${emailFontSize};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
+    `          <table role="presentation" border="0" width="${emailWidthAttr}" cellspacing="0" cellpadding="0"${bgcolorAttr(attrs['contentBackgroundColor'])} style="width:${emailWidth};max-width:${emailMaxWidth};${emailBackgroundStyle}${emailChromeStyle}font-family:${escapeAttr(emailFontFamily)};font-size:${emailFontSize};border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`,
     rows,
     '          </table>',
     '          <!--[if mso | IE]></td></tr></table><![endif]-->',
@@ -115,7 +117,7 @@ function rowToHtml(row: EmailNode, depth = 0): string {
   const cells = columns.map((column) => columnToHtml(column, width, depth + 4)).join('\n');
   return [
     indent('<tr>', depth),
-    indent(`<td style="padding:0;${backgroundStyle(row.attrs['backgroundColor'])}">`, depth + 1),
+    indent(`<td${bgcolorAttr(row.attrs['backgroundColor'])} style="padding:0;${backgroundStyle(row.attrs['backgroundColor'])}">`, depth + 1),
     indent('<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">', depth + 2),
     indent('<tr>', depth + 3),
     cells,
@@ -131,8 +133,8 @@ function sectionToHtml(section: EmailNode, depth = 0): string {
   const sectionBackgroundStyle = backgroundStyle(section.attrs['backgroundColor']);
   return [
     indent('<tr>', depth),
-    indent(`<td align="center" style="padding:0;${sectionBackgroundStyle}">`, depth + 1),
-    indent(`<table role="presentation" border="0" width="${escapeAttr(dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0" style="width:${escapeAttr(sectionWidthCss(section))};max-width:${escapeAttr(sectionMaxWidthCss(section))};${sectionBackgroundStyle}border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
+    indent(`<td align="center"${bgcolorAttr(section.attrs['backgroundColor'])} style="padding:0;${sectionBackgroundStyle}">`, depth + 1),
+    indent(`<table role="presentation" border="0" width="${escapeAttr(dimensionHtmlWidthAttr(section.attrs, 'width', 100, '%'))}" cellspacing="0" cellpadding="0"${bgcolorAttr(section.attrs['backgroundColor'])} style="width:${escapeAttr(sectionWidthCss(section))};max-width:${escapeAttr(sectionMaxWidthCss(section))};${sectionBackgroundStyle}border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">`, depth + 2),
     indent('<tr>', depth + 3),
     indent(`<td style="padding:${escapeAttr(sectionPaddingCss(section))};">`, depth + 4),
     content,
@@ -151,7 +153,7 @@ function columnToHtml(column: EmailNode, fallbackWidth: string, depth = 0): stri
   const maxWidth = columnMaxWidthCss(column);
   const content = (column.children || []).map((child) => blockToHtmlCellContent(child, depth + 1)).join('\n');
   return [
-    indent(`<td class="nes-email-column nes-email-outlook-fix" width="${escapeAttr(dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top" style="width:${escapeAttr(width)};max-width:${escapeAttr(maxWidth)};padding:16px;${backgroundStyle(column.attrs['backgroundColor'])}border-collapse:collapse;">`, depth),
+    indent(`<td class="nes-email-column nes-email-outlook-fix" width="${escapeAttr(dimensionHtmlWidthAttr(column.attrs, 'width', Number.isFinite(fallbackValue) ? fallbackValue : 100, fallbackUnit))}" valign="top"${bgcolorAttr(column.attrs['backgroundColor'])} style="width:${escapeAttr(width)};max-width:${escapeAttr(maxWidth)};padding:16px;${backgroundStyle(column.attrs['backgroundColor'])}border-collapse:collapse;">`, depth),
     content,
     indent('</td>', depth),
   ].join('\n');
@@ -180,10 +182,8 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 20))};${backgroundStyle(node.attrs['backgroundColor'])}${textTypographyStyle(node)}text-align:${escapeAttr(contentAlign(node))};">${sanitizeRichTextContent(node.attrs['content'])}</div>`, depth);
     case 'image':
       return indent(`<div style="padding:${escapeAttr(paddingCss(node, 0))};text-align:${escapeAttr(contentAlign(node))};"><img src="${escapeAttr(normalizeImageSrcValue(node.attrs['src']))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}" width="${escapeAttr(dimensionHtmlWidthAttr(node.attrs, 'width', 100, '%'))}" style="display:inline-block;max-width:100%;width:${escapeAttr(imageWidthCss(node))};height:auto;border:0;" /></div>`, depth);
-    case 'button': {
-      const radius = escapeAttr(buttonBorderRadiusCss(node));
-      return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><a href="${escapeAttr(normalizeHrefValue(node.attrs['href']) || '#')}" style="display:inline-block;background:${escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed')};color:${escapeAttr(buttonTextColorCss(node))};text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${escapeHtml(String(node.attrs['label'] || 'Button'))}</a></div>`, depth);
-    }
+    case 'button':
+      return buttonToHtml(node, depth);
     case 'social':
       return socialToHtml(node, depth);
     case 'divider':
@@ -195,6 +195,18 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     default:
       return '';
   }
+}
+
+function buttonToHtml(node: EmailNode, depth = 0): string {
+  const href = escapeAttr(normalizeHrefValue(node.attrs['href']) || '#');
+  const background = escapeAttr(colorAttrValue(node.attrs['backgroundColor']) || '#7c3aed');
+  const color = escapeAttr(buttonTextColorCss(node));
+  const radius = escapeAttr(buttonBorderRadiusCss(node));
+  const label = escapeHtml(String(node.attrs['label'] || 'Button'));
+  const rawLabel = String(node.attrs['label'] || 'Button').trim();
+  const buttonWidth = Math.max(120, Math.min(320, rawLabel.length * 8 + 48));
+  const arcSize = escapeAttr(msoButtonArcSize(node));
+  return indent(`<div style="padding:${escapeAttr(paddingCss(node, 24))};text-align:${escapeAttr(contentAlign(node))};"><!--[if mso]><v:roundrect href="${href}" style="height:44px;v-text-anchor:middle;width:${buttonWidth}px;" arcsize="${arcSize}" stroke="f" fillcolor="${background}"><w:anchorlock/><center style="color:${color};font-family:Arial,sans-serif;font-size:13px;font-weight:bold;">${label}</center></v:roundrect><![endif]--><!--[if !mso]><!--><a href="${href}" style="display:inline-block;background:${background};color:${color};text-decoration:none;padding:12px 20px;border-radius:${radius};font-weight:bold;">${label}</a><!--<![endif]--></div>`, depth);
 }
 
 function socialToHtml(node: EmailNode, depth = 0): string {
@@ -223,6 +235,13 @@ function buttonBorderRadiusCss(node: EmailNode): string {
   return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
 }
 
+function msoButtonArcSize(node: EmailNode): string {
+  const raw = node.attrs['borderRadius'];
+  const parsed = typeof raw === 'number' ? raw : Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
+  const radius = Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+  return `${Math.min(50, Math.max(0, Math.round((radius / 44) * 100)))}%`;
+}
+
 function textTypographyStyle(node: EmailNode): string {
   const color = colorAttrValue(node.attrs['color']) || '#1f2937';
   const fontFamily = normalizeFontFamilyValue(node.attrs['fontFamily']);
@@ -247,6 +266,11 @@ function outlookHtmlWidth(attrs: Record<string, string | number | boolean>): str
   const width = dimensionValue(attrs, 'width', 600);
   if (dimensionUnit(attrs, 'width', '%') === 'px' && Number.isFinite(width) && width > 0) return String(Math.round(width));
   return '600';
+}
+
+function bgcolorAttr(value: unknown): string {
+  const color = colorAttrValue(value);
+  return color ? ` bgcolor="${escapeAttr(color)}"` : '';
 }
 
 function emailWrapperChromeStyle(attrs: Record<string, string | number | boolean>): string {
