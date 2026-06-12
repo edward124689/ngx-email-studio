@@ -136,10 +136,38 @@ function normalizeMjmlForXmlParser(mjml: string): string {
 }
 
 function normalizeHtmlVoidTagsForXml(value: string): string {
-  return value.replace(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b([^>]*)>/gi, (match, tag: string, attrs: string) => {
-    if (/\/\s*$/.test(attrs)) return match;
-    return `<${tag}${attrs} />`;
-  });
+  const voidTagStart = /<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/gi;
+  let output = '';
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = voidTagStart.exec(value))) {
+    const start = match.index;
+    const end = findTagEnd(value, voidTagStart.lastIndex);
+    if (end === -1) break;
+    const tagText = value.slice(start, end + 1);
+    output += value.slice(cursor, start);
+    output += /\/\s*>$/.test(tagText) ? tagText : `${tagText.slice(0, -1)} />`;
+    cursor = end + 1;
+    voidTagStart.lastIndex = cursor;
+  }
+  return output + value.slice(cursor);
+}
+
+function findTagEnd(value: string, start: number): number {
+  let quote: string | undefined;
+  for (let index = start; index < value.length; index += 1) {
+    const char = value[index];
+    if (quote) {
+      if (char === quote) quote = undefined;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '>') return index;
+  }
+  return -1;
 }
 
 function parseColumn(column: Element, unsupported: string[], idFactory: EmailNodeIdFactory, widthOverride?: string): EmailNode | undefined {

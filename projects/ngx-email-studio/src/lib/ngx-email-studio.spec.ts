@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
 
 import { EmailDocument, EmailNode, EmailStudioConfig, NgxEmailStudio } from './ngx-email-studio';
@@ -522,6 +523,18 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.lastHtml).toContain('Input MJML hero');
   });
 
+  it('should emit an error instead of throwing when host-provided MJML is malformed', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const errorSpy = vi.spyOn(localComponent.error, 'emit');
+
+    localFixture.componentRef.setInput('mjml', '<mjml><mj-body><mj-section>');
+    expect(() => localFixture.detectChanges()).not.toThrow();
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'mjml_input_failed' }));
+    expect(localComponent.emailDocument.body.length).toBeGreaterThan(0);
+  });
+
   it('should reset stale host-provided MJML and document inputs when they are cleared', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.componentRef.setInput('mjml', '<mjml><mj-body><mj-section><mj-column><mj-text><p>Host MJML</p></mj-text></mj-column></mj-section></mj-body></mjml>');
@@ -623,6 +636,30 @@ describe('NgxEmailStudio', () => {
     expect(secondPaletteId).toMatch(/^nes-\d+-palette-drop-list$/);
     expect(firstPaletteId).not.toBe(secondPaletteId);
     expect(firstCanvasId).not.toBe(secondCanvasId);
+  });
+
+  it('should scope document keyboard shortcuts to the active component instance', () => {
+    const hostFixture = TestBed.createComponent(MultiStudioHostComponent);
+    hostFixture.detectChanges();
+    const debugStudios = hostFixture.debugElement.queryAll(By.directive(NgxEmailStudio));
+    const [first, second] = debugStudios.map((debugElement) => debugElement.componentInstance as NgxEmailStudio);
+    const [firstHost, secondHost] = debugStudios.map((debugElement) => debugElement.nativeElement as HTMLElement);
+
+    first.updateDocumentAttr('contentFontSize', 18);
+    second.updateDocumentAttr('contentFontSize', 19);
+    expect(first.documentAttrs['contentFontSize']).toBe(18);
+    expect(second.documentAttrs['contentFontSize']).toBe(19);
+
+    firstHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true }));
+
+    expect(first.documentAttrs['contentFontSize']).toBe(13);
+    expect(second.documentAttrs['contentFontSize']).toBe(19);
+
+    second.outputModalType = 'html';
+    firstHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(second.outputModalType).toBe('html');
+    secondHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(second.outputModalType).toBeNull();
   });
 
   it('should default email width to 100% and max-width to 600px', () => {
@@ -1014,6 +1051,18 @@ describe('NgxEmailStudio', () => {
     expect(mjml).toContain('<mj-button href="#" background-color="#7c3aed" border-radius="10px">Right</mj-button>');
   });
 
+  it('should wrap programmatic root columns in a valid MJML section', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [{ id: 'root_column', type: 'column', attrs: { width: '50%' }, children: [{ id: 'root_column_text', type: 'text', attrs: { content: '<p>Root column</p>' } }] }],
+    };
+
+    const mjml = (component as any).compileMjml(document) as string;
+
+    expect(mjml).toContain('<mj-section><mj-column width="50%"><mj-text><p>Root column</p></mj-text></mj-column></mj-section>');
+    expect(mjml).not.toContain('<mj-body background-color="#ffffff" width="100%">\n<mj-column');
+  });
+
   it('should compile, render, and import left/center/right content alignment', () => {
     const document: EmailDocument = {
       version: '0.0.1',
@@ -1117,11 +1166,35 @@ describe('NgxEmailStudio', () => {
     expect(String(text?.attrs['content'])).toContain('<br');
   });
 
+  it('should tolerate quoted greater-than characters in imported MJML void tags', () => {
+    const document = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><img src="https://example.com/a.png" alt="2 > 1">Caption<br data-label="x > y">Done</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const text = findImportedNode(document.body, 'text');
+
+    expect(String(text?.attrs['content'])).toContain('src="https://example.com/a.png"');
+    expect(String(text?.attrs['content'])).toContain('Caption');
+    expect(String(text?.attrs['content'])).toContain('Done');
+  });
+
   it('should not treat literal parsererror tags in MJML text as parser failures', () => {
     const document = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><parsererror>not parser error</parsererror></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const text = findImportedNode(document.body, 'text');
 
     expect(String(text?.attrs['content'])).toContain('not parser error');
+  });
+
+  it('should keep malformed spacer heights out of MJML and HTML exports', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [{ id: 'bad_spacer', type: 'spacer', attrs: { height: 'Infinity' } }],
+    };
+
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(mjml).toContain('<mj-spacer height="24px" />');
+    expect(html).toContain('height:24px;line-height:24px;');
+    expect(`${mjml}\n${html}`).not.toContain('Infinity');
+    expect(`${mjml}\n${html}`).not.toContain('NaN');
   });
 
   it('should compile, render, and import image width settings', () => {

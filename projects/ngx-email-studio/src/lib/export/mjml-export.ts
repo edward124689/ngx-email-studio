@@ -11,7 +11,7 @@ export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFacto
 
 function nodeToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
   if (node.type === 'row') return rowToMjml(node, idFactory);
-  if (node.type === 'column') return columnToMjml(node, idFactory);
+  if (node.type === 'column') return `    <mj-section>${columnToMjml(node, idFactory)}</mj-section>`;
   if (node.type === 'section') return sectionToMjml(node, idFactory);
   return `    <mj-section${backgroundAttr(node)}><mj-column>${blockToMjml(node, idFactory)}</mj-column></mj-section>`;
 }
@@ -56,9 +56,17 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
       return socialToMjml(node);
     case 'divider':
       return `<mj-divider border-color="${escapeAttr(colorAttrValue(node.attrs['borderColor']) || '#d0d5dd')}" />`;
-    case 'spacer':
-      return `<mj-spacer height="${Number(node.attrs['height'] || 24)}px" />`;
+    case 'spacer': {
+      const height = spacerHeight(node.attrs['height']);
+      return `<mj-spacer height="${height}px" />`;
+    }
   }
+}
+
+function spacerHeight(value: unknown): number {
+  const parsed = Number.parseFloat(String(value ?? ''));
+  if (!Number.isFinite(parsed) || parsed < 0) return 24;
+  return Math.min(1000, Math.round(parsed));
 }
 
 function socialToMjml(node: EmailNode): string {

@@ -189,12 +189,18 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
     case 'divider':
       return indent(`<div style="padding:12px 24px;"><hr style="border:0;border-top:1px solid ${escapeAttr(colorAttrValue(node.attrs['borderColor']) || '#d0d5dd')};" /></div>`, depth);
     case 'spacer': {
-      const height = Number(node.attrs['height'] || 24);
+      const height = spacerHeight(node.attrs['height']);
       return indent(`<div style="height:${height}px;line-height:${height}px;font-size:0;">&nbsp;</div>`, depth);
     }
     default:
       return '';
   }
+}
+
+function spacerHeight(value: unknown): number {
+  const parsed = Number.parseFloat(String(value ?? ''));
+  if (!Number.isFinite(parsed) || parsed < 0) return 24;
+  return Math.min(1000, Math.round(parsed));
 }
 
 function buttonToHtml(node: EmailNode, depth = 0): string {

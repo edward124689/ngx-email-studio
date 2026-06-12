@@ -1374,8 +1374,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.activePointedDropListId = this.findDeepestContainerDropListIdAtPoint(event.clientX, event.clientY);
   }
 
-  @HostListener('document:keydown.escape')
-  onDocumentEscape(): void {
+  @HostListener('document:keydown.escape', ['$event'])
+  onDocumentEscape(event?: Event): void {
+    if (event && !this.isKeyboardEventScopedToHost(event)) return;
     this.closeTransientMenus();
     if (this.outputModalType) this.closeOutputModal();
     if (this.tiptapPrompt) this.closeTiptapPrompt();
@@ -1389,6 +1390,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   @HostListener('document:keydown', ['$event'])
   onDocumentKeydown(event: KeyboardEvent): void {
     if (!this.isHistoryShortcut(event)) return;
+    if (!this.isKeyboardEventScopedToHost(event)) return;
     event.preventDefault();
     if (this.isRedoShortcut(event)) {
       this.redoDocument();
@@ -1608,11 +1610,17 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
     if (changes['document'] || changes['mjml']) {
       this.mjmlDraft = this.mjml || '';
-      const nextDocument = this.mjml
-        ? this.parseMjml(this.mjml)
-        : this.document
-          ? structuredClone(this.document)
-          : this.createStarterDocument();
+      let nextDocument: EmailDocument;
+      if (this.mjml) {
+        try {
+          nextDocument = this.parseMjml(this.mjml);
+        } catch (details) {
+          this.error.emit({ code: 'mjml_input_failed', message: 'Unable to parse input MJML.', details });
+          nextDocument = this.document ? structuredClone(this.document) : structuredClone(this.emailDocument);
+        }
+      } else {
+        nextDocument = this.document ? structuredClone(this.document) : this.createStarterDocument();
+      }
       this.replaceEmailDocument(nextDocument, false);
     }
   }
@@ -3241,6 +3249,15 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private isRedoShortcut(event: KeyboardEvent): boolean {
     const key = event.key.toLowerCase();
     return (event.metaKey || event.ctrlKey) && (key === 'y' || (key === 'z' && event.shiftKey));
+  }
+
+  private isKeyboardEventScopedToHost(event: Event): boolean {
+    const root = this.componentRoot();
+    const target = event.target;
+    if (!target) return true;
+    if (target instanceof Node && root.contains(target)) return true;
+    const activeElement = this.hostRef.nativeElement.ownerDocument.activeElement;
+    return activeElement instanceof Node && root.contains(activeElement);
   }
 
   private isEditableKeyboardTarget(target: EventTarget | null): boolean {
