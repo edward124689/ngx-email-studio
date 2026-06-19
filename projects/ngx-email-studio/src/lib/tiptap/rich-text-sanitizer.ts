@@ -6,8 +6,8 @@ export function sanitizeRichTextContent(value: unknown): string {
   const raw = String(value || '');
   if (!raw.trim()) return '';
   const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${raw}</div>`, 'text/html');
-  const root = doc.body.firstElementChild;
+  const doc = parser.parseFromString(raw, 'text/html');
+  const root = doc.body;
   if (!root) return '';
   sanitizeRichTextNode(root);
   return root.innerHTML;

@@ -2607,6 +2607,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   setTransformScope(_scope: EmailStudioTransformScope): void {
+    if (this.readonly) return;
     this.transformScope = 'document';
     void this.refreshTransformPreview();
   }
@@ -2782,6 +2783,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (!prompt || prompt.kind !== 'image' || this.readonly || !uploadImage || this.imageUploadLoadingNodeId) return;
     const node = prompt.scope === 'modal' ? this.expandedRichTextNode : this.selectedNode;
     if (!node || node.type !== 'text') return;
+    const editor = this.tiptapEditor(prompt.scope);
+    const selectionFrom = editor?.state.selection.from;
+    const selectionTo = editor?.state.selection.to;
     const runUploadImage = uploadImage;
     const nodeId = node.id;
     const requestId = ++this.imageUploadRequestId;
@@ -2797,6 +2801,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
         currentAlt: '',
       });
       if (requestId !== this.imageUploadRequestId || this.readonly || this.effectiveConfig.uploadImage !== runUploadImage) return;
+      const activeNode = prompt.scope === 'modal' ? this.expandedRichTextNode : this.selectedNode;
+      const activeEditor = this.tiptapEditor(prompt.scope);
+      if (this.tiptapPrompt !== prompt || !activeNode || activeNode.id !== nodeId || activeEditor !== editor || activeEditor?.state.selection.from !== selectionFrom || activeEditor?.state.selection.to !== selectionTo) return;
       const uploadResult = this.normalizeImageUploadResult(result);
       const url = normalizeImageSrcValue(uploadResult.url);
       if (!url) throw new Error('The upload helper did not return a safe image URL.');
@@ -3079,10 +3086,13 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   applyRichTextSource(): void {
     if (this.readonly || !this.sourceEditorNode) return;
     const sanitized = this.sanitizeRichTextContent(this.sourceEditorValue);
-    this.sourceEditorWarning = sanitized !== this.sourceEditorValue ? 'Unsafe or unsupported markup was removed.' : '';
+    const changedBySanitizer = sanitized !== this.sourceEditorValue;
+    this.sourceEditorWarning = changedBySanitizer ? 'Unsafe or unsupported markup was removed.' : '';
+    if (changedBySanitizer) this.sourceEditorValue = sanitized;
     this.updateAttr(this.sourceEditorNode, 'content', sanitized);
     const editor = this.sourceEditorScope ? this.tiptapEditor(this.sourceEditorScope) : undefined;
     editor?.commands.setContent(sanitized || '<p></p>', { emitUpdate: false });
+    if (changedBySanitizer) return;
     this.closeRichTextSource();
   }
 
@@ -3387,6 +3397,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.closeRichTextModal();
     this.invalidateImageUpload();
     this.destroyTiptapEditors();
+    this.paletteSearch = '';
+    this.activeLeftTab = 'modules';
+    this.activeCompactPanel = 'modules';
+    this.activeInspectorTab = 'content';
+    this.canvasMode = 'edit';
     this.emailDocument = document;
     this.selectedNodeId = this.emailDocument.body[0]?.children?.[0]?.id || this.emailDocument.body[0]?.id || BODY_NODE_ID;
     this.resetDocumentHistory();

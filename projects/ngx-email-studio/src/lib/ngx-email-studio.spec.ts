@@ -611,6 +611,11 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.sourceEditorScope).toBeNull();
     expect(localComponent.exportMenuOpen).toBe(false);
     expect(localComponent.copyState).toBe('');
+    expect(localComponent.paletteSearch).toBe('');
+    expect(localComponent.activeLeftTab).toBe('modules');
+    expect(localComponent.activeCompactPanel).toBe('modules');
+    expect(localComponent.activeInspectorTab).toBe('content');
+    expect(localComponent.canvasMode).toBe('edit');
     expect(localComponent.lastMjml).toContain('Replacement');
   });
 
@@ -986,6 +991,11 @@ describe('NgxEmailStudio', () => {
     expect(sanitizeRichTextContent('<div><span><ul><li>Nested item</li></ul></span></div>')).toBe('<ul><li>Nested item</li></ul>');
   });
 
+  it('should preserve recoverable content after stray rich-text closing tags', () => {
+    expect(sanitizeRichTextContent('</div><p>Keep me</p>')).toBe('<p>Keep me</p>');
+    expect(sanitizeRichTextContent('<p>Before</p></div><p>After</p>')).toBe('<p>Before</p><p>After</p>');
+  });
+
   it('should ignore unsupported imported MJML color values while preserving lowercase hex imports', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body background-color="red;background:url(javascript:alert(1))"><mj-section background-color="red;background:url(javascript:alert(1))"><mj-column background-color="#ABCDEF"><mj-text><p>Safe</p></mj-text></mj-column><mj-column background-color="red;background:url(javascript:alert(1))"><mj-text><p>Unsafe column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const row = imported.body[0];
@@ -1013,6 +1023,44 @@ describe('NgxEmailStudio', () => {
     expect((component as any).compileMjml(imported)).toContain('background-color="#ffffff"');
     expect((component as any).compileMjml(imported)).toContain('background-color="#abcdef"');
     expect((component as any).compileMjml(imported)).not.toContain('#FFFFFF');
+  });
+
+  it('should preserve safe single-column MJML container attrs when flattening edit-mode sections', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column background-color="#FEDCBA" padding="32px"><mj-text><p>Single column</p></mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const section = imported.body[0];
+    const mjml = (component as any).compileMjml(imported) as string;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(section.type).toBe('section');
+    expect(section.attrs['backgroundColor']).toBe('#fedcba');
+    expect(section.attrs['paddingTop']).toBe(32);
+    expect(mjml).toContain('background-color="#fedcba"');
+    expect(mjml).toContain('padding="32px 32px 32px 32px"');
+    expect(html).toContain('background:#fedcba;');
+    expect(html).toContain('padding:32px 32px 32px 32px;');
+  });
+
+  it('should not silently drop direct or nested row content supplied by host documents', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [{
+        id: 'row_direct',
+        type: 'row',
+        attrs: {},
+        children: [
+          { id: 'text_direct', type: 'text', attrs: { content: '<p>Do not lose me</p>' } },
+          { id: 'row_nested', type: 'row', attrs: {}, children: [{ id: 'text_nested', type: 'text', attrs: { content: '<p>Nested row text</p>' } }] },
+        ],
+      }],
+    };
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+
+    expect(mjml).toContain('Do not lose me');
+    expect(mjml).toContain('Nested row text');
+    expect(mjml).not.toContain('<mj-column><mj-section');
+    expect(html).toContain('Do not lose me');
+    expect(html).toContain('Nested row text');
   });
 
   it('should compile body width/background and row columns to MJML columns', () => {
@@ -2715,6 +2763,27 @@ describe('NgxEmailStudio', () => {
     expect(String(textNode.attrs['content'])).toContain('alt="Uploaded hero"');
   });
 
+  it('should ignore stale Tiptap image uploads after the prompt is cancelled', async () => {
+    const uploadFile = new File(['png'], 'late.png', { type: 'image/png' });
+    let resolveUpload!: (value: { url: string; alt: string }) => void;
+    const uploadSpy = vi.fn().mockImplementation(() => new Promise((resolve) => { resolveUpload = resolve; }));
+    fixture.componentRef.setInput('config', { uploadImage: uploadSpy });
+    fixture.detectChanges();
+    const textNode = component.selectedNode!;
+    const before = String(textNode.attrs['content']);
+
+    (component as any).openTiptapImageModal('inline');
+    const pending = (component as any).uploadTiptapImageFromPrompt(uploadFile) as Promise<void>;
+    expect(uploadSpy).toHaveBeenCalledWith(uploadFile, expect.objectContaining({ nodeId: textNode.id }));
+    component.closeTiptapPrompt();
+
+    resolveUpload({ url: 'https://cdn.example.com/late.png', alt: 'Late upload' });
+    await pending;
+
+    expect(String(textNode.attrs['content'])).toBe(before);
+    expect(component.tiptapPrompt).toBeNull();
+  });
+
   it('should sanitize rich text images at source/import and keep unsafe image URLs out', () => {
     const sanitized = (component as any).sanitizeRichTextContent('<p>Hero</p><img src="https://images.example.com/safe.png" alt="Safe hero" width="320"><img src="javascript:alert(1)" alt="Unsafe"><img alt="No src"><img src="https://" alt="No host">');
 
@@ -2791,6 +2860,11 @@ describe('NgxEmailStudio', () => {
     expect(textNode.attrs['content']).toContain('<p class="safe-copy">Safe</p>');
     expect(textNode.attrs['content']).not.toContain('onclick');
     expect(textNode.attrs['content']).not.toContain('<script');
+    expect(component.sourceEditorScope).toBe('inline');
+    expect(component.sourceEditorWarning).toContain('Unsafe or unsupported markup was removed');
+    expect(component.sourceEditorValue).toBe(textNode.attrs['content']);
+
+    component.applyRichTextSource();
     expect(component.sourceEditorScope).toBeNull();
 
     const beforeCancel = textNode.attrs['content'];
@@ -3160,10 +3234,13 @@ describe('NgxEmailStudio', () => {
     localComponent.selectNode(localComponent.emailDocument.body[0].id);
     localComponent.duplicateSelected();
     localComponent.deleteSelected();
+    const refreshTransformPreview = vi.spyOn(localComponent as any, 'refreshTransformPreview');
+    localComponent.setTransformScope('document');
 
     expect(localComponent.emailDocument).toEqual(original);
     expect(localComponent.importModalOpen).toBe(false);
     expect(localComponent.expandedRichTextNode).toBeUndefined();
+    expect(refreshTransformPreview).not.toHaveBeenCalled();
   });
 
   it('should render the left panel as Content modules and Outline tabs with a nested tree view', () => {

@@ -112,7 +112,7 @@ function nodeToHtml(node: EmailNode, depth = 0): string {
 }
 
 function rowToHtml(row: EmailNode, depth = 0): string {
-  const columns = (row.children || []).filter((child) => child.type === 'column');
+  const columns = rowChildrenToColumns(row);
   const width = autoColumnWidth(row);
   const cells = columns.map((column) => columnToHtml(column, width, depth + 4)).join('\n');
   return [
@@ -126,6 +126,21 @@ function rowToHtml(row: EmailNode, depth = 0): string {
     indent('</td>', depth + 1),
     indent('</tr>', depth),
   ].join('\n');
+}
+
+function rowChildrenToColumns(row: EmailNode): EmailNode[] {
+  const children = row.children || [];
+  const fallbackWidth = autoColumnWidth(row);
+  return children.flatMap((child) => {
+    if (child.type === 'column') return [child];
+    if (child.type === 'row') return rowChildrenToColumns(child);
+    return [{
+      id: `${row.id || 'row'}_${child.id || 'child'}_column`,
+      type: 'column',
+      attrs: { width: fallbackWidth, widthUnit: fallbackWidth.trim().endsWith('%') ? '%' : 'px', maxWidth: 600, maxWidthUnit: 'px' },
+      children: [child],
+    }];
+  });
 }
 
 function sectionToHtml(section: EmailNode, depth = 0): string {

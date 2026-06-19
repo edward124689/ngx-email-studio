@@ -81,8 +81,9 @@ function parseSection(section: Element, unsupported: string[], idFactory: EmailN
   const parsedColumns = columns.map((column) => parseColumn(column.element, unsupported, idFactory, column.width)).filter((column): column is EmailNode => !!column);
   const sectionAttrs = { ...inheritedAttrs, ...importedContainerAttrs(section) };
   if (parsedColumns.length === 1) {
-    const children = parsedColumns[0].children || [];
-    return children.length ? createSectionWithChildren(idFactory, children, sectionAttrs) : undefined;
+    const singleColumn = parsedColumns[0];
+    const children = singleColumn.children || [];
+    return children.length ? createSectionWithChildren(idFactory, children, mergeFlattenedSingleColumnAttrs(sectionAttrs, singleColumn.attrs)) : undefined;
   }
 
   const row = createNode(idFactory, 'row', sectionAttrs);
@@ -185,6 +186,14 @@ function importedContainerAttrs(element: Element): Record<string, string | numbe
     ...importedBackgroundColorAttrs(element),
     ...importedPaddingAttrs(element),
   };
+}
+
+function mergeFlattenedSingleColumnAttrs(sectionAttrs: Record<string, string | number | boolean>, columnAttrs: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
+  const merged = { ...sectionAttrs };
+  for (const key of ['backgroundColor', 'padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'paddingUnit']) {
+    if (merged[key] === undefined && columnAttrs[key] !== undefined) merged[key] = columnAttrs[key];
+  }
+  return merged;
 }
 
 function importedBackgroundColorAttrs(element: Element): { backgroundColor?: string } {

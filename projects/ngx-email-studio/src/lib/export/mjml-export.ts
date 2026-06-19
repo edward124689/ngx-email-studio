@@ -17,11 +17,21 @@ function nodeToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
 }
 
 function rowToMjml(row: EmailNode, idFactory: EmailNodeIdFactory): string {
-  const columns = (row.children || []).filter((child) => child.type === 'column');
+  const columns = rowChildrenToColumns(row, idFactory);
   const columnMarkup = columns.length
     ? columns.map((column) => columnToMjml(column, idFactory)).join('')
     : columnToMjml(createColumn(idFactory, [createNode(idFactory, 'text')]), idFactory);
   return `    <mj-section${backgroundAttr(row)}>${columnMarkup}</mj-section>`;
+}
+
+function rowChildrenToColumns(row: EmailNode, idFactory: EmailNodeIdFactory): EmailNode[] {
+  const children = row.children || [];
+  const fallbackWidth = `${Math.floor(100 / Math.max(1, children.length || 1))}%`;
+  return children.flatMap((child) => {
+    if (child.type === 'column') return [child];
+    if (child.type === 'row') return rowChildrenToColumns(child, idFactory);
+    return [createColumn(idFactory, [child], fallbackWidth)];
+  });
 }
 
 function sectionToMjml(section: EmailNode, idFactory: EmailNodeIdFactory): string {
