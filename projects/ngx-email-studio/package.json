@@ -1,6 +1,6 @@
 {
   "name": "ngx-email-studio",
-  "version": "21.0.4",
+  "version": "21.0.5",
   "description": "Angular 21 frontend email builder with MJML import/export, responsive preview, Tiptap rich text editing, and clean HTML export.",
   "keywords": [
     "angular",

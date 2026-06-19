@@ -2,6 +2,15 @@
 
 All notable changes to `ngx-email-studio` are documented here.
 
+## 21.0.5
+
+- Hardened MJML import so common raw ampersands in URL attributes, such as query strings, import safely without XML parser failures.
+- Ignored unsafe non-positive MJML body widths during import instead of carrying invalid dimensions into exported output.
+- Hardened Social logo uploads so stale async completions cannot write to the wrong row after item removal or reordering.
+- Fixed root-rerouted nested drag/drop reorders so same-array moves keep the intended insertion slot.
+- Added regression coverage for the MJML import, Social logo upload, and nested reorder edge cases.
+- Published `ngx-email-studio@21.0.5` to npm with the `latest` dist-tag.
+
 ## 21.0.4
 
 - Added body typography controls for email font size, font family presets/autocomplete, and safe Google Fonts CSS import settings.
