@@ -1639,8 +1639,10 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const target = this.resolveDropTarget(event);
     if (target.id === this.paletteDropListId) return;
     if (!this.canDropIntoContainer(event.item.data, target.id)) return;
-    if (event.previousContainer === event.container && target.data === event.container.data) {
-      moveItemInArray(target.data, event.previousIndex, target.index);
+    if (target.data === event.previousContainer.data) {
+      const isReroutedSameArray = target.data !== event.container.data;
+      const nextIndex = isReroutedSameArray && event.previousIndex < target.index ? Math.max(0, target.index - 1) : target.index;
+      moveItemInArray(target.data, event.previousIndex, nextIndex);
       this.emitDocument();
       return;
     }
@@ -2364,6 +2366,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const items = this.socialEditorItems(node);
     const item = items[index];
     if (!item) return;
+    const itemSnapshot = { ...item };
 
     const uploadNodeId = this.socialUploadNodeId(node, index);
     const requestId = ++this.imageUploadRequestId;
@@ -2397,7 +2400,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       const url = normalizeImageSrcValue(uploadResult.url);
       if (!url) throw new Error('The upload helper did not return a safe image URL.');
       const liveItems = this.socialEditorItems(liveNode).map((socialItem) => ({ ...socialItem }));
-      if (!liveItems[index]) {
+      if (!liveItems[index] || !this.isSameSocialUploadTarget(itemSnapshot, liveItems[index])) {
         this.clearImageUploadPreview();
         return;
       }
@@ -2416,6 +2419,13 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     } finally {
       if (requestId === this.imageUploadRequestId) this.imageUploadLoadingNodeId = '';
     }
+  }
+
+  private isSameSocialUploadTarget(before: SocialItem, after: SocialItem): boolean {
+    return before.name === after.name
+      && before.href === after.href
+      && before.backgroundColor === after.backgroundColor
+      && before.logoUrl === after.logoUrl;
   }
 
   socialPreviewLabel(name: string): string {

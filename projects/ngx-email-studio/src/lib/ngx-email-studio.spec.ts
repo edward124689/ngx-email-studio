@@ -1040,6 +1040,20 @@ describe('NgxEmailStudio', () => {
     expect(html).toContain('padding:32px 32px 32px 32px;');
   });
 
+  it('should import common raw ampersands in MJML URL attributes and ignore unsafe body widths', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body width="-100px"><mj-section><mj-column><mj-button href="https://example.com/?a=1&b=2">Query CTA</mj-button></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const button = findImportedNode(imported.body, 'button');
+    const mjml = (component as any).compileMjml(imported) as string;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(imported.attrs?.['width']).toBe(100);
+    expect(button?.attrs['href']).toBe('https://example.com/?a=1&b=2');
+    expect(mjml).toContain('href="https://example.com/?a=1&amp;b=2"');
+    expect(mjml).not.toContain('width="-100px"');
+    expect(html).toContain('href="https://example.com/?a=1&amp;b=2"');
+    expect(html).not.toContain('width:-100px');
+  });
+
   it('should not silently drop direct or nested row content supplied by host documents', () => {
     const document: EmailDocument = {
       version: '0.0.1',
@@ -1360,6 +1374,38 @@ describe('NgxEmailStudio', () => {
     expect(anchorTag).toContain('border-radius:0;background:transparent;');
     expect(imgTag).toContain('<img src="https://cdn.example.com/facebook.png"');
     expect(imgTag).not.toContain('border-radius');
+  });
+
+  it('should ignore stale social logo upload completions when the original item shifts', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:stale-social-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: { url: string; alt: string }) => void;
+    const handler = vi.fn(() => new Promise<{ url: string; alt: string }>((resolve) => { resolveUpload = resolve; }));
+    const socialNode: EmailNode = {
+      id: 'social_upload_shift',
+      type: 'social',
+      attrs: {
+        items: JSON.stringify([
+          { name: 'facebook', href: 'https://example.com/fb', backgroundColor: '#A1A0A0' },
+          { name: 'twitter', href: 'https://example.com/tw', backgroundColor: '#A1A0A0' },
+        ]),
+      },
+    };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [socialNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = socialNode.id;
+    fixture.detectChanges();
+    const activeSocial = component.emailDocument.body[0];
+    const file = new File(['image-bytes'], 'facebook.png', { type: 'image/png' });
+
+    const pending = component.uploadSocialLogoForItem(activeSocial, 0, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'facebook.png' } } as unknown as Event);
+    component.removeSocialItem(activeSocial, 0);
+    resolveUpload({ url: 'https://cdn.example.com/facebook.png', alt: 'Facebook logo' });
+    await pending;
+
+    expect(JSON.parse(String(activeSocial.attrs['items']))).toEqual([{ name: 'twitter', href: 'https://example.com/tw', backgroundColor: '#A1A0A0' }]);
+    expect(component.socialLogoUploadErrorFor(activeSocial, 0)).toBe('');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-social-preview');
   });
 
   it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {
@@ -2103,6 +2149,42 @@ describe('NgxEmailStudio', () => {
     }
 
     expect(component.canEnterContainerDropList({ data: paletteText }, { id: component.rootDropListId })).toBe(true);
+  });
+
+  it('should keep root-rerouted same-array nested reorders at the pointed insertion slot', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const section = (localComponent as any).createSectionWithChildren([
+      { id: 'drop_a', type: 'text', attrs: { content: '<p>A</p>' } },
+      { id: 'drop_b', type: 'text', attrs: { content: '<p>B</p>' } },
+      { id: 'drop_c', type: 'text', attrs: { content: '<p>C</p>' } },
+    ]);
+    localFixture.componentRef.setInput('document', { version: '0.0.1', body: [section] } satisfies EmailDocument);
+    localFixture.detectChanges();
+    const activeSection = localComponent.emailDocument.body[0];
+    const sectionElement = query<HTMLElement>(localFixture, `.nes-render-section[data-node-id="${activeSection.id}"]`)!;
+    const childElements = Array.from(sectionElement.querySelectorAll<HTMLElement>(':scope > .nes-child-node[data-node-id]'));
+    childElements.forEach((child, index) => {
+      Object.defineProperty(child, 'getBoundingClientRect', { configurable: true, value: () => ({ top: index * 10, height: 10, bottom: index * 10 + 10, left: 0, right: 100, width: 100, x: 0, y: index * 10, toJSON: () => ({}) }) });
+    });
+    const ownerDocument = sectionElement.ownerDocument as Document & { elementsFromPoint?: (x: number, y: number) => Element[] };
+    const originalElementsFromPoint = ownerDocument.elementsFromPoint;
+    Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: () => [sectionElement] });
+
+    try {
+      localComponent.drop({
+        previousContainer: { data: activeSection.children } as any,
+        container: { id: localComponent.rootDropListId, data: localComponent.emailDocument.body } as any,
+        previousIndex: 0,
+        currentIndex: 0,
+        item: { data: activeSection.children![0] } as any,
+        dropPoint: { x: 10, y: 19 },
+      } as any);
+    } finally {
+      Object.defineProperty(ownerDocument, 'elementsFromPoint', { configurable: true, value: originalElementsFromPoint });
+    }
+
+    expect(activeSection.children?.map((node: EmailNode) => node.id)).toEqual(['drop_b', 'drop_a', 'drop_c']);
   });
 
   it('should keep selected text blocks draggable on the canvas', () => {

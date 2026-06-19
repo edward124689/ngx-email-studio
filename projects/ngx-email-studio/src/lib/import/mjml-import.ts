@@ -41,11 +41,7 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   const documentAttrs = defaultDocumentAttrs();
   const bodyBackgroundColor = importedColor(body.getAttribute('background-color'));
   if (bodyBackgroundColor) documentAttrs['backgroundColor'] = bodyBackgroundColor;
-  if (body.getAttribute('width')) {
-    const bodyWidth = body.getAttribute('width') || '640px';
-    documentAttrs['width'] = Number.parseFloat(bodyWidth);
-    documentAttrs['widthUnit'] = bodyWidth.trim().endsWith('%') ? '%' : 'px';
-  }
+  Object.assign(documentAttrs, importedDimensionAttrs(body.getAttribute('width'), 'width'));
   const nodes: EmailNode[] = [];
 
   elementChildren(body).forEach((element) => {
@@ -128,7 +124,7 @@ function roundWidth(value: number): number {
 }
 
 function normalizeMjmlForXmlParser(mjml: string): string {
-  return normalizeHtmlVoidTagsForXml(mjml).replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
+  return normalizeHtmlVoidTagsForXml(mjml).replace(/&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]+);)/g, '&amp;').replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
     const name = entity.toLowerCase();
     if (XML_SAFE_ENTITIES.has(name)) return match;
     const codepoint = HTML_ENTITY_CODEPOINTS[name];
