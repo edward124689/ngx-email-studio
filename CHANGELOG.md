@@ -2,6 +2,13 @@
 
 All notable changes to `ngx-email-studio` are documented here.
 
+## 21.0.6
+
+- Updated Angular runtime and build dependencies to `21.2.17` to pick up upstream security fixes for Angular common, core, and compiler packages.
+- Aligned related Angular packages (`forms`, `platform-browser`, `router`, CLI/build tooling, and compiler-cli) to avoid peer dependency conflicts during clean installs.
+- Verified clean install, library build, test suite, package packing, and production dependency audit after the security update.
+- Prepared the `ngx-email-studio@21.0.6` patch release.
+
 ## 21.0.5
 
 - Hardened MJML import so common raw ampersands in URL attributes, such as query strings, import safely without XML parser failures.
