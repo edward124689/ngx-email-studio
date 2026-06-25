@@ -7,7 +7,7 @@ All notable changes to `ngx-email-studio` are documented here.
 - Updated Angular runtime and build dependencies to `21.2.17` to pick up upstream security fixes for Angular common, core, and compiler packages.
 - Aligned related Angular packages (`forms`, `platform-browser`, `router`, CLI/build tooling, and compiler-cli) to avoid peer dependency conflicts during clean installs.
 - Verified clean install, library build, test suite, package packing, and production dependency audit after the security update.
-- Prepared the `ngx-email-studio@21.0.6` patch release.
+- Published `ngx-email-studio@21.0.6` to npm with the `latest` dist-tag.
 
 ## 21.0.5
 
