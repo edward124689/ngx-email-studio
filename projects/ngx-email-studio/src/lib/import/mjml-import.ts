@@ -44,7 +44,10 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   Object.assign(documentAttrs, importedDimensionAttrs(body.getAttribute('width'), 'width'));
   const nodes: EmailNode[] = [];
 
-  elementChildren(body).forEach((element) => {
+  const parseRoots = body.tagName.toLowerCase() === 'mj-body' || body.tagName.toLowerCase() === 'mjml'
+    ? elementChildren(body)
+    : [body];
+  parseRoots.forEach((element) => {
     nodes.push(...parseTopLevelMjmlElement(element, unsupported, idFactory));
   });
 
@@ -144,7 +147,8 @@ function normalizeHtmlVoidTagsForXml(value: string): string {
     const tagText = value.slice(start, end + 1);
     output += value.slice(cursor, start);
     output += /\/\s*>$/.test(tagText) ? tagText : `${tagText.slice(0, -1)} />`;
-    cursor = end + 1;
+    const closingTag = new RegExp(`^\\s*<\\/\\s*${match[1]}\\s*>`, 'i').exec(value.slice(end + 1));
+    cursor = closingTag ? end + 1 + closingTag[0].length : end + 1;
     voidTagStart.lastIndex = cursor;
   }
   return output + value.slice(cursor);

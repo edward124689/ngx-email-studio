@@ -1666,7 +1666,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       target.data.splice(target.index, 0, ...nodes);
       this.selectedNodeId = nodes[0]?.id;
     } else {
-      const [movedNode] = (event.previousContainer.data as EmailNode[]).splice(event.previousIndex, 1);
+      const previousData = event.previousContainer.data;
+      if (!Array.isArray(previousData) || event.previousIndex < 0 || event.previousIndex >= previousData.length) return;
+      const movedNode = previousData[event.previousIndex];
+      if (!movedNode || !this.isEmailNode(movedNode) || movedNode !== event.item.data || !this.canDropIntoContainer(movedNode, target.id)) return;
+      previousData.splice(event.previousIndex, 1);
       const node = this.wrapForRootDrop(movedNode, target.id);
       target.data.splice(target.index, 0, node);
       this.selectedNodeId = node.id;
@@ -2894,6 +2898,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   closeTiptapPrompt(): void {
+    if (this.tiptapPrompt?.kind === 'image' && this.imageUploadLoadingNodeId) this.invalidateImageUpload();
     this.tiptapPrompt = null;
     this.tiptapPromptValue = '';
     this.tiptapPromptError = '';
@@ -3406,7 +3411,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (emit) {
       this.lastEmittedDocumentJson = this.safeSerializeDocument(this.emailDocument);
       this.lastEmittedMjml = this.lastMjml;
-      this.documentChange.emit(this.emailDocument);
+      this.documentChange.emit(structuredClone(this.emailDocument));
       this.mjmlChange.emit(this.lastMjml);
       this.change.emit({ mjml: this.lastMjml, html: { html: this.lastHtml } });
     }
@@ -3432,7 +3437,8 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const raw = value as Partial<EmailDocument>;
     let valid = true;
     if (!Array.isArray(raw.body)) valid = false;
-    const bodyResults = Array.isArray(raw.body) ? raw.body.map((node) => this.normalizeNodeShape(node)) : [];
+    const seenIds = new Set<string>();
+    const bodyResults = Array.isArray(raw.body) ? raw.body.map((node) => this.normalizeNodeShape(node, seenIds)) : [];
     bodyResults.forEach((node) => {
       if (!node.valid) valid = false;
     });
@@ -3449,31 +3455,46 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     return { document, valid };
   }
 
-  private normalizeNodeShape(value: unknown): { node: EmailNode | null; valid: boolean } {
+  private normalizeNodeShape(value: unknown, seenIds: Set<string>): { node: EmailNode | null; valid: boolean } {
     if (!value || typeof value !== 'object') return { node: null, valid: false };
     const raw = value as Partial<EmailNode>;
     const validTypes: EmailBlockType[] = ['row', 'column', 'section', 'text', 'image', 'button', 'social', 'divider', 'spacer'];
     let valid = true;
-    const type = validTypes.includes(raw.type as EmailBlockType) ? raw.type as EmailBlockType : 'text';
+    const type: EmailBlockType = validTypes.includes(raw.type as EmailBlockType) ? raw.type as EmailBlockType : 'text';
     if (type !== raw.type) valid = false;
     const attrs = raw.attrs && typeof raw.attrs === 'object' && !Array.isArray(raw.attrs) ? { ...raw.attrs } as Record<string, string | number | boolean> : {};
     if (!raw.attrs || typeof raw.attrs !== 'object' || Array.isArray(raw.attrs)) valid = false;
     const childrenRaw = raw.children;
-    const childResults = Array.isArray(childrenRaw) ? childrenRaw.map((child) => this.normalizeNodeShape(child)) : [];
+    const childResults = Array.isArray(childrenRaw) ? childrenRaw.map((child) => this.normalizeNodeShape(child, seenIds)) : [];
     childResults.forEach((child) => {
       if (!child.valid) valid = false;
     });
-    const children = childResults.map((child) => child.node).filter((node): node is EmailNode => !!node);
+    let children = childResults.map((child) => child.node).filter((node): node is EmailNode => !!node);
     if (childrenRaw !== undefined && !Array.isArray(childrenRaw)) valid = false;
+    if (type === 'row' && children.some((child) => child.type !== 'column')) {
+      valid = false;
+      children = children.map((child) => child.type === 'column' ? child : createTreeColumn((nodeType) => this.nextUniqueInputId(nodeType as EmailBlockType, seenIds), [child]));
+    }
+    const requestedId = typeof raw.id === 'string' && raw.id.trim() ? raw.id : '';
+    const id = requestedId && !seenIds.has(requestedId) ? requestedId : this.nextUniqueInputId(type, seenIds);
+    if (!requestedId || id !== requestedId) valid = false;
+    seenIds.add(id);
     return {
       node: {
-        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id : this.nextId(type),
+        id,
         type,
         attrs,
         ...(children.length ? { children } : {}),
       },
       valid,
     };
+  }
+
+  private nextUniqueInputId(type: EmailBlockType, seenIds: Set<string>): string {
+    let id = this.nextId(type);
+    while (seenIds.has(id)) id = this.nextId(type);
+    seenIds.add(id);
+    return id;
   }
 
   private isLastEmittedDocument(value: unknown): boolean {

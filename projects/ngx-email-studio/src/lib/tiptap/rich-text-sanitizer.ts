@@ -5,7 +5,7 @@ const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5'
 export function sanitizeRichTextContent(value: unknown): string {
   const raw = String(value || '');
   if (!raw.trim()) return '';
-  if (typeof DOMParser === 'undefined') return escapeFallbackText(raw);
+  if (typeof DOMParser === 'undefined') return sanitizeRichTextFallback(raw);
   const parser = new DOMParser();
   const doc = parser.parseFromString(raw, 'text/html');
   const root = doc.body;
@@ -16,6 +16,15 @@ export function sanitizeRichTextContent(value: unknown): string {
 
 function escapeFallbackText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function sanitizeRichTextFallback(value: string): string {
+  const withoutDangerousBlocks = value.replace(/<\s*(script|style|iframe)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  return escapeFallbackText(withoutDangerousBlocks).replace(/&lt;(\/?)\s*(p|div|h[1-6]|strong|b|em|i|u|s|strike|ul|ol|li|br|span|table|thead|tbody|tr|th|td)\s*\/??\s*&gt;/gi, (_match, slash: string, tag: string) => {
+    const normalized = tag.toLowerCase();
+    if (normalized === 'br') return '<br>';
+    return `<${slash ? '/' : ''}${normalized}>`;
+  });
 }
 
 function sanitizeRichTextNode(node: Node): void {

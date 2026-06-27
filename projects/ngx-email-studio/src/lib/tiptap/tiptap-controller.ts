@@ -42,7 +42,7 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
     restoreTimeout = undefined;
   };
   const guardPointer = (event: MouseEvent) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
     const proseMirror = element.querySelector<HTMLElement>('.ProseMirror');
     if (!proseMirror) return;
     const isStructuredTarget = isTiptapStructuredEditorTarget(event.target);

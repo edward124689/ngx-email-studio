@@ -223,6 +223,38 @@ describe('NgxEmailStudio', () => {
     }
   });
 
+  it('should let native Tiptap shift-click selection pass through without caret restore', () => {
+    const element = document.createElement('div');
+    element.innerHTML = '<div class="ProseMirror">Hello</div>';
+    document.body.appendChild(element);
+    const proseMirror = element.querySelector('.ProseMirror')!;
+    const originalGetClientRects = Range.prototype.getClientRects;
+    const fakeEditor = {
+      isDestroyed: false,
+      view: {
+        focus: vi.fn(),
+        posAtDOM: vi.fn(() => 1),
+      },
+      commands: {
+        setTextSelection: vi.fn(),
+      },
+    };
+
+    Range.prototype.getClientRects = () => [{ top: 0, bottom: 20, left: 0, right: 50, width: 50, height: 20 } as DOMRect] as unknown as DOMRectList;
+    try {
+      const cleanup = installTiptapBlankClickGuard(element, fakeEditor as any);
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, shiftKey: true, clientX: 5, clientY: 5 }));
+      proseMirror.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, shiftKey: true, clientX: 5, clientY: 5, detail: 1 }));
+
+      expect(fakeEditor.view.focus).not.toHaveBeenCalled();
+      expect(fakeEditor.commands.setTextSelection).not.toHaveBeenCalled();
+      cleanup();
+    } finally {
+      Range.prototype.getClientRects = originalGetClientRects;
+      element.remove();
+    }
+  });
+
   it('should put Save at the right side and allow hosts to hide it', () => {
     fixture.detectChanges();
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
@@ -658,6 +690,44 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.lastHtml).toContain('Email Export');
   });
 
+  it('should dedupe host-provided node ids and repair malformed row children', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const errorSpy = vi.spyOn(localComponent.error, 'emit');
+    localFixture.componentRef.setInput('document', {
+      version: '0.0.1',
+      body: [
+        { id: 'dup', type: 'section', attrs: {}, children: [{ id: 'a', type: 'text', attrs: { content: '<p>A</p>' } }] },
+        { id: 'dup', type: 'section', attrs: {}, children: [{ id: 'b', type: 'text', attrs: { content: '<p>B</p>' } }] },
+        { id: 'row_bad', type: 'row', attrs: {}, children: [{ id: 'text_in_row', type: 'text', attrs: { content: '<p>Should be visible</p>' } }] },
+      ],
+    } as any);
+
+    expect(() => localFixture.detectChanges()).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'document_input_failed' }));
+    const ids = (localComponent as any).collectContainerDropListIds(localComponent.emailDocument.body) as string[];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(localComponent.emailDocument.body[0].id).toBe('dup');
+    expect(localComponent.emailDocument.body[1].id).not.toBe('dup');
+    const row = localComponent.emailDocument.body[2];
+    expect(row.children?.[0].type).toBe('column');
+    expect(row.children?.[0].children?.[0].id).toBe('text_in_row');
+    expect(localComponent.lastHtml).toContain('Should be visible');
+  });
+
+  it('should emit cloned documentChange payloads so host listeners cannot mutate internal state', () => {
+    fixture.detectChanges();
+    const beforeLength = component.emailDocument.body.length;
+    component.documentChange.subscribe((doc) => {
+      doc.body.push({ id: 'injected_by_host', type: 'text', attrs: { content: '<p>Injected</p>' } });
+    });
+
+    component.updateDocumentAttr('contentFontSize', 18);
+
+    expect(component.emailDocument.body.length).toBe(beforeLength);
+    expect((component as any).findNode('injected_by_host')).toBeUndefined();
+  });
+
   it('should close transient modals and editors when host input replaces the document', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.detectChanges();
@@ -1069,7 +1139,7 @@ describe('NgxEmailStudio', () => {
     const originalDomParser = globalThis.DOMParser;
     Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: undefined });
     try {
-      expect(sanitizeRichTextContent('<p>SSR safe</p><script>alert(1)</script>')).toBe('&lt;p&gt;SSR safe&lt;/p&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
+      expect(sanitizeRichTextContent('<p>SSR safe</p><script>alert(1)</script>')).toBe('<p>SSR safe</p>');
     } finally {
       Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: originalDomParser });
     }
@@ -1380,6 +1450,17 @@ describe('NgxEmailStudio', () => {
     const document = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><img src="https://example.com/a.png" alt="2 > 1">Caption<br data-label="x > y">Done</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const text = findImportedNode(document.body, 'text');
 
+    expect(String(text?.attrs['content'])).toContain('src="https://example.com/a.png"');
+    expect(String(text?.attrs['content'])).toContain('Caption');
+    expect(String(text?.attrs['content'])).toContain('Done');
+  });
+
+  it('should import MJML section fragments and paired void tags without parser errors', () => {
+    const fragment = (component as any).parseMjml('<mj-section><mj-column><mj-text>Hello fragment</mj-text></mj-column></mj-section>') as EmailDocument;
+    expect(findImportedNode(fragment.body, 'text')?.attrs['content']).toContain('Hello fragment');
+
+    const pairedVoid = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><img src="https://example.com/a.png"></img>Caption<br></br>Done</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const text = findImportedNode(pairedVoid.body, 'text');
     expect(String(text?.attrs['content'])).toContain('src="https://example.com/a.png"');
     expect(String(text?.attrs['content'])).toContain('Caption');
     expect(String(text?.attrs['content'])).toContain('Done');
@@ -2169,6 +2250,30 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     expect(column?.children?.[before].type).toBe('text');
     expect(component.connectedDropListIds).toContain(component.dropListIdFor(column!));
     expect(component.connectedDropListIds).toContain(component.paletteDropListId);
+  });
+
+  it('should ignore malformed existing-node drop events without corrupting the document', () => {
+    const before = JSON.stringify(component.emailDocument);
+    const first = component.emailDocument.body[0];
+
+    expect(() => component.drop({
+      previousContainer: { data: [] } as any,
+      container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: first } as any,
+    } as any)).not.toThrow();
+    expect(JSON.stringify(component.emailDocument)).toBe(before);
+
+    const other = component.emailDocument.body[1];
+    expect(() => component.drop({
+      previousContainer: { data: [other] } as any,
+      container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: first } as any,
+    } as any)).not.toThrow();
+    expect(JSON.stringify(component.emailDocument)).toBe(before);
   });
 
   it('should reroute root drops into the nested column under the pointer', () => {
@@ -3052,7 +3157,9 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     (component as any).openTiptapImageModal('inline');
     const pending = (component as any).uploadTiptapImageFromPrompt(uploadFile) as Promise<void>;
     expect(uploadSpy).toHaveBeenCalledWith(uploadFile, expect.objectContaining({ nodeId: textNode.id }));
+    expect((component as any).imageUploadLoadingNodeId).toBe(textNode.id);
     component.closeTiptapPrompt();
+    expect((component as any).imageUploadLoadingNodeId).toBe('');
 
     resolveUpload({ url: 'https://cdn.example.com/late.png', alt: 'Late upload' });
     await pending;
