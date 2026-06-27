@@ -110,12 +110,20 @@ export function isAlignableContent(node: EmailNode): boolean {
 
 export function dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {
   const raw = attrs[key];
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : fallback;
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
   const parsed = Number.parseFloat(String(raw || ''));
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function hasValidDimensionValue(value: unknown): boolean {
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 0;
+  if (value === undefined || value === null || String(value).trim() === '') return false;
+  const parsed = Number.parseFloat(String(value));
+  return Number.isFinite(parsed) && parsed >= 0;
 }
 
 export function dimensionUnit(attrs: Record<string, string | number | boolean>, key: string, fallback: EmailSizeUnit): EmailSizeUnit {
+  if (!hasValidDimensionValue(attrs[key])) return fallback;
   const unitValue = attrs[`${key}Unit`];
   if (unitValue === 'px' || unitValue === '%') return unitValue;
   const raw = String(attrs[key] || '');

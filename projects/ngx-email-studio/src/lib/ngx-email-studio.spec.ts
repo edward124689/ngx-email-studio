@@ -686,6 +686,37 @@ describe('NgxEmailStudio', () => {
     expect(component.emailBorderStyle).toBe('none');
   });
 
+  it('should clamp unsafe negative programmatic dimensions before export', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      attrs: { width: -100, widthUnit: 'px', maxWidth: '-640px', maxWidthUnit: 'px' },
+      body: [
+        {
+          id: 'section_negative',
+          type: 'section',
+          attrs: { paddingTop: -8, paddingRight: '-9', paddingBottom: -10, paddingLeft: '-11px', paddingUnit: 'px', width: -50, widthUnit: 'px' },
+          children: [
+            { id: 'image_negative', type: 'image', attrs: { src: 'https://example.com/a.png', width: -320, widthUnit: 'px' } },
+          ],
+        },
+      ],
+    };
+
+    component.emailDocument = document;
+    (component as any).refreshOutputs(false);
+
+    expect(component.lastMjml).not.toMatch(/-\d+(?:px|%)/);
+    expect(component.lastHtml).not.toMatch(/-\d+(?:px|%)/);
+    expect(component.lastMjml).not.toContain('NaN');
+    expect(component.lastHtml).not.toContain('NaN');
+    expect(component.lastMjml).not.toContain('Infinity');
+    expect(component.lastHtml).not.toContain('Infinity');
+    expect(component.lastMjml).toContain('<mj-body background-color="#ffffff" width="100%">');
+    expect(component.lastHtml).toContain('style="width:100%;max-width:600px;');
+    expect(component.lastHtml).toContain('padding:16px 16px 16px 16px;');
+    expect(component.lastHtml).toContain('width="100%"');
+  });
+
   it('should let body settings control email wrapper border and radius', () => {
     fixture.detectChanges();
 
