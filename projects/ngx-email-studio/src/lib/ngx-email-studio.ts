@@ -1766,6 +1766,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   childrenOf(node: EmailNode): EmailNode[] {
+    if (this.readonly) return node.children || [];
     node.children ??= [];
     return node.children;
   }

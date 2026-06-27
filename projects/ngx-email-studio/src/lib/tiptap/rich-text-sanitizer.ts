@@ -20,11 +20,36 @@ function escapeFallbackText(value: string): string {
 
 function sanitizeRichTextFallback(value: string): string {
   const withoutDangerousBlocks = value.replace(/<\s*(script|style|iframe)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
-  return escapeFallbackText(withoutDangerousBlocks).replace(/&lt;(\/?)\s*(p|div|h[1-6]|strong|b|em|i|u|s|strike|ul|ol|li|br|span|table|thead|tbody|tr|th|td)\s*\/??\s*&gt;/gi, (_match, slash: string, tag: string) => {
-    const normalized = tag.toLowerCase();
-    if (normalized === 'br') return '<br>';
-    return `<${slash ? '/' : ''}${normalized}>`;
-  });
+  return escapeFallbackText(withoutDangerousBlocks).replace(/&lt;(\/?)\s*([a-zA-Z][a-zA-Z0-9-]*)([^&]*)&gt;/g, (_match, slash: string, tag: string, attrs: string) => fallbackRichTextTag(slash, tag, attrs));
+}
+
+function fallbackRichTextTag(slash: string, tag: string, attrs: string): string {
+  const normalized = tag.toLowerCase();
+  if (/^(p|div|h[1-6]|strong|b|em|i|u|s|strike|ul|ol|li|span|table|thead|tbody|tr|th|td)$/.test(normalized)) return `<${slash ? '/' : ''}${normalized}>`;
+  if (normalized === 'br') return '<br>';
+  if (normalized === 'a') {
+    if (slash) return '</a>';
+    const href = normalizeHrefValue(fallbackAttr(attrs, 'href'));
+    return href ? `<a href="${escapeAttrFallback(href)}" rel="noopener noreferrer">` : '<a rel="noopener noreferrer">';
+  }
+  if (normalized === 'img' && !slash) {
+    const src = normalizeImageSrcValue(fallbackAttr(attrs, 'src'));
+    if (!src) return '';
+    const alt = safeImageText(fallbackAttr(attrs, 'alt'));
+    const title = safeImageText(fallbackAttr(attrs, 'title'));
+    const width = safeImageWidth(fallbackAttr(attrs, 'width'));
+    return `<img src="${escapeAttrFallback(src)}"${alt ? ` alt="${escapeAttrFallback(alt)}"` : ''}${title ? ` title="${escapeAttrFallback(title)}"` : ''}${width ? ` width="${width}"` : ''}>`;
+  }
+  return escapeFallbackText(`<${slash ? '/' : ''}${tag}${attrs}>`);
+}
+
+function fallbackAttr(attrs: string, name: string): string {
+  const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>` + '`' + `]+))`, 'i').exec(attrs);
+  return match?.[1] || match?.[2] || match?.[3] || '';
+}
+
+function escapeAttrFallback(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function sanitizeRichTextNode(node: Node): void {

@@ -22,9 +22,11 @@ export function canDropIntoContainer(args: {
 }): boolean {
   const { data, containerId, paletteDropListId, rootDropListId, findTargetContainer } = args;
   if (containerId === paletteDropListId) return false;
-  if (!containerId) return true;
+  if (!containerId) return false;
   if (isPaletteItem(data)) {
     if (containerId === rootDropListId) return true;
+    const targetContainer = findTargetContainer(containerId);
+    if (!targetContainer || (targetContainer.type !== 'section' && targetContainer.type !== 'column')) return false;
     return !!data.templateMjml || data.type !== 'row';
   }
   if (!isEmailNode(data)) return false;

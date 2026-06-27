@@ -791,6 +791,47 @@ describe('NgxEmailStudio', () => {
     expect(firstCanvasId).not.toBe(secondCanvasId);
   });
 
+  it('should reject cross-instance or missing-id CDK drop targets', () => {
+    const hostFixture = TestBed.createComponent(MultiStudioHostComponent);
+    hostFixture.detectChanges();
+    const debugStudios = hostFixture.debugElement.queryAll(By.directive(NgxEmailStudio));
+    const [first, second] = debugStudios.map((debugElement) => debugElement.componentInstance as NgxEmailStudio);
+    const secondRow = second.emailDocument.body.find((node) => node.type === 'row');
+    const secondColumn = secondRow?.children?.[0];
+    expect(secondColumn).toBeTruthy();
+    const beforeFirst = JSON.stringify(first.emailDocument);
+    const beforeSecond = JSON.stringify(second.emailDocument);
+
+    const paletteText = { type: 'text', label: 'Text', icon: 'fa-font', description: 'Rich text content' };
+    expect(first.canEnterContainerDropList({ data: paletteText } as any, { id: second.dropListIdFor(secondColumn!) } as any)).toBe(false);
+    first.drop({
+      previousContainer: { data: first.palette } as any,
+      container: { id: second.dropListIdFor(secondColumn!), data: secondColumn?.children || [] } as any,
+      previousIndex: 0,
+      currentIndex: secondColumn?.children?.length || 0,
+      item: { data: paletteText } as any,
+    } as any);
+    expect(JSON.stringify(first.emailDocument)).toBe(beforeFirst);
+    expect(JSON.stringify(second.emailDocument)).toBe(beforeSecond);
+
+    first.drop({
+      previousContainer: { data: first.emailDocument.body } as any,
+      container: { data: first.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 2,
+      item: { data: first.emailDocument.body[0] } as any,
+    } as any);
+    expect(JSON.stringify(first.emailDocument)).toBe(beforeFirst);
+  });
+
+  it('should not mutate node children while rendering readonly helpers', () => {
+    component.readonly = true;
+    const node = { id: 'empty_section', type: 'section', attrs: {} } as EmailNode;
+
+    expect(component.childrenOf(node)).toEqual([]);
+    expect(Object.prototype.hasOwnProperty.call(node, 'children')).toBe(false);
+  });
+
   it('should scope document keyboard shortcuts to the active component instance', () => {
     const hostFixture = TestBed.createComponent(MultiStudioHostComponent);
     hostFixture.detectChanges();
@@ -1140,6 +1181,7 @@ describe('NgxEmailStudio', () => {
     Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: undefined });
     try {
       expect(sanitizeRichTextContent('<p>SSR safe</p><script>alert(1)</script>')).toBe('<p>SSR safe</p>');
+      expect(sanitizeRichTextContent('<p><a href="https://example.com" onclick="evil()">Link</a><img src="https://images.example.com/safe.png" alt="Safe" width="320" onerror="evil()"><img src="javascript:alert(1)" alt="Bad"></p>')).toBe('<p><a href="https://example.com" rel="noopener noreferrer">Link</a><img src="https://images.example.com/safe.png" alt="Safe" width="320"></p>');
     } finally {
       Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: originalDomParser });
     }
@@ -1465,6 +1507,10 @@ describe('NgxEmailStudio', () => {
   it('should import MJML section fragments and paired void tags without parser errors', () => {
     const fragment = (component as any).parseMjml('<mj-section><mj-column><mj-text>Hello fragment</mj-text></mj-column></mj-section>') as EmailDocument;
     expect(findImportedNode(fragment.body, 'text')?.attrs['content']).toContain('Hello fragment');
+
+    const siblingFragments = (component as any).parseMjml('<mj-section><mj-column><mj-text>One &deg;</mj-text></mj-column></mj-section><mj-section><mj-column><mj-text>Two &times;</mj-text></mj-column></mj-section>') as EmailDocument;
+    expect(findImportedNode([siblingFragments.body[0]], 'text')?.attrs['content']).toContain('One °');
+    expect(findImportedNode([siblingFragments.body[1]], 'text')?.attrs['content']).toContain('Two ×');
 
     const pairedVoid = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-column><mj-text><img src="https://example.com/a.png"></img>Caption<br></br>Done</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const text = findImportedNode(pairedVoid.body, 'text');

@@ -25,14 +25,28 @@ const HTML_ENTITY_CODEPOINTS: Record<string, number> = {
   pound: 163,
   yen: 165,
   cent: 162,
+  deg: 176,
+  plusmn: 177,
+  times: 215,
+  divide: 247,
+  shy: 173,
+  laquo: 171,
+  raquo: 187,
+  sect: 167,
+  para: 182,
 };
 
 export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDocument {
   if (typeof DOMParser === 'undefined') {
     return { version: '0.0.1', body: [createNode(idFactory, 'text', { content: mjml })], unsupported: ['DOMParser unavailable'] };
   }
-  const xml = new DOMParser().parseFromString(normalizeMjmlForXmlParser(mjml), 'text/xml');
-  const parserError = xml.documentElement?.tagName.toLowerCase() === 'parsererror' ? xml.documentElement : null;
+  const normalizedMjml = normalizeMjmlForXmlParser(mjml);
+  let xml = new DOMParser().parseFromString(normalizedMjml, 'text/xml');
+  let parserError = xml.documentElement?.tagName.toLowerCase() === 'parsererror' ? xml.documentElement : null;
+  if (parserError && shouldWrapMjmlFragment(normalizedMjml)) {
+    xml = new DOMParser().parseFromString(`<mjml><mj-body>${normalizedMjml}</mj-body></mjml>`, 'text/xml');
+    parserError = xml.documentElement?.tagName.toLowerCase() === 'parsererror' ? xml.documentElement : null;
+  }
   if (parserError) {
     throw new Error(parserError.textContent || 'Invalid MJML markup.');
   }
@@ -124,6 +138,10 @@ function percentWidth(value: string | null): number | undefined {
 
 function roundWidth(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function shouldWrapMjmlFragment(value: string): boolean {
+  return !/^\s*<mjml\b/i.test(value);
 }
 
 function normalizeMjmlForXmlParser(mjml: string): string {
