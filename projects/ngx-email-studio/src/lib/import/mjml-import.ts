@@ -6,6 +6,7 @@ import { safeAlign, normalizeColorValue, normalizeCssSizeValue, normalizeFontFam
 import { serializeSocialItems, socialCssSize, socialMode, SocialItem } from '../social/social-utils';
 
 const SUPPORTED_MJML_TAGS = new Set(['mjml', 'mj-body', 'mj-wrapper', 'mj-section', 'mj-group', 'mj-column', 'mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social', 'mj-social-element']);
+const MJML_CONTENT_TAGS = new Set(['mj-text', 'mj-image', 'mj-button', 'mj-divider', 'mj-spacer', 'mj-social']);
 const XML_SAFE_ENTITIES = new Set(['amp', 'lt', 'gt', 'quot', 'apos']);
 const HTML_ENTITY_CODEPOINTS: Record<string, number> = {
   nbsp: 160,
@@ -56,6 +57,10 @@ export function parseMjml(mjml: string, idFactory: EmailNodeIdFactory): EmailDoc
   const bodyBackgroundColor = importedColor(body.getAttribute('background-color'));
   if (bodyBackgroundColor) documentAttrs['backgroundColor'] = bodyBackgroundColor;
   Object.assign(documentAttrs, importedDimensionAttrs(body.getAttribute('width'), 'width'));
+  if (documentAttrs['widthUnit'] === 'px' && typeof documentAttrs['width'] === 'number') {
+    documentAttrs['maxWidth'] = documentAttrs['width'];
+    documentAttrs['maxWidthUnit'] = 'px';
+  }
   const nodes: EmailNode[] = [];
 
   const parseRoots = body.tagName.toLowerCase() === 'mj-body' || body.tagName.toLowerCase() === 'mjml'
@@ -81,9 +86,14 @@ function parseTopLevelMjmlElement(element: Element, unsupported: string[], idFac
     }
     case 'mj-wrapper':
       return elementChildren(element).flatMap((child) => parseTopLevelMjmlElement(child, unsupported, idFactory, { ...inheritedAttrs, ...importedContainerAttrs(element) }));
-    default:
+    default: {
+      if (MJML_CONTENT_TAGS.has(element.tagName.toLowerCase())) {
+        const node = parseMjmlBlock(element, unsupported, idFactory);
+        return node ? [createSectionWithChildren(idFactory, [node], inheritedAttrs)] : [];
+      }
       if (element.tagName.startsWith('mj-') && !unsupported.includes(element.tagName)) unsupported.push(element.tagName);
       return [];
+    }
   }
 }
 

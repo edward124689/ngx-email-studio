@@ -14,13 +14,17 @@ export function sanitizeRichTextContent(value: unknown): string {
   return root.innerHTML;
 }
 
+export function sanitizeRichTextContentForMjml(value: unknown): string {
+  return normalizeRichTextHtmlForXml(sanitizeRichTextContent(value));
+}
+
 function escapeFallbackText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function sanitizeRichTextFallback(value: string): string {
   const withoutDangerousBlocks = value.replace(/<\s*(script|style|iframe)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
-  return escapeFallbackText(withoutDangerousBlocks).replace(/&lt;(\/?)\s*([a-zA-Z][a-zA-Z0-9-]*)([^&]*)&gt;/g, (_match, slash: string, tag: string, attrs: string) => fallbackRichTextTag(slash, tag, attrs));
+  return escapeFallbackText(withoutDangerousBlocks).replace(/&lt;(\/?)\s*([a-zA-Z][a-zA-Z0-9-]*)([\s\S]*?)&gt;/g, (_match, slash: string, tag: string, attrs: string) => fallbackRichTextTag(slash, tag, attrs));
 }
 
 function fallbackRichTextTag(slash: string, tag: string, attrs: string): string {
@@ -45,7 +49,11 @@ function fallbackRichTextTag(slash: string, tag: string, attrs: string): string 
 
 function fallbackAttr(attrs: string, name: string): string {
   const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>` + '`' + `]+))`, 'i').exec(attrs);
-  return match?.[1] || match?.[2] || match?.[3] || '';
+  return decodeFallbackAttr(match?.[1] || match?.[2] || match?.[3] || '');
+}
+
+function decodeFallbackAttr(value: string): string {
+  return value.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
 function escapeAttrFallback(value: string): string {
@@ -209,4 +217,76 @@ function safeFontFamily(value: string): boolean {
 function safeBoxSpacing(value: string): boolean {
   const parts = value.split(/\s+/).filter(Boolean);
   return parts.length >= 1 && parts.length <= 4 && parts.every((part) => part === '0' || /^-?([1-9]|[1-9][0-9])px$/.test(part) || part === 'auto');
+}
+
+function normalizeRichTextHtmlForXml(value: string): string {
+  return normalizeRichTextVoidTagsForXml(value).replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, entity: string) => {
+    const codepoint = RICH_TEXT_XML_ENTITY_CODEPOINTS[entity.toLowerCase()];
+    return codepoint ? `&#${codepoint};` : match;
+  });
+}
+
+const RICH_TEXT_XML_ENTITY_CODEPOINTS: Record<string, number> = {
+  nbsp: 160,
+  copy: 169,
+  reg: 174,
+  trade: 8482,
+  ndash: 8211,
+  mdash: 8212,
+  lsquo: 8216,
+  rsquo: 8217,
+  ldquo: 8220,
+  rdquo: 8221,
+  bull: 8226,
+  middot: 183,
+  hellip: 8230,
+  euro: 8364,
+  pound: 163,
+  yen: 165,
+  cent: 162,
+  deg: 176,
+  plusmn: 177,
+  times: 215,
+  divide: 247,
+  shy: 173,
+  laquo: 171,
+  raquo: 187,
+  sect: 167,
+  para: 182,
+};
+
+function normalizeRichTextVoidTagsForXml(value: string): string {
+  const voidTagStart = /<(br|img|hr|wbr)\b/gi;
+  let output = '';
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = voidTagStart.exec(value))) {
+    const start = match.index;
+    const end = findHtmlTagEnd(value, voidTagStart.lastIndex);
+    if (end === -1) break;
+    const tagText = value.slice(start, end + 1);
+    output += value.slice(cursor, start);
+    output += /\/\s*>$/.test(tagText) ? tagText : `${tagText.slice(0, -1)} />`;
+    const closingTag = new RegExp(`^\\s*<\\/\\s*${match[1]}\\s*>`, 'i').exec(value.slice(end + 1));
+    cursor = closingTag ? end + 1 + closingTag[0].length : end + 1;
+    voidTagStart.lastIndex = cursor;
+  }
+  return output + value.slice(cursor);
+}
+
+function findHtmlTagEnd(value: string, start: number): number {
+  let quote: string | undefined;
+  for (let index = start; index < value.length; index += 1) {
+    const char = value[index];
+    if (quote) {
+      if (char === quote) quote = undefined;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '>') return index;
+  }
+  return -1;
 }

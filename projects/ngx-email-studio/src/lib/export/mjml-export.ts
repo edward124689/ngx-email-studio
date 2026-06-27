@@ -1,7 +1,7 @@
 import { EmailDocument, EmailNode } from '../models';
 import { parseSocialItems, socialCssSize, socialMode } from '../social/social-utils';
 import { createColumn, createNode, defaultDocumentAttrs, EmailNodeIdFactory } from '../tree/block-factory';
-import { sanitizeRichTextContent } from '../tiptap/rich-text-sanitizer';
+import { sanitizeRichTextContentForMjml } from '../tiptap/rich-text-sanitizer';
 import { columnWidthCss, colorAttrValue, contentAlign, dimensionCss, escapeAttr, escapeHtml, hasExplicitDimension, imageWidthCss, isAlignableContent, normalizeCssSizeValue, normalizeFontFamilyValue, normalizeFontWeightValue, normalizeHrefValue, normalizeImageSrcValue, normalizeLineHeightValue, paddingCss, sectionPaddingCss } from './export-utils';
 
 export function compileMjml(document: EmailDocument, idFactory: EmailNodeIdFactory): string {
@@ -55,7 +55,7 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
     case 'section':
       return (node.children || []).map((child) => blockToMjml(child, idFactory)).join('') || '<mj-text></mj-text>';
     case 'text':
-      return `<mj-text${backgroundAttr(node)}${alignAttr(node)}${textTypographyAttrs(node)}${paddingAttr(node)}>${sanitizeRichTextContent(node.attrs['content'])}</mj-text>`;
+      return `<mj-text${backgroundAttr(node)}${alignAttr(node)}${textTypographyAttrs(node)}${paddingAttr(node)}>${sanitizeRichTextContentForMjml(node.attrs['content'])}</mj-text>`;
     case 'image':
       return `<mj-image src="${escapeAttr(normalizeImageSrcValue(node.attrs['src']))}" alt="${escapeAttr(String(node.attrs['alt'] || ''))}"${alignAttr(node)}${imageWidthAttr(node)}${paddingAttr(node)} />`;
     case 'button': {

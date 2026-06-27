@@ -223,6 +223,38 @@ describe('NgxEmailStudio', () => {
     }
   });
 
+  it('should cancel pending Tiptap caret restores on the next modifier mousedown', () => {
+    vi.useFakeTimers();
+    const element = document.createElement('div');
+    element.innerHTML = '<div class="ProseMirror">Hello</div>';
+    document.body.appendChild(element);
+    const proseMirror = element.querySelector('.ProseMirror')!;
+    const originalGetClientRects = Range.prototype.getClientRects;
+    const fakeEditor = {
+      isDestroyed: false,
+      view: { focus: vi.fn(), posAtDOM: vi.fn(() => 1) },
+      commands: { setTextSelection: vi.fn() },
+    };
+
+    Range.prototype.getClientRects = () => [{ top: 0, bottom: 20, left: 0, right: 50, width: 50, height: 20 } as DOMRect] as unknown as DOMRectList;
+    try {
+      const cleanup = installTiptapBlankClickGuard(element, fakeEditor as any);
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5 }));
+      proseMirror.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, clientX: 5, clientY: 5, detail: 1 }));
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+
+      proseMirror.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, shiftKey: true, clientX: 20, clientY: 5 }));
+      vi.runAllTimers();
+
+      expect(fakeEditor.commands.setTextSelection).toHaveBeenCalledTimes(1);
+      cleanup();
+    } finally {
+      Range.prototype.getClientRects = originalGetClientRects;
+      element.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('should let native Tiptap shift-click selection pass through without caret restore', () => {
     const element = document.createElement('div');
     element.innerHTML = '<div class="ProseMirror">Hello</div>';
@@ -688,6 +720,25 @@ describe('NgxEmailStudio', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'document_input_failed' }));
     expect(localComponent.emailDocument.body[0].attrs).toEqual({});
     expect(localComponent.lastHtml).toContain('Email Export');
+  });
+
+  it('should preserve intentionally empty host documents', () => {
+    fixture.componentRef.setInput('document', { version: '0.0.1', attrs: { backgroundColor: '' }, body: [] } satisfies EmailDocument);
+    fixture.detectChanges();
+
+    expect(component.emailDocument.body).toEqual([]);
+    expect(component.lastMjml).not.toContain('Welcome to ngx-email-studio');
+  });
+
+  it('should repair layout nodes nested inside host section or column children before export', () => {
+    fixture.componentRef.setInput('document', {
+      version: '0.0.1',
+      body: [{ id: 's1', type: 'section', attrs: {}, children: [{ id: 'r1', type: 'row', attrs: {}, children: [{ id: 'c1', type: 'column', attrs: {}, children: [{ id: 't1', type: 'text', attrs: { content: '<p>x</p>' } }] }] }] }],
+    } as any);
+    fixture.detectChanges();
+
+    expect(component.lastMjml).toContain('<mj-text><p>x</p></mj-text>');
+    expect(component.lastMjml).not.toContain('<mj-column>    <mj-section>');
   });
 
   it('should dedupe host-provided node ids and repair malformed row children', () => {
@@ -1182,6 +1233,7 @@ describe('NgxEmailStudio', () => {
     try {
       expect(sanitizeRichTextContent('<p>SSR safe</p><script>alert(1)</script>')).toBe('<p>SSR safe</p>');
       expect(sanitizeRichTextContent('<p><a href="https://example.com" onclick="evil()">Link</a><img src="https://images.example.com/safe.png" alt="Safe" width="320" onerror="evil()"><img src="javascript:alert(1)" alt="Bad"></p>')).toBe('<p><a href="https://example.com" rel="noopener noreferrer">Link</a><img src="https://images.example.com/safe.png" alt="Safe" width="320"></p>');
+      expect(sanitizeRichTextContent('<p><a href="https://example.com/?a=1&b=2">Query</a><img src="https://images.example.com/safe.png?x=1&y=2" alt="a&b"></p>')).toBe('<p><a href="https://example.com/?a=1&amp;b=2" rel="noopener noreferrer">Query</a><img src="https://images.example.com/safe.png?x=1&amp;y=2" alt="a&amp;b"></p>');
     } finally {
       Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: originalDomParser });
     }
@@ -1342,6 +1394,15 @@ describe('NgxEmailStudio', () => {
     expect(html).not.toContain('width:-100px');
   });
 
+  it('should align imported MJML body width with HTML max-width', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body width="640px"><mj-section><mj-column><mj-text>A</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(imported.attrs?.['width']).toBe(640);
+    expect(imported.attrs?.['maxWidth']).toBe(640);
+    expect(html).toContain('width:640px;max-width:640px;');
+  });
+
   it('should not silently drop direct or nested row content supplied by host documents', () => {
     const document: EmailDocument = {
       version: '0.0.1',
@@ -1390,6 +1451,11 @@ describe('NgxEmailStudio', () => {
     expect(html).toContain('style="width:100%;max-width:600px;');
     expect(html).toContain('border-radius:16px;overflow:hidden;');
     expect(html).toContain('font-size:13px;');
+    component.emailDocument = document;
+    expect(component.emailBorderRadiusCss).toBe('16px');
+    expect(component.emailBorderStyle).toBe('none');
+    expect(component.emailFontSizeCss).toBe('13px');
+    expect(component.buttonBorderRadiusValue(document.body[0].children![1])).toBe(10);
     expect(output).not.toContain('10rem');
     expect(output).not.toContain('60vw');
     expect(output).not.toContain('25vw');
@@ -1561,6 +1627,20 @@ describe('NgxEmailStudio', () => {
     expect(String(text?.attrs['content'])).toContain('Done');
   });
 
+  it('should export rich text as XML-compatible MJML content', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      body: [{ id: 'xml_text', type: 'text', attrs: { content: '<p>A&nbsp;B<br>C<img src="https://e.com/a.png"></p>' } }],
+    };
+    const mjml = (component as any).compileMjml(document) as string;
+    const parsed = new DOMParser().parseFromString(mjml, 'text/xml');
+
+    expect(mjml).toContain('A&#160;B');
+    expect(mjml).toContain('<br />');
+    expect(mjml).toContain('<img src="https://e.com/a.png" />');
+    expect(parsed.documentElement.tagName.toLowerCase()).not.toBe('parsererror');
+  });
+
   it('should import MJML section fragments and paired void tags without parser errors', () => {
     const fragment = (component as any).parseMjml('<mj-section><mj-column><mj-text>Hello fragment</mj-text></mj-column></mj-section>') as EmailDocument;
     expect(findImportedNode(fragment.body, 'text')?.attrs['content']).toContain('Hello fragment');
@@ -1574,6 +1654,9 @@ describe('NgxEmailStudio', () => {
     expect(String(text?.attrs['content'])).toContain('src="https://example.com/a.png"');
     expect(String(text?.attrs['content'])).toContain('Caption');
     expect(String(text?.attrs['content'])).toContain('Done');
+
+    const blockFragment = (component as any).parseMjml('<mj-text>Standalone block</mj-text>') as EmailDocument;
+    expect(findImportedNode(blockFragment.body, 'text')?.attrs['content']).toContain('Standalone block');
   });
 
   it('should not treat literal parsererror tags in MJML text as parser failures', () => {
@@ -2393,6 +2476,22 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
       item: { data: first } as any,
     } as any)).not.toThrow();
     expect(JSON.stringify(component.emailDocument)).toBe(before);
+  });
+
+  it('should reject existing-node drops from foreign arrays even with a local target id', () => {
+    const before = JSON.stringify(component.emailDocument);
+    const foreign = [{ id: component.emailDocument.body[0].id, type: 'text', attrs: { content: '<p>foreign</p>' } }] as EmailNode[];
+
+    component.drop({
+      previousContainer: { data: foreign } as any,
+      container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: foreign[0] } as any,
+    } as any);
+
+    expect(JSON.stringify(component.emailDocument)).toBe(before);
+    expect(foreign.length).toBe(1);
   });
 
   it('should reroute root drops into the nested column under the pointer', () => {
@@ -3264,6 +3363,29 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     expect(String(textNode.attrs['content'])).toContain('alt="Uploaded hero"');
   });
 
+  it('should not cancel unrelated block uploads when closing a Tiptap image prompt', async () => {
+    let resolveUpload!: (value: { url: string; alt: string }) => void;
+    const handler = vi.fn(() => new Promise<{ url: string; alt: string }>((resolve) => { resolveUpload = resolve; }));
+    const imageNode: EmailNode = { id: 'block_upload_unrelated', type: 'image', attrs: { src: 'https://example.com/old.png', alt: 'Old' } };
+    const textNode: EmailNode = { id: 'text_prompt_unrelated', type: 'text', attrs: { content: '<p>Text</p>' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode, textNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    fixture.detectChanges();
+
+    const file = new File(['x'], 'hero.png', { type: 'image/png' });
+    const uploadPromise = component.uploadImageForNode(component.emailDocument.body[0], { target: { files: [file], value: '' } } as any);
+    expect(component.imageUploadLoadingNodeId).toBe('block_upload_unrelated');
+
+    component.selectedNodeId = 'text_prompt_unrelated';
+    component.openTiptapImageModal('inline');
+    component.closeTiptapPrompt();
+    expect(component.imageUploadLoadingNodeId).toBe('block_upload_unrelated');
+
+    resolveUpload({ url: 'https://cdn.example.com/new.png', alt: 'New' });
+    await uploadPromise;
+    expect(component.emailDocument.body[0].attrs['src']).toBe('https://cdn.example.com/new.png');
+  });
+
   it('should ignore stale Tiptap image uploads after the prompt is cancelled', async () => {
     const uploadFile = new File(['png'], 'late.png', { type: 'image/png' });
     let resolveUpload!: (value: { url: string; alt: string }) => void;
@@ -3276,7 +3398,7 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     (component as any).openTiptapImageModal('inline');
     const pending = (component as any).uploadTiptapImageFromPrompt(uploadFile) as Promise<void>;
     expect(uploadSpy).toHaveBeenCalledWith(uploadFile, expect.objectContaining({ nodeId: textNode.id }));
-    expect((component as any).imageUploadLoadingNodeId).toBe(textNode.id);
+    expect((component as any).imageUploadLoadingNodeId).toBe('tiptap:inline');
     component.closeTiptapPrompt();
     expect((component as any).imageUploadLoadingNodeId).toBe('');
 

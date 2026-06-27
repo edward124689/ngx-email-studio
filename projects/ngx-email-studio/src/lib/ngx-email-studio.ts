@@ -1672,7 +1672,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       const previousData = event.previousContainer.data;
       if (!Array.isArray(previousData) || event.previousIndex < 0 || event.previousIndex >= previousData.length) return;
       const movedNode = previousData[event.previousIndex];
-      if (!movedNode || !this.isEmailNode(movedNode) || movedNode !== event.item.data || !this.canDropIntoContainer(movedNode, target.id)) return;
+      if (!movedNode || !this.isEmailNode(movedNode) || movedNode !== event.item.data || this.findNode(movedNode.id) !== movedNode || !this.canDropIntoContainer(movedNode, target.id)) return;
       previousData.splice(event.previousIndex, 1);
       const node = this.wrapForRootDrop(movedNode, target.id);
       target.data.splice(target.index, 0, node);
@@ -2229,7 +2229,16 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   private nonNegativeNumber(value: unknown, fallback: number): number {
-    const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
+    return this.strictPixelNumber(value, fallback);
+  }
+
+  private strictPixelNumber(value: unknown, fallback: number): number {
+    if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : fallback;
+    const raw = String(value ?? '').trim();
+    if (!raw) return fallback;
+    const match = /^([+-]?(?:\d+|\d*\.\d+))(px)?$/i.exec(raw);
+    if (!match) return fallback;
+    const parsed = Number(match[1]);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
   }
 
@@ -2329,10 +2338,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   buttonBorderRadiusValue(node: EmailNode): number {
-    const raw = node.attrs['borderRadius'];
-    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, raw);
-    const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
-    return Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+    return this.strictPixelNumber(node.attrs['borderRadius'], 10);
   }
 
   buttonBorderRadiusCss(node: EmailNode): string {
@@ -2801,7 +2807,11 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   isTiptapPromptUploading(): boolean {
-    return !!this.tiptapPrompt && this.tiptapPrompt.kind === 'image' && !!this.imageUploadLoadingNodeId;
+    return !!this.tiptapPrompt && this.tiptapPrompt.kind === 'image' && this.imageUploadLoadingNodeId === this.tiptapPromptUploadNodeId(this.tiptapPrompt);
+  }
+
+  private tiptapPromptUploadNodeId(prompt: TiptapPromptConfig): string {
+    return `tiptap:${prompt.scope}`;
   }
 
   uploadTiptapImageFromPromptEvent(event: Event): void {
@@ -2822,8 +2832,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const selectionTo = editor?.state.selection.to;
     const runUploadImage = uploadImage;
     const nodeId = node.id;
+    const uploadNodeId = this.tiptapPromptUploadNodeId(prompt);
     const requestId = ++this.imageUploadRequestId;
-    this.imageUploadLoadingNodeId = nodeId;
+    this.imageUploadLoadingNodeId = uploadNodeId;
     this.tiptapPromptError = '';
     try {
       if (!this.isSupportedImageUploadFile(file)) {
@@ -2902,7 +2913,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   closeTiptapPrompt(): void {
-    if (this.tiptapPrompt?.kind === 'image' && this.imageUploadLoadingNodeId) this.invalidateImageUpload();
+    if (this.tiptapPrompt?.kind === 'image' && this.imageUploadLoadingNodeId === this.tiptapPromptUploadNodeId(this.tiptapPrompt)) this.invalidateImageUpload();
     this.tiptapPrompt = null;
     this.tiptapPromptValue = '';
     this.tiptapPromptError = '';
@@ -3452,7 +3463,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const document: EmailDocument = {
       version: typeof raw.version === 'string' && raw.version.trim() ? raw.version : '0.0.1',
       ...(attrs ? { attrs } : {}),
-      body: body.length ? body : this.createStarterDocument().body,
+      body: Array.isArray(raw.body) ? body : this.createStarterDocument().body,
       ...(Array.isArray(raw.unsupported) ? { unsupported: raw.unsupported.map((item) => String(item)) } : {}),
     };
     if (!Array.isArray(raw.body) || body.length !== raw.body.length) valid = false;
@@ -3479,6 +3490,10 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       valid = false;
       children = children.map((child) => child.type === 'column' ? child : createTreeColumn((nodeType) => this.nextUniqueInputId(nodeType as EmailBlockType, seenIds), [child]));
     }
+    if ((type === 'section' || type === 'column') && children.some((child) => !this.isContentModule(child))) {
+      valid = false;
+      children = children.flatMap((child) => this.contentDescendantsOf(child));
+    }
     const requestedId = typeof raw.id === 'string' && raw.id.trim() ? raw.id : '';
     const id = requestedId && !seenIds.has(requestedId) ? requestedId : this.nextUniqueInputId(type, seenIds);
     if (!requestedId || id !== requestedId) valid = false;
@@ -3492,6 +3507,12 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       },
       valid,
     };
+  }
+
+
+  private contentDescendantsOf(node: EmailNode): EmailNode[] {
+    if (this.isContentModule(node)) return [node];
+    return (node.children || []).flatMap((child) => this.contentDescendantsOf(child));
   }
 
   private nextUniqueInputId(type: EmailBlockType, seenIds: Set<string>): string {
