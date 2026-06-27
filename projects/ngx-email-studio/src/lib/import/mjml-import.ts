@@ -240,7 +240,9 @@ function parsePaddingParts(value: string | null): { parts: number[]; unit: '%' |
   if (!raw) return { parts: [], unit: '' };
   const values = raw.split(/\s+/).map((part) => parseDimensionPart(part)).filter((part): part is { value: number; unit: '%' | 'px' } => !!part);
   if (!values.length) return { parts: [], unit: '' };
-  return { parts: values.map((part) => part.value), unit: values.some((part) => part.unit === '%') ? '%' : 'px' };
+  const units = new Set(values.map((part) => part.unit));
+  if (units.size > 1) return { parts: [], unit: '' };
+  return { parts: values.map((part) => part.value), unit: values[0].unit };
 }
 
 function expandPaddingParts(parts: number[]): [number, number, number, number] {

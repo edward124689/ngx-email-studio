@@ -56,6 +56,24 @@ class HostileCssHostComponent {}
 })
 class MultiStudioHostComponent {}
 
+@Component({
+  standalone: true,
+  imports: [NgxEmailStudio],
+  template: `<ngx-email-studio [(document)]="doc" />`,
+})
+class TwoWayDocumentHostComponent {
+  doc: EmailDocument = { version: '0.0.1', body: [{ id: 'two_way_text', type: 'text', attrs: { content: '<p>Two way</p>' } }] };
+}
+
+@Component({
+  standalone: true,
+  imports: [NgxEmailStudio],
+  template: `<ngx-email-studio [(mjml)]="mjml" />`,
+})
+class TwoWayMjmlHostComponent {
+  mjml = '<mjml><mj-body><mj-section><mj-column><mj-text><p>Two way MJML</p></mj-text></mj-column></mj-section></mj-body></mjml>';
+}
+
 describe('NgxEmailStudio', () => {
   let component: NgxEmailStudio;
   let fixture: ComponentFixture<NgxEmailStudio>;
@@ -580,6 +598,57 @@ describe('NgxEmailStudio', () => {
     expect(localComponent.lastMjml).not.toContain('Still active MJML');
   });
 
+  it('should keep transient UI open when document two-way binding echoes local edits', () => {
+    const hostFixture = TestBed.createComponent(TwoWayDocumentHostComponent);
+    hostFixture.detectChanges();
+    const debugStudio = hostFixture.debugElement.query(By.directive(NgxEmailStudio));
+    const localComponent = debugStudio.componentInstance as NgxEmailStudio;
+    const textNode = localComponent.emailDocument.body[0];
+
+    localComponent.openRichTextModal(textNode);
+    localComponent.updateAttr(textNode, 'content', '<p>Updated through editor</p>');
+    hostFixture.detectChanges();
+
+    expect(hostFixture.componentInstance.doc.body[0].attrs['content']).toContain('Updated through editor');
+    expect(localComponent.expandedRichTextNode?.id).toBe('two_way_text');
+    expect(localComponent.activeLeftTab).toBe('modules');
+  });
+
+  it('should keep transient UI open when MJML two-way binding echoes local edits', () => {
+    const hostFixture = TestBed.createComponent(TwoWayMjmlHostComponent);
+    hostFixture.detectChanges();
+    const debugStudio = hostFixture.debugElement.query(By.directive(NgxEmailStudio));
+    const localComponent = debugStudio.componentInstance as NgxEmailStudio;
+    const textNode = localComponent.emailDocument.body[0].children?.[0] || localComponent.emailDocument.body[0];
+
+    localComponent.openRichTextModal(textNode);
+    localComponent.updateAttr(textNode, 'content', '<p>Updated MJML echo</p>');
+    hostFixture.detectChanges();
+
+    expect(hostFixture.componentInstance.mjml).toContain('Updated MJML echo');
+    expect(localComponent.expandedRichTextNode?.id).toBe(textNode.id);
+  });
+
+  it('should sanitize invalid host-provided document shapes instead of throwing', () => {
+    const localFixture = TestBed.createComponent(NgxEmailStudio);
+    const localComponent = localFixture.componentInstance;
+    const errorSpy = vi.spyOn(localComponent.error, 'emit');
+
+    localFixture.componentRef.setInput('document', { version: '0.0.1', body: null } as any);
+    expect(() => localFixture.detectChanges()).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'document_input_failed' }));
+    expect(Array.isArray(localComponent.emailDocument.body)).toBe(true);
+    expect(localComponent.emailDocument.body.length).toBeGreaterThan(0);
+    expect(localComponent.lastMjml).toContain('<mj-body');
+
+    errorSpy.mockClear();
+    localFixture.componentRef.setInput('document', { version: '0.0.1', body: [{ id: 'bad_text', type: 'text', children: {} }] } as any);
+    expect(() => localFixture.detectChanges()).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'document_input_failed' }));
+    expect(localComponent.emailDocument.body[0].attrs).toEqual({});
+    expect(localComponent.lastHtml).toContain('Email Export');
+  });
+
   it('should close transient modals and editors when host input replaces the document', () => {
     const localFixture = TestBed.createComponent(NgxEmailStudio);
     localFixture.detectChanges();
@@ -987,6 +1056,16 @@ describe('NgxEmailStudio', () => {
     expect(divider?.attrs['borderColor']).toBe('#d0d5dd');
   });
 
+  it('should fall back safely when DOMParser is unavailable during rich-text sanitization', () => {
+    const originalDomParser = globalThis.DOMParser;
+    Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: undefined });
+    try {
+      expect(sanitizeRichTextContent('<p>SSR safe</p><script>alert(1)</script>')).toBe('&lt;p&gt;SSR safe&lt;/p&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
+    } finally {
+      Object.defineProperty(globalThis, 'DOMParser', { configurable: true, value: originalDomParser });
+    }
+  });
+
   it('should keep rich-text cell box styles but strip non-round-tripped box styles from normal text', () => {
     const sanitized = sanitizeRichTextContent('<p style="padding: 8px; border-color: #ff0000; border-width: 2px; margin: 10px 0; color: #123456">Text <span style="margin: 20px; color: #654321">Inline</span></p><h2 style="margin-top: 12px">Heading</h2><table><tbody><tr><td style="padding: 8px; border-color: #ff0000; border-width: 2px; border-style: solid; width: 120px; height: 30px; background-color: #00ff00">Cell</td></tr></tbody></table>');
 
@@ -1069,6 +1148,16 @@ describe('NgxEmailStudio', () => {
     expect(mjml).toContain('padding="32px 32px 32px 32px"');
     expect(html).toContain('background:#fedcba;');
     expect(html).toContain('padding:32px 32px 32px 32px;');
+  });
+
+  it('should not rewrite mixed-unit MJML padding into the wrong unit', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section padding="20px 5%"><mj-column><mj-text>Mixed padding</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const mjml = (component as any).compileMjml(imported) as string;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(imported.body[0].attrs['paddingTop']).toBe(16);
+    expect(mjml).not.toContain('padding="20% 5% 20% 5%"');
+    expect(html).not.toContain('padding:20% 5% 20% 5%;');
   });
 
   it('should import common raw ampersands in MJML URL attributes and ignore unsafe body widths', () => {
@@ -1437,6 +1526,30 @@ describe('NgxEmailStudio', () => {
     expect(JSON.parse(String(activeSocial.attrs['items']))).toEqual([{ name: 'twitter', href: 'https://example.com/tw', backgroundColor: '#A1A0A0' }]);
     expect(component.socialLogoUploadErrorFor(activeSocial, 0)).toBe('');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-social-preview');
+  });
+
+  it('should ignore stale block image uploads when the user edits the image before completion', async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:stale-edit-preview') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    let resolveUpload!: (value: string) => void;
+    const handler = vi.fn(() => new Promise<string>((resolve) => { resolveUpload = resolve; }));
+    const imageNode: EmailNode = { id: 'image_upload_user_edit', type: 'image', attrs: { src: 'https://example.com/original.jpg', alt: 'Original' } };
+    fixture.componentRef.setInput('document', { version: '0.0.1', body: [imageNode] } satisfies EmailDocument);
+    fixture.componentRef.setInput('config', { uploadImage: handler });
+    component.selectedNodeId = imageNode.id;
+    fixture.detectChanges();
+    const activeImage = component.emailDocument.body[0];
+
+    const file = new File(['image-bytes'], 'edited.png', { type: 'image/png' });
+    const pending = component.uploadImageForNode(activeImage, { target: { files: { 0: file, length: 1, item: (index: number) => (index === 0 ? file : null) }, value: 'edited.png' } } as unknown as Event);
+    component.updateAttr(activeImage, 'src', 'https://example.com/manual.jpg');
+    resolveUpload('https://cdn.example.com/stale-edited.png');
+    await pending;
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(activeImage.attrs['src']).toBe('https://example.com/manual.jpg');
+    expect(component.imageUploadErrorFor(activeImage)).toBe('');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-edit-preview');
   });
 
   it('should keep the existing image URL when upload fails or the helper returns an unsafe URL', async () => {
@@ -1973,7 +2086,8 @@ describe('NgxEmailStudio', () => {
   });
 
   it('should sanitize imported and exported button hrefs', () => {
-    const mjml = `<mjml><mj-body><mj-wrapper><mj-section><mj-column><mj-button href="javascript:alert(1)">Unsafe</mj-button><mj-button href="//evil.example/path">Protocol relative</mj-button><mj-button href="https://example.com/safe">Safe</mj-button></mj-column></mj-section></mj-wrapper></mj-body></mjml>`;
+    const mjml = `<mjml><mj-body><mj-wrapper><mj-section><mj-column><mj-button href="javascript:alert(1)">Unsafe</mj-button><mj-button href="//evil.example/path">Protocol relative</mj-button><mj-button href="https://example.com/-->
+not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</mj-button></mj-column></mj-section></mj-wrapper></mj-body></mjml>`;
 
     const document = (component as any).parseMjml(mjml) as EmailDocument;
     const buttons = JSON.stringify(document.body);
@@ -1982,10 +2096,13 @@ describe('NgxEmailStudio', () => {
 
     expect(buttons).not.toContain('javascript:');
     expect(buttons).not.toContain('//evil.example');
+    expect(buttons).not.toContain('not-real');
     expect(exportedMjml).not.toContain('javascript:');
     expect(exportedMjml).not.toContain('//evil.example');
+    expect(exportedMjml).not.toContain('not-real');
     expect(exportedHtml).not.toContain('javascript:');
     expect(exportedHtml).not.toContain('//evil.example');
+    expect(exportedHtml).not.toContain('not-real');
     expect(exportedMjml).toContain('href="https://example.com/safe"');
   });
 

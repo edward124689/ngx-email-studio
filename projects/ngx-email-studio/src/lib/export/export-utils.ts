@@ -64,8 +64,16 @@ export function normalizeHtmlClassValue(value: unknown): string {
 
 export function normalizeHrefValue(value: unknown): string {
   const raw = String(value ?? '').trim();
-  if (!raw) return '';
-  if (/^(https?:|mailto:|tel:|#)/i.test(raw)) return raw;
+  if (!raw || /[\u0000-\u001f\u007f\s]/.test(raw)) return '';
+  if (/^https?:/i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      return url.hostname ? raw : '';
+    } catch {
+      return '';
+    }
+  }
+  if (/^(mailto:|tel:|#)/i.test(raw)) return raw;
   if (/^\/(?!\/)/.test(raw)) return raw;
   return '';
 }

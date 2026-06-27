@@ -5,12 +5,17 @@ const ALLOWED_RICH_TEXT_TAGS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5'
 export function sanitizeRichTextContent(value: unknown): string {
   const raw = String(value || '');
   if (!raw.trim()) return '';
+  if (typeof DOMParser === 'undefined') return escapeFallbackText(raw);
   const parser = new DOMParser();
   const doc = parser.parseFromString(raw, 'text/html');
   const root = doc.body;
   if (!root) return '';
   sanitizeRichTextNode(root);
   return root.innerHTML;
+}
+
+function escapeFallbackText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function sanitizeRichTextNode(node: Node): void {

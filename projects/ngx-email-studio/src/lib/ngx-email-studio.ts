@@ -1315,6 +1315,8 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private templatePaletteCacheSource: EmailStudioTemplateModule[] | null = null;
   private templatePaletteCache: PaletteItem[] = [];
   private paletteItemsCache: PaletteItem[] = this.palette;
+  private lastEmittedDocumentJson = '';
+  private lastEmittedMjml = '';
   private undoStack: EmailHistorySnapshot[] = [];
   private redoStack: EmailHistorySnapshot[] = [];
   private historySnapshot: EmailHistorySnapshot = this.createHistorySnapshot();
@@ -1609,6 +1611,14 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     }
 
     if (changes['document'] || changes['mjml']) {
+      const mjmlChanged = !!changes['mjml'];
+      const documentChanged = !!changes['document'];
+      const mjmlIsEcho = mjmlChanged && !!this.lastEmittedMjml && this.mjml === this.lastEmittedMjml;
+      const documentIsEcho = documentChanged && this.isLastEmittedDocument(this.document);
+      if ((mjmlChanged || documentChanged) && (!mjmlChanged || mjmlIsEcho) && (!documentChanged || documentIsEcho)) {
+        return;
+      }
+
       this.mjmlDraft = this.mjml || '';
       let nextDocument: EmailDocument;
       if (this.mjml) {
@@ -1616,10 +1626,10 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
           nextDocument = this.parseMjml(this.mjml);
         } catch (details) {
           this.error.emit({ code: 'mjml_input_failed', message: 'Unable to parse input MJML.', details });
-          nextDocument = this.document ? structuredClone(this.document) : structuredClone(this.emailDocument);
+          nextDocument = this.normalizeInputDocument(this.document, 'document_input_failed') || structuredClone(this.emailDocument);
         }
       } else {
-        nextDocument = this.document ? structuredClone(this.document) : this.createStarterDocument();
+        nextDocument = this.normalizeInputDocument(this.document, 'document_input_failed') || this.createStarterDocument();
       }
       this.replaceEmailDocument(nextDocument, false);
     }
@@ -2013,17 +2023,19 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       this.imageUploadPreviewNodeId = nodeId;
       this.imageUploadPreviewName = file.name || 'Selected image';
       this.setImageUploadPreviewUrl(file);
+      const initialSrc = String(node.attrs['src'] || '');
+      const initialAlt = String(node.attrs['alt'] || '');
       const result = await runUploadImage(file, {
         nodeId,
-        currentUrl: String(node.attrs['src'] || ''),
-        currentAlt: String(node.attrs['alt'] || ''),
+        currentUrl: initialSrc,
+        currentAlt: initialAlt,
       });
       if (requestId !== this.imageUploadRequestId || this.readonly || this.effectiveConfig.uploadImage !== runUploadImage) {
         this.clearImageUploadPreview();
         return;
       }
       const liveNode = this.findNode(nodeId);
-      if (!liveNode || liveNode.type !== 'image') {
+      if (!liveNode || liveNode.type !== 'image' || String(liveNode.attrs['src'] || '') !== initialSrc || String(liveNode.attrs['alt'] || '') !== initialAlt) {
         this.clearImageUploadPreview();
         return;
       }
@@ -3386,6 +3398,8 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
       this.previewSrcdoc = this.sanitizer.bypassSecurityTrustHtml(this.lastHtml);
     }
     if (emit) {
+      this.lastEmittedDocumentJson = this.safeSerializeDocument(this.emailDocument);
+      this.lastEmittedMjml = this.lastMjml;
       this.documentChange.emit(this.emailDocument);
       this.mjmlChange.emit(this.lastMjml);
       this.change.emit({ mjml: this.lastMjml, html: { html: this.lastHtml } });
@@ -3394,6 +3408,78 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   private createStarterDocument(): EmailDocument {
     return createTreeStarterDocument((type) => this.nextId(type));
+  }
+
+  private normalizeInputDocument(value: unknown, errorCode: string): EmailDocument | null {
+    if (value === undefined || value === null) return null;
+    const normalized = this.normalizeDocumentShape(value);
+    if (!normalized.valid) {
+      this.error.emit({ code: errorCode, message: 'Invalid EmailDocument input. Falling back to a safe document.', details: value });
+    }
+    return normalized.document;
+  }
+
+  private normalizeDocumentShape(value: unknown): { document: EmailDocument; valid: boolean } {
+    if (!value || typeof value !== 'object') {
+      return { document: this.createStarterDocument(), valid: false };
+    }
+    const raw = value as Partial<EmailDocument>;
+    let valid = true;
+    if (!Array.isArray(raw.body)) valid = false;
+    const bodyResults = Array.isArray(raw.body) ? raw.body.map((node) => this.normalizeNodeShape(node)) : [];
+    bodyResults.forEach((node) => {
+      if (!node.valid) valid = false;
+    });
+    const body = bodyResults.map((node) => node.node).filter((node): node is EmailNode => !!node);
+    const attrs = raw.attrs && typeof raw.attrs === 'object' && !Array.isArray(raw.attrs) ? { ...raw.attrs } as Record<string, string | number | boolean> : undefined;
+    if (raw.attrs !== undefined && !attrs) valid = false;
+    const document: EmailDocument = {
+      version: typeof raw.version === 'string' && raw.version.trim() ? raw.version : '0.0.1',
+      ...(attrs ? { attrs } : {}),
+      body: body.length ? body : this.createStarterDocument().body,
+      ...(Array.isArray(raw.unsupported) ? { unsupported: raw.unsupported.map((item) => String(item)) } : {}),
+    };
+    if (!Array.isArray(raw.body) || body.length !== raw.body.length) valid = false;
+    return { document, valid };
+  }
+
+  private normalizeNodeShape(value: unknown): { node: EmailNode | null; valid: boolean } {
+    if (!value || typeof value !== 'object') return { node: null, valid: false };
+    const raw = value as Partial<EmailNode>;
+    const validTypes: EmailBlockType[] = ['row', 'column', 'section', 'text', 'image', 'button', 'social', 'divider', 'spacer'];
+    let valid = true;
+    const type = validTypes.includes(raw.type as EmailBlockType) ? raw.type as EmailBlockType : 'text';
+    if (type !== raw.type) valid = false;
+    const attrs = raw.attrs && typeof raw.attrs === 'object' && !Array.isArray(raw.attrs) ? { ...raw.attrs } as Record<string, string | number | boolean> : {};
+    if (!raw.attrs || typeof raw.attrs !== 'object' || Array.isArray(raw.attrs)) valid = false;
+    const childrenRaw = raw.children;
+    const childResults = Array.isArray(childrenRaw) ? childrenRaw.map((child) => this.normalizeNodeShape(child)) : [];
+    childResults.forEach((child) => {
+      if (!child.valid) valid = false;
+    });
+    const children = childResults.map((child) => child.node).filter((node): node is EmailNode => !!node);
+    if (childrenRaw !== undefined && !Array.isArray(childrenRaw)) valid = false;
+    return {
+      node: {
+        id: typeof raw.id === 'string' && raw.id.trim() ? raw.id : this.nextId(type),
+        type,
+        attrs,
+        ...(children.length ? { children } : {}),
+      },
+      valid,
+    };
+  }
+
+  private isLastEmittedDocument(value: unknown): boolean {
+    return !!this.lastEmittedDocumentJson && this.safeSerializeDocument(value) === this.lastEmittedDocumentJson;
+  }
+
+  private safeSerializeDocument(value: unknown): string {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
   }
 
   private replaceEmailDocument(document: EmailDocument, emitChange: boolean): void {
