@@ -98,6 +98,8 @@ interface TiptapToolbarState {
   activeBlocks: Record<string, boolean>;
   textAlign: TiptapTextAlignValue;
   cellStyles: Record<string, string>;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 interface EmailHistorySnapshot {
@@ -131,6 +133,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
     activeBlocks: {},
     textAlign: 'left',
     cellStyles: {},
+    canUndo: false,
+    canRedo: false,
   };
 }
 
@@ -519,8 +523,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                         <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('inline')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('inline', $event)">
                           <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                         </select>
-                        <button type="button" (mousedown)="$event.preventDefault()" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" [disabled]="readonly" (click)="runTiptapCommand('inline', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
-                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('inline', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
+                        <button type="button" (mousedown)="$event.preventDefault()" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" [disabled]="!canRunTiptapCommand('inline', 'undo')" (click)="runTiptapCommand('inline', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                        <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('inline', 'redo')" (click)="runTiptapCommand('inline', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                       </div>
                       <div class="nes-tiptap-group">
                         <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('inline', 'bold')" (click)="runTiptapCommand('inline', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
@@ -898,8 +902,8 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                     <select aria-label="Block format" [ngModel]="currentTiptapBlockFormat('modal')" (mousedown)="$event.stopPropagation()" (ngModelChange)="setTiptapBlockFormat('modal', $event)">
                       <option *ngFor="let option of tiptapBlockOptions" [value]="option.value">{{ option.label }}</option>
                     </select>
-                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('modal', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
-                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="readonly" (click)="runTiptapCommand('modal', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Undo" title="Undo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'undo')" (click)="runTiptapCommand('modal', 'undo')"><i class="nes-icon fa fa-undo" aria-hidden="true"></i></button>
+                    <button type="button" class="nes-tiptap-icon-btn" aria-label="Redo" title="Redo" (mousedown)="$event.preventDefault()" [disabled]="!canRunTiptapCommand('modal', 'redo')" (click)="runTiptapCommand('modal', 'redo')"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
                   </div>
                   <div class="nes-tiptap-group">
                     <button type="button" class="nes-tiptap-icon-btn" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" [class.is-active]="isTiptapActive('modal', 'bold')" (click)="runTiptapCommand('modal', 'bold')"><i class="nes-icon fa fa-bold" aria-hidden="true"></i></button>
@@ -2944,8 +2948,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   canRunTiptapCommand(scope: TiptapScope, command: TiptapCommand): boolean {
     const editor = this.tiptapEditor(scope);
     if (!editor || this.readonly) return false;
-    if (command === 'undo') return editor.can().undo();
-    if (command === 'redo') return editor.can().redo();
+    const state = this.tiptapToolbarState[scope];
+    if (command === 'undo') return state.canUndo;
+    if (command === 'redo') return state.canRedo;
     return true;
   }
 
@@ -3288,6 +3293,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const target = event.target;
     if (!target) return true;
     if (target instanceof Node && root.contains(target)) return true;
+    if (target === this.hostRef.nativeElement.ownerDocument.body || target === this.hostRef.nativeElement.ownerDocument.documentElement) return false;
     const activeElement = this.hostRef.nativeElement.ownerDocument.activeElement;
     return activeElement instanceof Node && root.contains(activeElement);
   }
@@ -3623,6 +3629,8 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
         height: this.stringAttr(tableCellAttrs['height'] || tableHeaderAttrs['height']),
         padding: this.stringAttr(tableCellAttrs['padding'] || tableHeaderAttrs['padding']),
       },
+      canUndo: editor.can().undo(),
+      canRedo: editor.can().redo(),
     };
   }
 

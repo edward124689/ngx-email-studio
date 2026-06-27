@@ -525,6 +525,15 @@ describe('NgxEmailStudio', () => {
     component.onDocumentKeydown(editableUndo);
     expect(editableUndo.defaultPrevented).toBe(false);
     expect(component.canRedoDocument).toBe(true);
+
+    const beforeBodyTargetCount = component.emailDocument.body.length;
+    const hostButton = query<HTMLButtonElement>(fixture, '.nes-save-trigger');
+    hostButton?.focus();
+    const bodyTargetUndo = new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true });
+    Object.defineProperty(bodyTargetUndo, 'target', { value: document.body });
+    component.onDocumentKeydown(bodyTargetUndo);
+    expect(bodyTargetUndo.defaultPrevented).toBe(false);
+    expect(component.emailDocument.body.length).toBe(beforeBodyTargetCount);
   });
 
   it('should use an input MJML default value as the initial editable document', () => {
@@ -2713,6 +2722,25 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     expect(component.currentTiptapBlockFormat('inline')).toBe('paragraph');
   });
 
+  it('should update Tiptap undo and redo command availability from the toolbar snapshot', () => {
+    fixture.detectChanges();
+    const editor = (component as any).tiptapInlineEditor;
+    expect(editor).toBeTruthy();
+
+    (component as any).clearTiptapToolbarStateTimer('inline');
+    (component as any).tiptapToolbarState.inline = { ...(component as any).tiptapToolbarState.inline, canUndo: false, canRedo: false };
+    expect(component.canRunTiptapCommand('inline', 'undo')).toBe(false);
+    expect(component.canRunTiptapCommand('inline', 'redo')).toBe(false);
+
+    (component as any).tiptapToolbarState.inline = { ...(component as any).tiptapToolbarState.inline, canUndo: true, canRedo: false };
+    expect(component.canRunTiptapCommand('inline', 'undo')).toBe(true);
+    expect(component.canRunTiptapCommand('inline', 'redo')).toBe(false);
+
+    (component as any).tiptapToolbarState.inline = { ...(component as any).tiptapToolbarState.inline, canUndo: false, canRedo: true };
+    expect(component.canRunTiptapCommand('inline', 'undo')).toBe(false);
+    expect(component.canRunTiptapCommand('inline', 'redo')).toBe(true);
+  });
+
   it('should keep paragraph font-size color and font-family when editing imported styled MJML text in Tiptap', () => {
     fixture.detectChanges();
     const textNode = component.selectedNode!;
@@ -2952,7 +2980,7 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     expect(toolbar.querySelector('.nes-tiptap-table-btn .fa-table')).toBeTruthy();
     expect(toolbar.querySelectorAll('.nes-tiptap-row-break').length).toBe(2);
     expect(toolbar.querySelector('.nes-tiptap-table-group')).toBeTruthy();
-    expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(false);
+    expect(toolbar.querySelector('button[aria-label="Undo"]')?.hasAttribute('disabled')).toBe(true);
 
     const readonlyFixture = TestBed.createComponent(NgxEmailStudio);
     readonlyFixture.componentRef.setInput('readonly', true);

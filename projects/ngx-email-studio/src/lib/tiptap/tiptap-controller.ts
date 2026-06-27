@@ -58,7 +58,9 @@ export function installTiptapBlankClickGuard(element: HTMLElement, editor: Tipta
       pendingTextClick = undefined;
       event.preventDefault();
       event.stopPropagation();
-      editor.view.focus();
+      const previousSelection = editor.state?.selection;
+      if (!editor.isFocused) editor.view.focus();
+      if (previousSelection && !editor.isDestroyed) editor.commands.setTextSelection(previousSelection.empty ? previousSelection.from : { from: previousSelection.from, to: previousSelection.to });
     }
   };
   const trackTextDrag = (event: MouseEvent) => {
