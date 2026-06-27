@@ -151,6 +151,8 @@ export function dimensionHtmlWidthAttr(attrs: Record<string, string | number | b
 }
 
 export function paddingUnit(section: EmailNode): EmailSizeUnit {
+  const hasValidPaddingValue = ['padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].some((key) => hasValidDimensionValue(section.attrs[key]));
+  if (!hasValidPaddingValue) return 'px';
   return section.attrs['paddingUnit'] === '%' ? '%' : 'px';
 }
 

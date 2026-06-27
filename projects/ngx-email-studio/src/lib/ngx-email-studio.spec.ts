@@ -772,7 +772,7 @@ describe('NgxEmailStudio', () => {
         {
           id: 'section_negative',
           type: 'section',
-          attrs: { paddingTop: -8, paddingRight: '-9', paddingBottom: -10, paddingLeft: '-11px', paddingUnit: 'px', width: -50, widthUnit: 'px' },
+          attrs: { paddingTop: -8, paddingRight: '-9', paddingBottom: -10, paddingLeft: '-11px', paddingUnit: '%', width: -50, widthUnit: 'px' },
           children: [
             { id: 'image_negative', type: 'image', attrs: { src: 'https://example.com/a.png', width: -320, widthUnit: 'px' } },
           ],
@@ -1167,6 +1167,25 @@ describe('NgxEmailStudio', () => {
     expect(imported.body[0].attrs['paddingTop']).toBe(16);
     expect(mjml).not.toContain('padding="20% 5% 20% 5%"');
     expect(html).not.toContain('padding:20% 5% 20% 5%;');
+  });
+
+  it('should ignore unsupported MJML dimension units instead of converting them to px', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section padding="2em auto"><mj-column><mj-image src="https://example.com/a.png" width="10rem" /><mj-text padding-top="3vh">Unsupported units</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const image = findImportedNode(imported.body, 'image');
+    const text = findImportedNode(imported.body, 'text');
+    const mjml = (component as any).compileMjml(imported) as string;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(imported.body[0].attrs['paddingTop']).toBe(16);
+    expect(image?.attrs['width']).toBeUndefined();
+    expect(text?.attrs['paddingTop']).toBeUndefined();
+    expect(mjml).not.toContain('padding="2px');
+    expect(mjml).not.toContain('width="10px"');
+    expect(mjml).not.toContain('padding="3px');
+    expect(html).not.toContain('padding:2px');
+    expect(html).not.toContain('width="10"');
+    expect(html).not.toContain('width:10px');
+    expect(html).not.toContain('padding:3px');
   });
 
   it('should import common raw ampersands in MJML URL attributes and ignore unsafe body widths', () => {

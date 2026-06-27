@@ -207,11 +207,9 @@ function parseButtonBorderRadius(value: string | null): number {
 }
 
 function importedDimensionAttrs(value: string | null, key: string): Record<string, string | number | boolean> {
-  const raw = String(value || '').trim();
-  if (!raw) return {};
-  const parsed = Number.parseFloat(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return {};
-  return { [key]: parsed, [`${key}Unit`]: raw.endsWith('%') ? '%' : 'px' };
+  const dimension = parseDimensionPart(value);
+  if (!dimension || dimension.value <= 0) return {};
+  return { [key]: dimension.value, [`${key}Unit`]: dimension.unit };
 }
 
 function importedPaddingAttrs(element: Element): Record<string, string | number | boolean> {
@@ -238,11 +236,14 @@ function importedPaddingAttrs(element: Element): Record<string, string | number 
 function parsePaddingParts(value: string | null): { parts: number[]; unit: '%' | 'px' | '' } {
   const raw = String(value || '').trim();
   if (!raw) return { parts: [], unit: '' };
-  const values = raw.split(/\s+/).map((part) => parseDimensionPart(part)).filter((part): part is { value: number; unit: '%' | 'px' } => !!part);
-  if (!values.length) return { parts: [], unit: '' };
-  const units = new Set(values.map((part) => part.unit));
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  if (tokens.length > 4) return { parts: [], unit: '' };
+  const values = tokens.map((part) => parseDimensionPart(part));
+  if (!values.length || values.some((part) => !part)) return { parts: [], unit: '' };
+  const parsedValues = values as { value: number; unit: '%' | 'px' }[];
+  const units = new Set(parsedValues.map((part) => part.unit));
   if (units.size > 1) return { parts: [], unit: '' };
-  return { parts: values.map((part) => part.value), unit: values[0].unit };
+  return { parts: parsedValues.map((part) => part.value), unit: parsedValues[0].unit };
 }
 
 function expandPaddingParts(parts: number[]): [number, number, number, number] {
@@ -253,15 +254,15 @@ function expandPaddingParts(parts: number[]): [number, number, number, number] {
 function parseDimensionPart(value: string | null): { value: number; unit: '%' | 'px' } | undefined {
   const raw = String(value || '').trim();
   if (!raw) return undefined;
-  const parsed = Number.parseFloat(raw);
+  const match = raw.match(/^(\d+(?:\.\d+)?)(px|%)?$/i);
+  if (!match) return undefined;
+  const parsed = Number.parseFloat(match[1]);
   if (!Number.isFinite(parsed) || parsed < 0) return undefined;
-  return { value: parsed, unit: raw.endsWith('%') ? '%' : 'px' };
+  return { value: parsed, unit: match[2] === '%' ? '%' : 'px' };
 }
 
 function paddingUnitFromValue(value: string | null): '%' | 'px' | '' {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  return raw.endsWith('%') ? '%' : 'px';
+  return parseDimensionPart(value)?.unit || '';
 }
 
 function importedTextStyleAttrs(element: Element): Record<string, string> {
