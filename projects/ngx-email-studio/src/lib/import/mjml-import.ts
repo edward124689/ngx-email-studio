@@ -218,8 +218,8 @@ function importedDimensionAttrs(value: string | null, key: string): Record<strin
 
 function importedPaddingAttrs(element: Element): Record<string, string | number | boolean> {
   const shorthand = parsePaddingParts(element.getAttribute('padding'));
-  const unit = shorthand.unit || paddingUnitFromValue(element.getAttribute('padding-top')) || paddingUnitFromValue(element.getAttribute('padding-right')) || paddingUnitFromValue(element.getAttribute('padding-bottom')) || paddingUnitFromValue(element.getAttribute('padding-left')) || 'px';
   const attrs: Record<string, string | number | boolean> = {};
+  let unit = shorthand.unit;
   if (shorthand.parts.length) {
     const [top, right, bottom, left] = expandPaddingParts(shorthand.parts);
     attrs['paddingTop'] = top;
@@ -228,12 +228,14 @@ function importedPaddingAttrs(element: Element): Record<string, string | number 
     attrs['paddingLeft'] = left;
     attrs['paddingUnit'] = unit;
   }
-  (['top', 'right', 'bottom', 'left'] as const).forEach((side) => {
+  for (const side of ['top', 'right', 'bottom', 'left'] as const) {
     const value = parseDimensionPart(element.getAttribute(`padding-${side}`));
-    if (!value) return;
+    if (!value) continue;
+    if (unit && value.unit !== unit) return {};
+    unit ||= value.unit;
     attrs[`padding${side[0].toUpperCase()}${side.slice(1)}`] = value.value;
-    attrs['paddingUnit'] = value.unit;
-  });
+    attrs['paddingUnit'] = unit;
+  }
   return attrs;
 }
 

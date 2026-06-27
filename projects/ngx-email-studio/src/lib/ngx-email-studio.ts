@@ -1654,6 +1654,9 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (target.id === this.paletteDropListId) return;
     if (!this.canDropIntoContainer(event.item.data, target.id)) return;
     if (target.data === event.previousContainer.data) {
+      if (!Array.isArray(target.data) || event.previousIndex < 0 || event.previousIndex >= target.data.length) return;
+      const movedNode = target.data[event.previousIndex];
+      if (!movedNode || !this.isEmailNode(movedNode) || movedNode !== event.item.data) return;
       const isReroutedSameArray = target.data !== event.container.data;
       const nextIndex = isReroutedSameArray && event.previousIndex < target.index ? Math.max(0, target.index - 1) : target.index;
       moveItemInArray(target.data, event.previousIndex, nextIndex);

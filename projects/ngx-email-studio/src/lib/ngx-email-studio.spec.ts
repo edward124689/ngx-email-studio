@@ -1231,12 +1231,19 @@ describe('NgxEmailStudio', () => {
 
   it('should not rewrite mixed-unit MJML padding into the wrong unit', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body><mj-section padding="20px 5%"><mj-column><mj-text>Mixed padding</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const mixedLonghand = (component as any).parseMjml('<mjml><mj-body><mj-section padding="10px" padding-right="5%"><mj-column><mj-text padding-top="6px" padding-bottom="2%">Mixed longhand</mj-text></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
+    const mixedLonghandText = findImportedNode(mixedLonghand.body, 'text');
     const mjml = (component as any).compileMjml(imported) as string;
     const html = (component as any).renderHtml(imported) as string;
+    const longhandMjml = (component as any).compileMjml(mixedLonghand) as string;
 
     expect(imported.body[0].attrs['paddingTop']).toBe(16);
+    expect(mixedLonghand.body[0].attrs['paddingTop']).toBe(16);
+    expect(mixedLonghandText?.attrs['paddingTop']).toBeUndefined();
     expect(mjml).not.toContain('padding="20% 5% 20% 5%"');
     expect(html).not.toContain('padding:20% 5% 20% 5%;');
+    expect(longhandMjml).not.toContain('padding="10% 5% 10% 10%"');
+    expect(longhandMjml).not.toContain('padding="6%');
   });
 
   it('should ignore unsupported MJML dimension units instead of converting them to px', () => {
@@ -2270,6 +2277,15 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
       previousContainer: { data: [other] } as any,
       container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
       previousIndex: 0,
+      currentIndex: 0,
+      item: { data: first } as any,
+    } as any)).not.toThrow();
+    expect(JSON.stringify(component.emailDocument)).toBe(before);
+
+    expect(() => component.drop({
+      previousContainer: { data: component.emailDocument.body } as any,
+      container: { id: component.rootDropListId, data: component.emailDocument.body } as any,
+      previousIndex: component.emailDocument.body.length + 10,
       currentIndex: 0,
       item: { data: first } as any,
     } as any)).not.toThrow();
