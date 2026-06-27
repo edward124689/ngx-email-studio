@@ -130,10 +130,8 @@ function effectiveGroupColumnWidth(group: Element, column: Element): string | un
 }
 
 function percentWidth(value: string | null): number | undefined {
-  const raw = String(value || '').trim();
-  if (!raw.endsWith('%')) return undefined;
-  const parsed = Number.parseFloat(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  const dimension = parseDimensionPart(value);
+  return dimension?.unit === '%' && dimension.value > 0 ? dimension.value : undefined;
 }
 
 function roundWidth(value: number): number {
@@ -224,8 +222,8 @@ function importedColor(value: string | null): string {
 }
 
 function parseButtonBorderRadius(value: string | null): number {
-  const parsed = Number.parseFloat(String(value || '10').replace(/px$/i, ''));
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+  const dimension = parseDimensionPart(value);
+  return dimension?.unit === 'px' ? Math.max(0, dimension.value) : 10;
 }
 
 function importedDimensionAttrs(value: string | null, key: string): Record<string, string | number | boolean> {
@@ -285,6 +283,11 @@ function parseDimensionPart(value: string | null): { value: number; unit: '%' | 
   return { value: parsed, unit: match[2] === '%' ? '%' : 'px' };
 }
 
+function parsePixelDimension(value: string | null, fallback: number): number {
+  const dimension = parseDimensionPart(value);
+  return dimension?.unit === 'px' ? dimension.value : fallback;
+}
+
 function paddingUnitFromValue(value: string | null): '%' | 'px' | '' {
   return parseDimensionPart(value)?.unit || '';
 }
@@ -337,7 +340,7 @@ function parseMjmlBlock(element: Element, unsupported: string[], idFactory: Emai
     case 'mj-divider':
       return createNode(idFactory, 'divider', { borderColor: importedColor(element.getAttribute('border-color')) || '#d0d5dd' });
     case 'mj-spacer':
-      return createNode(idFactory, 'spacer', { height: Number.parseInt(element.getAttribute('height') || '24', 10) });
+      return createNode(idFactory, 'spacer', { height: parsePixelDimension(element.getAttribute('height'), 24) });
     case 'mj-social':
       return parseSocialBlock(element, unsupported, idFactory);
     default:

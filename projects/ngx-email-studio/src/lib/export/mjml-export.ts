@@ -74,8 +74,8 @@ function blockToMjml(node: EmailNode, idFactory: EmailNodeIdFactory): string {
 }
 
 function spacerHeight(value: unknown): number {
-  const parsed = Number.parseFloat(String(value ?? ''));
-  if (!Number.isFinite(parsed) || parsed < 0) return 24;
+  const parsed = strictPixelNumber(value);
+  if (parsed === undefined) return 24;
   return Math.min(1000, Math.round(parsed));
 }
 
@@ -134,10 +134,16 @@ function sectionMjmlAttrs(section: EmailNode): string {
 }
 
 function buttonBorderRadiusCss(node: EmailNode): string {
-  const raw = node.attrs['borderRadius'];
-  if (typeof raw === 'number' && Number.isFinite(raw)) return `${Math.max(0, raw)}px`;
-  const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
-  return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
+  const parsed = strictPixelNumber(node.attrs['borderRadius']);
+  return `${parsed === undefined ? 10 : parsed}px`;
+}
+
+function strictPixelNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? Math.max(0, value) : undefined;
+  const match = String(value ?? '').trim().match(/^(\d+(?:\.\d+)?)(?:px)?$/i);
+  if (!match) return undefined;
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 function bodyMjmlAttrs(document: EmailDocument): string {

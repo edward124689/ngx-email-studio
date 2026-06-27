@@ -213,8 +213,8 @@ function blockToHtmlCellContent(node: EmailNode, depth = 0): string {
 }
 
 function spacerHeight(value: unknown): number {
-  const parsed = Number.parseFloat(String(value ?? ''));
-  if (!Number.isFinite(parsed) || parsed < 0) return 24;
+  const parsed = strictPixelNumber(value);
+  if (parsed === undefined) return 24;
   return Math.min(1000, Math.round(parsed));
 }
 
@@ -250,17 +250,22 @@ function socialToHtml(node: EmailNode, depth = 0): string {
 }
 
 function buttonBorderRadiusCss(node: EmailNode): string {
-  const raw = node.attrs['borderRadius'];
-  if (typeof raw === 'number' && Number.isFinite(raw)) return `${Math.max(0, raw)}px`;
-  const parsed = Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
-  return `${Number.isFinite(parsed) ? Math.max(0, parsed) : 10}px`;
+  const parsed = strictPixelNumber(node.attrs['borderRadius']);
+  return `${parsed === undefined ? 10 : parsed}px`;
 }
 
 function msoButtonArcSize(node: EmailNode): string {
-  const raw = node.attrs['borderRadius'];
-  const parsed = typeof raw === 'number' ? raw : Number.parseFloat(String(raw ?? '10').replace(/px$/i, ''));
-  const radius = Number.isFinite(parsed) ? Math.max(0, parsed) : 10;
+  const parsed = strictPixelNumber(node.attrs['borderRadius']);
+  const radius = parsed === undefined ? 10 : parsed;
   return `${Math.min(50, Math.max(0, Math.round((radius / 44) * 100)))}%`;
+}
+
+function strictPixelNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? Math.max(0, value) : undefined;
+  const match = String(value ?? '').trim().match(/^(\d+(?:\.\d+)?)(?:px)?$/i);
+  if (!match) return undefined;
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 function textTypographyStyle(node: EmailNode): string {
@@ -333,6 +338,5 @@ function fontCssImportStyle(attrs: Record<string, string | number | boolean>, ra
 }
 
 function nonNegativeNumber(value: unknown, fallback: number): number {
-  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+  return strictPixelNumber(value) ?? fallback;
 }

@@ -1307,6 +1307,27 @@ describe('NgxEmailStudio', () => {
     expect(html).not.toContain('padding:3px');
   });
 
+  it('should reject malformed MJML percentage and pixel dimensions without parseFloat coercion', () => {
+    const imported = (component as any).parseMjml('<mjml><mj-body><mj-section><mj-group width="50foo%"><mj-column><mj-text>One</mj-text></mj-column><mj-column><mj-button border-radius="2em">Go</mj-button><mj-spacer height="3rem" /></mj-column></mj-group></mj-section></mj-body></mjml>') as EmailDocument;
+    const row = imported.body[0];
+    const columns = row.children || [];
+    const button = findImportedNode(imported.body, 'button');
+    const spacer = findImportedNode(imported.body, 'spacer');
+    const mjml = (component as any).compileMjml(imported) as string;
+    const html = (component as any).renderHtml(imported) as string;
+
+    expect(row.type).toBe('row');
+    expect(columns.map((column) => column.attrs['width'])).toEqual(['50%', '50%']);
+    expect(button?.attrs['borderRadius']).toBe(10);
+    expect(spacer?.attrs['height']).toBe(24);
+    expect(mjml).not.toContain('width="25%"');
+    expect(mjml).not.toContain('border-radius="2px"');
+    expect(mjml).not.toContain('height="3px"');
+    expect(html).not.toContain('width:25%');
+    expect(html).not.toContain('border-radius:2px');
+    expect(html).not.toContain('height:3px');
+  });
+
   it('should import common raw ampersands in MJML URL attributes and ignore unsafe body widths', () => {
     const imported = (component as any).parseMjml('<mjml><mj-body width="-100px"><mj-section><mj-column><mj-button href="https://example.com/?a=1&b=2">Query CTA</mj-button></mj-column></mj-section></mj-body></mjml>') as EmailDocument;
     const button = findImportedNode(imported.body, 'button');
@@ -1342,6 +1363,42 @@ describe('NgxEmailStudio', () => {
     expect(mjml).not.toContain('<mj-column><mj-section');
     expect(html).toContain('Do not lose me');
     expect(html).toContain('Nested row text');
+  });
+
+  it('should reject unsupported programmatic dimension unit strings before export', () => {
+    const document: EmailDocument = {
+      version: '0.0.1',
+      attrs: { width: '10rem', widthUnit: 'px', maxWidth: '60vw', maxWidthUnit: 'px', contentBorderRadius: '2em', contentBorderWidth: '3rem', contentFontSize: '4vh' },
+      body: [{
+        id: 'bad_units_section',
+        type: 'section',
+        attrs: { width: '25vw', widthUnit: 'px' },
+        children: [
+          { id: 'bad_units_image', type: 'image', attrs: { src: 'https://example.com/a.png', width: '10rem', widthUnit: 'px' } },
+          { id: 'bad_units_button', type: 'button', attrs: { label: 'Go', href: '#', borderRadius: '2em' } },
+          { id: 'bad_units_spacer', type: 'spacer', attrs: { height: '3rem' } },
+        ],
+      }],
+    };
+    const mjml = (component as any).compileMjml(document) as string;
+    const html = (component as any).renderHtml(document) as string;
+    const output = `${mjml}\n${html}`;
+
+    expect(mjml).toContain('<mj-body background-color="#ffffff" width="100%">');
+    expect(mjml).toContain('border-radius="10px"');
+    expect(mjml).toContain('<mj-spacer height="24px" />');
+    expect(html).toContain('style="width:100%;max-width:600px;');
+    expect(html).toContain('border-radius:16px;overflow:hidden;');
+    expect(html).toContain('font-size:13px;');
+    expect(output).not.toContain('10rem');
+    expect(output).not.toContain('60vw');
+    expect(output).not.toContain('25vw');
+    expect(output).not.toContain('2em');
+    expect(output).not.toContain('3rem');
+    expect(output).not.toContain('4vh');
+    expect(output).not.toContain('width="10"');
+    expect(output).not.toContain('height:3px');
+    expect(output).not.toContain('border-radius:2px');
   });
 
   it('should compile body width/background and row columns to MJML columns', () => {

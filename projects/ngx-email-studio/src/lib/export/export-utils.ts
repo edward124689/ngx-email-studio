@@ -118,16 +118,21 @@ export function isAlignableContent(node: EmailNode): boolean {
 
 export function dimensionValue(attrs: Record<string, string | number | boolean>, key: string, fallback: number): number {
   const raw = attrs[key];
-  if (typeof raw === 'number') return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
-  const parsed = Number.parseFloat(String(raw || ''));
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  const parsed = strictDimensionNumber(raw);
+  return parsed === undefined ? fallback : parsed;
+}
+
+function strictDimensionNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? value : undefined;
+  if (value === undefined || value === null || String(value).trim() === '') return undefined;
+  const match = String(value).trim().match(/^(\d+(?:\.\d+)?)(?:px|%)?$/i);
+  if (!match) return undefined;
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 function hasValidDimensionValue(value: unknown): boolean {
-  if (typeof value === 'number') return Number.isFinite(value) && value >= 0;
-  if (value === undefined || value === null || String(value).trim() === '') return false;
-  const parsed = Number.parseFloat(String(value));
-  return Number.isFinite(parsed) && parsed >= 0;
+  return strictDimensionNumber(value) !== undefined;
 }
 
 export function dimensionUnit(attrs: Record<string, string | number | boolean>, key: string, fallback: EmailSizeUnit): EmailSizeUnit {
