@@ -1133,7 +1133,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
               <p>Add buttons, social items, or rich-text anchors to manage them here.</p>
             </div>
             <div class="nes-link-list" *ngIf="filteredLinkManagerEntries.length > 0">
-              <article class="nes-link-card" *ngFor="let entry of filteredLinkManagerEntries; trackBy: trackLinkManagerEntry" [class.has-warning]="entry.status !== 'ok'">
+              <article class="nes-link-card" *ngFor="let entry of filteredLinkManagerEntries; trackBy: trackLinkManagerEntry" [class.has-warning]="linkManagerDraftStatus(entry).status !== 'ok'">
                 <div class="nes-link-meta">
                   <span class="nes-link-kind"><i class="nes-icon fa" [class]="'nes-icon fa ' + linkManagerIcon(entry)" aria-hidden="true"></i> {{ entry.kindLabel }}</span>
                   <strong>{{ entry.label }}</strong>

@@ -163,6 +163,28 @@ describe('NgxEmailStudio', () => {
     expect(studioText(fixture)).toContain('Shop now');
   });
 
+  it('should update Link Manager card warning styling from draft URL status', () => {
+    fixture.componentRef.setInput('document', {
+      version: '0.0.1',
+      body: [{ id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com' } }],
+    });
+    fixture.detectChanges();
+
+    query<HTMLButtonElement>(fixture, '.nes-link-manager-trigger')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, '.nes-link-card')?.classList.contains('has-warning')).toBe(false);
+
+    query<HTMLInputElement>(fixture, '.nes-link-url-field input')!.value = 'javascript:alert(1)';
+    query<HTMLInputElement>(fixture, '.nes-link-url-field input')!.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(query(fixture, '.nes-link-card')?.classList.contains('has-warning')).toBe(true);
+
+    query<HTMLInputElement>(fixture, '.nes-link-url-field input')!.value = 'https://example.com/safe';
+    query<HTMLInputElement>(fixture, '.nes-link-url-field input')!.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(query(fixture, '.nes-link-card')?.classList.contains('has-warning')).toBe(false);
+  });
+
   it('should keep Link Manager UTM helpers and apply actions inert in readonly mode', () => {
     component.readonly = true;
     component.emailDocument = {
