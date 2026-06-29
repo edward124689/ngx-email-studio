@@ -1143,9 +1143,9 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
                   <span>URL</span>
                   <input [ngModel]="linkManagerDraftValue(entry)" (ngModelChange)="updateLinkManagerDraft(entry, $event)" [readonly]="readonly" placeholder="https://example.com" />
                 </label>
-                <div class="nes-link-status" [class.is-ok]="entry.status === 'ok'" [class.is-empty]="entry.status === 'empty'" [class.is-invalid]="entry.status === 'invalid'">
+                <div class="nes-link-status" [class.is-ok]="linkManagerDraftStatus(entry).status === 'ok'" [class.is-empty]="linkManagerDraftStatus(entry).status === 'empty'" [class.is-invalid]="linkManagerDraftStatus(entry).status === 'invalid'">
                   <i class="nes-icon fa" [class]="'nes-icon fa ' + linkManagerStatusIcon(entry)" aria-hidden="true"></i>
-                  {{ entry.statusLabel }}
+                  {{ linkManagerDraftStatus(entry).statusLabel }}
                 </div>
                 <div class="nes-link-actions">
                   <button type="button" (click)="selectLinkManagerEntry(entry)">Select block</button>
@@ -1696,13 +1696,14 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     const query = this.linkManagerSearch.trim().toLowerCase();
     const entries = this.linkManagerEntries;
     if (!query) return entries;
-    return entries.filter((entry) => `${entry.kindLabel} ${entry.label} ${entry.location} ${entry.href}`.toLowerCase().includes(query));
+    return entries.filter((entry) => `${entry.kindLabel} ${entry.label} ${entry.location} ${entry.href} ${this.linkManagerDraftValue(entry)}`.toLowerCase().includes(query));
   }
 
   get linkManagerSummary(): string {
     const entries = this.linkManagerEntries;
-    const invalid = entries.filter((entry) => entry.status === 'invalid').length;
-    const empty = entries.filter((entry) => entry.status === 'empty').length;
+    const statuses = entries.map((entry) => this.linkManagerDraftStatus(entry));
+    const invalid = statuses.filter((entry) => entry.status === 'invalid').length;
+    const empty = statuses.filter((entry) => entry.status === 'empty').length;
     if (!entries.length) return 'No links in this email yet';
     const warnings = invalid + empty;
     return warnings ? `${entries.length} links · ${warnings} need attention` : `${entries.length} links · all URLs look safe`;
@@ -2745,9 +2746,14 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   linkManagerStatusIcon(entry: LinkManagerEntry): string {
-    if (entry.status === 'ok') return 'fa-check-circle';
-    if (entry.status === 'empty') return 'fa-exclamation-circle';
+    const status = this.linkManagerDraftStatus(entry).status;
+    if (status === 'ok') return 'fa-check-circle';
+    if (status === 'empty') return 'fa-exclamation-circle';
     return 'fa-exclamation-triangle';
+  }
+
+  linkManagerDraftStatus(entry: LinkManagerEntry): Pick<LinkManagerEntry, 'status' | 'statusLabel' | 'normalizedHref'> {
+    return this.linkManagerStatusForHref(this.linkManagerDraftValue(entry));
   }
 
   selectLinkManagerEntry(entry: LinkManagerEntry): void {
@@ -2793,6 +2799,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   appendLinkManagerUtm(entry: LinkManagerEntry): void {
+    if (this.readonly) return;
     const nextHref = this.appendUtmParams(this.linkManagerDraftValue(entry));
     if (!nextHref) {
       this.linkManagerError = 'UTM can only be added to http or https URLs.';
@@ -2802,6 +2809,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   }
 
   applyLinkManagerUtmToAll(): void {
+    if (this.readonly) return;
     const nextDrafts = { ...this.linkManagerDrafts };
     let changed = false;
     for (const entry of this.linkManagerEntries) {
@@ -2872,10 +2880,15 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   private createLinkManagerEntry(entry: Omit<LinkManagerEntry, 'normalizedHref' | 'status' | 'statusLabel'>): LinkManagerEntry {
     const href = String(entry.href || '').trim();
+    return { ...entry, href, ...this.linkManagerStatusForHref(href) };
+  }
+
+  private linkManagerStatusForHref(value: unknown): Pick<LinkManagerEntry, 'normalizedHref' | 'status' | 'statusLabel'> {
+    const href = String(value || '').trim();
     const normalizedHref = normalizeHrefValue(href);
     const status: LinkManagerEntryStatus = !href || href === '#' ? 'empty' : normalizedHref ? 'ok' : 'invalid';
     const statusLabel = status === 'ok' ? 'Safe URL' : status === 'empty' ? 'Missing or placeholder URL' : 'Invalid URL';
-    return { ...entry, href, normalizedHref, status, statusLabel };
+    return { normalizedHref, status, statusLabel };
   }
 
   private linkManagerNodeLabel(node: EmailNode): string {

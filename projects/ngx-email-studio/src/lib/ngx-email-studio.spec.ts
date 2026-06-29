@@ -129,6 +129,8 @@ describe('NgxEmailStudio', () => {
     component.openLinkManager();
     const [httpEntry, mailEntry] = component.linkManagerEntries;
     component.updateLinkManagerDraft(httpEntry, 'javascript:alert(1)');
+    expect(component.linkManagerDraftStatus(httpEntry)).toMatchObject({ status: 'invalid', statusLabel: 'Invalid URL' });
+    expect(component.linkManagerSummary).toContain('1 need attention');
     component.applyLinkManagerEntry(httpEntry);
     expect(component.emailDocument.body[0].attrs['href']).toBe('https://example.com/path?x=1');
     expect(component.linkManagerError).toContain('Invalid URL');
@@ -159,6 +161,82 @@ describe('NgxEmailStudio', () => {
     expect(query(fixture, '.nes-link-manager-modal')).toBeTruthy();
     expect(studioText(fixture)).toContain('Review and update every link');
     expect(studioText(fixture)).toContain('Shop now');
+  });
+
+  it('should keep Link Manager UTM helpers and apply actions inert in readonly mode', () => {
+    component.readonly = true;
+    component.emailDocument = {
+      version: '0.0.1',
+      body: [{ id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com/path' } }],
+    };
+
+    component.openLinkManager();
+    const entry = component.linkManagerEntries[0];
+    component.linkManagerUtmSource = 'newsletter';
+    component.updateLinkManagerDraft(entry, 'https://example.com/changed');
+    component.appendLinkManagerUtm(entry);
+    component.applyLinkManagerUtmToAll();
+    component.applyLinkManagerEntry(entry);
+    component.applyAllLinkManagerDrafts();
+
+    expect(component.linkManagerDraftValue(entry)).toBe('https://example.com/changed');
+    expect(component.emailDocument.body[0].attrs['href']).toBe('https://example.com/path');
+  });
+
+  it('should scope concurrent Link Manager modals to their own component instances', () => {
+    const firstFixture = TestBed.createComponent(NgxEmailStudio);
+    const secondFixture = TestBed.createComponent(NgxEmailStudio);
+    try {
+      firstFixture.componentInstance.emailDocument = {
+        version: '0.0.1',
+        body: [{ id: 'first_btn', type: 'button', attrs: { label: 'First', href: 'https://first.example.com' } }],
+      };
+      secondFixture.componentInstance.emailDocument = {
+        version: '0.0.1',
+        body: [{ id: 'second_btn', type: 'button', attrs: { label: 'Second', href: 'https://second.example.com' } }],
+      };
+      firstFixture.componentInstance.openLinkManager();
+      secondFixture.componentInstance.openLinkManager();
+      firstFixture.detectChanges();
+      secondFixture.detectChanges();
+
+      expect(query(firstFixture, '.nes-link-manager-modal')?.textContent).toContain('First');
+      expect(query(firstFixture, '.nes-link-manager-modal')?.textContent).not.toContain('Second');
+      expect(query(secondFixture, '.nes-link-manager-modal')?.textContent).toContain('Second');
+      expect(query(secondFixture, '.nes-link-manager-modal')?.textContent).not.toContain('First');
+    } finally {
+      firstFixture.destroy();
+      secondFixture.destroy();
+    }
+  });
+
+  it('should sanitize unsafe rich-text hrefs before listing and round-trip Link Manager edits through exports', () => {
+    component.emailDocument = {
+      version: '0.0.1',
+      body: [
+        { id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com/old' } },
+        { id: 'text1', type: 'text', attrs: { content: '<p><a href="javascript:alert(1)">Unsafe</a> and <a href="https://docs.example.com/old">docs</a></p>' } },
+      ],
+    };
+
+    component.openLinkManager();
+    const entries = component.linkManagerEntries;
+    expect(entries.some((entry) => entry.href.includes('javascript:'))).toBe(false);
+    const unsafeTextEntry = entries.find((entry) => entry.kind === 'rich-text' && entry.label === 'Unsafe');
+    expect(unsafeTextEntry?.status).toBe('empty');
+
+    const buttonEntry = entries.find((entry) => entry.kind === 'button')!;
+    const safeTextEntry = entries.find((entry) => entry.kind === 'rich-text' && entry.label === 'docs')!;
+    component.updateLinkManagerDraft(buttonEntry, 'https://example.com/new');
+    component.updateLinkManagerDraft(safeTextEntry, 'https://docs.example.com/new');
+    component.applyAllLinkManagerDrafts();
+
+    component.openOutputModal('mjml');
+    expect(component.lastMjml).toContain('href="https://example.com/new"');
+    expect(component.lastMjml).toContain('href="https://docs.example.com/new"');
+    const parsed = (component as any).parseMjml(component.lastMjml) as EmailDocument;
+    expect(JSON.stringify(parsed)).toContain('https://example.com/new');
+    expect(JSON.stringify(parsed)).toContain('https://docs.example.com/new');
   });
 
   it('should cancel deferred Tiptap click restore callbacks when the editor is destroyed', () => {

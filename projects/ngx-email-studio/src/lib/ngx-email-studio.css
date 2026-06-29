@@ -395,7 +395,6 @@ ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42p
 
 .nes-link-manager-trigger { font-weight: 800; border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
 .nes-link-manager-trigger:hover { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 10px 22px rgba(37, 99, 235, .18); }
-.nes-trigger-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 6px; border-radius: 999px; background: rgba(255,255,255,.75); color: inherit; font-size: 11px; font-weight: 900; }
 .nes-link-manager-body { min-height: 0; overflow: auto; padding: 20px; background: linear-gradient(180deg, #f8fafc, #eef2ff); }
 .nes-link-manager-tools { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); gap: 14px; align-items: stretch; margin: 16px 0 12px; }
 .nes-link-manager-tools .nes-search { margin: 0; }
