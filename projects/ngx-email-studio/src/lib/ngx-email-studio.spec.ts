@@ -92,6 +92,75 @@ describe('NgxEmailStudio', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should collect and update button, social, and rich-text links from Link Manager', () => {
+    component.emailDocument = {
+      version: '0.0.1',
+      body: [
+        { id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com/old' } },
+        { id: 'social1', type: 'social', attrs: { items: '[{"name":"x","href":"https://x.com/old","backgroundColor":"#000000"}]' } },
+        { id: 'text1', type: 'text', attrs: { content: '<p>Read <a href="https://docs.example.com/old">docs</a></p>' } },
+      ],
+    };
+
+    component.openLinkManager();
+    const entries = component.linkManagerEntries;
+    expect(entries.map((entry) => entry.kind)).toEqual(['button', 'social', 'rich-text']);
+
+    component.updateLinkManagerDraft(entries[0], 'https://example.com/new');
+    component.updateLinkManagerDraft(entries[1], 'mailto:hello@example.com');
+    component.updateLinkManagerDraft(entries[2], '/docs/new');
+    component.applyAllLinkManagerDrafts();
+
+    expect(component.emailDocument.body[0].attrs['href']).toBe('https://example.com/new');
+    expect(String(component.emailDocument.body[1].attrs['items'])).toContain('mailto:hello@example.com');
+    expect(component.emailDocument.body[2].attrs['content']).toContain('href="/docs/new"');
+    expect(component.linkManagerError).toBe('');
+  });
+
+  it('should block unsafe Link Manager URLs and append UTM params only to HTTP links', () => {
+    component.emailDocument = {
+      version: '0.0.1',
+      body: [
+        { id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com/path?x=1' } },
+        { id: 'btn2', type: 'button', attrs: { label: 'Email', href: 'mailto:hello@example.com' } },
+      ],
+    };
+
+    component.openLinkManager();
+    const [httpEntry, mailEntry] = component.linkManagerEntries;
+    component.updateLinkManagerDraft(httpEntry, 'javascript:alert(1)');
+    component.applyLinkManagerEntry(httpEntry);
+    expect(component.emailDocument.body[0].attrs['href']).toBe('https://example.com/path?x=1');
+    expect(component.linkManagerError).toContain('Invalid URL');
+
+    component.updateLinkManagerDraft(httpEntry, 'https://example.com/path?x=1');
+    component.linkManagerUtmSource = 'newsletter';
+    component.linkManagerUtmMedium = 'email';
+    component.linkManagerUtmCampaign = 'launch';
+    component.appendLinkManagerUtm(httpEntry);
+    expect(component.linkManagerDraftValue(httpEntry)).toBe('https://example.com/path?x=1&utm_source=newsletter&utm_medium=email&utm_campaign=launch');
+
+    component.appendLinkManagerUtm(mailEntry);
+    expect(component.linkManagerError).toContain('UTM can only');
+  });
+
+  it('should render the Link Manager toolbar trigger and modal', () => {
+    fixture.componentRef.setInput('document', {
+      version: '0.0.1',
+      body: [{ id: 'btn1', type: 'button', attrs: { label: 'Shop now', href: 'https://example.com' } }],
+    });
+    fixture.detectChanges();
+
+    const trigger = query<HTMLButtonElement>(fixture, '.nes-link-manager-trigger');
+    expect(trigger?.textContent).toContain('Links');
+    trigger?.click();
+    fixture.detectChanges();
+
+    expect(query(fixture, '.nes-link-manager-modal')).toBeTruthy();
+    expect(studioText(fixture)).toContain('Review and update every link');
+    expect(studioText(fixture)).toContain('Shop now');
+  });
+
   it('should cancel deferred Tiptap click restore callbacks when the editor is destroyed', () => {
     vi.useFakeTimers();
     const element = document.createElement('div');
@@ -290,7 +359,7 @@ describe('NgxEmailStudio', () => {
   it('should put Save at the right side and allow hosts to hide it', () => {
     fixture.detectChanges();
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
-    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Transform', 'Import', 'Export', 'Save']);
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Links', 'Transform', 'Import', 'Export', 'Save']);
     expect(actions.at(-1)?.classList.contains('nes-save-trigger')).toBe(true);
 
     const hiddenFixture = TestBed.createComponent(NgxEmailStudio);
@@ -316,7 +385,7 @@ describe('NgxEmailStudio', () => {
     fixture.detectChanges();
 
     const actions = Array.from(queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions > .nes-export > button'));
-    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Data set', 'Transform', 'Import', 'Export', 'Save']);
+    expect(actions.map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Data set', 'Links', 'Transform', 'Import', 'Export', 'Save']);
     expect(component.normalizedDataSet).toEqual([{ key: '{%CLIENT_NAME%}', desc: 'Client name' }]);
   });
 
@@ -4145,11 +4214,11 @@ not-real">Malformed</mj-button><mj-button href="https://example.com/safe">Safe</
     expect(component.exportMenuOpen).toBe(false);
   });
 
-  it('should keep toolbar actions ordered as Import, Export, Save with a decorated export menu', () => {
+  it('should keep toolbar actions ordered as Links, Import, Export, Save with a decorated export menu', () => {
     fixture.detectChanges();
 
     const actionButtons = queryAll<HTMLButtonElement>(fixture, '.nes-actions > button, .nes-actions .nes-export-trigger');
-    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Transform', 'Import', 'Export', 'Save']);
+    expect(Array.from(actionButtons).map((button) => button.textContent?.trim().replace(/\s+/g, ' '))).toEqual(['Links', 'Transform', 'Import', 'Export', 'Save']);
 
     const exportButton = query<HTMLButtonElement>(fixture, '.nes-export-trigger')!;
     exportButton.click();

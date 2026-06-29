@@ -122,6 +122,24 @@ interface TiptapPromptConfig {
   value: string;
 }
 
+type LinkManagerEntryKind = 'button' | 'social' | 'rich-text';
+type LinkManagerEntryStatus = 'ok' | 'empty' | 'invalid';
+
+interface LinkManagerEntry {
+  id: string;
+  kind: LinkManagerEntryKind;
+  kindLabel: string;
+  nodeId: string;
+  label: string;
+  location: string;
+  href: string;
+  normalizedHref: string;
+  status: LinkManagerEntryStatus;
+  statusLabel: string;
+  socialIndex?: number;
+  anchorIndex?: number;
+}
+
 const MAX_DOCUMENT_HISTORY = 80;
 
 function defaultTiptapToolbarState(): TiptapToolbarState {
@@ -161,6 +179,7 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
             <button type="button" class="nes-history-btn" data-history-action="redo" aria-label="Redo" title="Redo (⌘⇧Z / Ctrl+Y)" (click)="redoDocumentFromToolbar(); $event.stopPropagation()"><i class="nes-icon fa fa-repeat" aria-hidden="true"></i></button>
           </div>
           <button type="button" class="nes-data-set-trigger" *ngIf="hasDataSetItems" (click)="openDataSetModal()"><i class="nes-icon fa fa-database" aria-hidden="true"></i> Data set</button>
+          <button type="button" class="nes-link-manager-trigger" (click)="openLinkManager()"><i class="nes-icon fa fa-link" aria-hidden="true"></i> Links</button>
           <button type="button" class="nes-transform-trigger" [disabled]="readonly" (click)="openTransformModal()"><i class="nes-icon fa fa-language" aria-hidden="true"></i> Transform</button>
           <button type="button" class="nes-import-trigger" [disabled]="readonly" (click)="openImportModal()"><i class="nes-icon fa fa-upload" aria-hidden="true"></i> Import</button>
           <div class="nes-export" [class.is-open]="exportMenuOpen" (click)="$event.stopPropagation()">
@@ -1076,6 +1095,72 @@ function defaultTiptapToolbarState(): TiptapToolbarState {
         </section>
       </div>
 
+
+      <div class="nes-modal-backdrop" *ngIf="linkManagerOpen" (click)="closeLinkManager()">
+        <section class="nes-link-manager-modal" role="dialog" aria-modal="true" aria-label="Link Manager" (click)="$event.stopPropagation()">
+          <header>
+            <div class="nes-modal-heading">
+              <span class="nes-modal-icon"><i class="nes-icon fa fa-link" aria-hidden="true"></i></span>
+              <div>
+                <p>Link Manager</p>
+                <h3>Review and update every link</h3>
+              </div>
+            </div>
+            <button type="button" aria-label="Close link manager" (click)="closeLinkManager()"><i class="nes-icon fa fa-times" aria-hidden="true"></i></button>
+          </header>
+          <div class="nes-link-manager-body">
+            <div class="nes-modal-intro">
+              <strong>{{ linkManagerSummary }}</strong>
+              <p class="nes-muted">Manage button, social, and rich-text links in one place. Invalid URLs are blocked before they reach the document.</p>
+            </div>
+            <div class="nes-link-manager-tools">
+              <label class="nes-search">
+                <i class="nes-icon fa fa-search" aria-hidden="true"></i>
+                <input [ngModel]="linkManagerSearch" (ngModelChange)="linkManagerSearch = $event" placeholder="Search links, blocks, or URLs" />
+              </label>
+              <div class="nes-link-utm-panel">
+                <span>UTM helper</span>
+                <input [ngModel]="linkManagerUtmSource" (ngModelChange)="linkManagerUtmSource = $event" placeholder="utm_source" />
+                <input [ngModel]="linkManagerUtmMedium" (ngModelChange)="linkManagerUtmMedium = $event" placeholder="utm_medium" />
+                <input [ngModel]="linkManagerUtmCampaign" (ngModelChange)="linkManagerUtmCampaign = $event" placeholder="utm_campaign" />
+                <button type="button" class="nes-secondary-action" [disabled]="readonly" (click)="applyLinkManagerUtmToAll()"><i class="nes-icon fa fa-magic" aria-hidden="true"></i> Apply to HTTP links</button>
+              </div>
+            </div>
+            <div class="nes-import-error" role="alert" *ngIf="linkManagerError"><i class="nes-icon fa fa-exclamation-triangle" aria-hidden="true"></i> {{ linkManagerError }}</div>
+            <div class="nes-link-empty" *ngIf="filteredLinkManagerEntries.length === 0">
+              <i class="nes-icon fa fa-chain-broken" aria-hidden="true"></i>
+              <strong>No links found</strong>
+              <p>Add buttons, social items, or rich-text anchors to manage them here.</p>
+            </div>
+            <div class="nes-link-list" *ngIf="filteredLinkManagerEntries.length > 0">
+              <article class="nes-link-card" *ngFor="let entry of filteredLinkManagerEntries; trackBy: trackLinkManagerEntry" [class.has-warning]="entry.status !== 'ok'">
+                <div class="nes-link-meta">
+                  <span class="nes-link-kind"><i class="nes-icon fa" [class]="'nes-icon fa ' + linkManagerIcon(entry)" aria-hidden="true"></i> {{ entry.kindLabel }}</span>
+                  <strong>{{ entry.label }}</strong>
+                  <small>{{ entry.location }}</small>
+                </div>
+                <label class="nes-link-url-field">
+                  <span>URL</span>
+                  <input [ngModel]="linkManagerDraftValue(entry)" (ngModelChange)="updateLinkManagerDraft(entry, $event)" [readonly]="readonly" placeholder="https://example.com" />
+                </label>
+                <div class="nes-link-status" [class.is-ok]="entry.status === 'ok'" [class.is-empty]="entry.status === 'empty'" [class.is-invalid]="entry.status === 'invalid'">
+                  <i class="nes-icon fa" [class]="'nes-icon fa ' + linkManagerStatusIcon(entry)" aria-hidden="true"></i>
+                  {{ entry.statusLabel }}
+                </div>
+                <div class="nes-link-actions">
+                  <button type="button" (click)="selectLinkManagerEntry(entry)">Select block</button>
+                  <button type="button" [disabled]="readonly" (click)="appendLinkManagerUtm(entry)">Add UTM</button>
+                  <button type="button" class="nes-primary" [disabled]="readonly" (click)="applyLinkManagerEntry(entry)">Apply</button>
+                </div>
+              </article>
+            </div>
+          </div>
+          <footer class="nes-modal-footer">
+            <button type="button" (click)="closeLinkManager()">Close</button>
+            <button type="button" class="nes-primary" [disabled]="readonly" (click)="applyAllLinkManagerDrafts()"><i class="nes-icon fa fa-check" aria-hidden="true"></i> Apply all</button>
+          </footer>
+        </section>
+      </div>
       <ngx-email-studio-output-modal
         *ngIf="outputModalType"
         [type]="outputModalType"
@@ -1272,6 +1357,13 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   dragInProgress = false;
   importModalOpen = false;
   importErrorMessage = '';
+  linkManagerOpen = false;
+  linkManagerSearch = '';
+  linkManagerError = '';
+  linkManagerUtmSource = '';
+  linkManagerUtmMedium = '';
+  linkManagerUtmCampaign = '';
+  linkManagerDrafts: Record<string, string> = {};
   dataSetModalOpen = false;
   dataSetCopiedKey = '';
   dataSetCopyState = '';
@@ -1388,6 +1480,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     if (this.tiptapPrompt) this.closeTiptapPrompt();
     if (this.sourceEditorScope) this.closeRichTextSource();
     if (this.importModalOpen) this.closeImportModal();
+    if (this.linkManagerOpen) this.closeLinkManager();
     if (this.dataSetModalOpen) this.closeDataSetModal();
     if (this.transformModalOpen) this.closeTransformModal();
     if (this.expandedRichTextNode) this.closeRichTextModal();
@@ -1593,6 +1686,26 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
 
   get outputModalContent(): string {
     return this.outputModalType === 'html' ? this.lastHtml : this.lastMjml;
+  }
+
+  get linkManagerEntries(): LinkManagerEntry[] {
+    return this.collectLinkManagerEntries();
+  }
+
+  get filteredLinkManagerEntries(): LinkManagerEntry[] {
+    const query = this.linkManagerSearch.trim().toLowerCase();
+    const entries = this.linkManagerEntries;
+    if (!query) return entries;
+    return entries.filter((entry) => `${entry.kindLabel} ${entry.label} ${entry.location} ${entry.href}`.toLowerCase().includes(query));
+  }
+
+  get linkManagerSummary(): string {
+    const entries = this.linkManagerEntries;
+    const invalid = entries.filter((entry) => entry.status === 'invalid').length;
+    const empty = entries.filter((entry) => entry.status === 'empty').length;
+    if (!entries.length) return 'No links in this email yet';
+    const warnings = invalid + empty;
+    return warnings ? `${entries.length} links · ${warnings} need attention` : `${entries.length} links · all URLs look safe`;
   }
 
   get canRedoDocument(): boolean {
@@ -2598,6 +2711,256 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
     this.dataSetCopiedKey = '';
   }
 
+
+  openLinkManager(): void {
+    this.closeTransientMenus();
+    this.linkManagerOpen = true;
+    this.linkManagerError = '';
+    this.syncLinkManagerDrafts();
+  }
+
+  closeLinkManager(): void {
+    this.linkManagerOpen = false;
+    this.linkManagerSearch = '';
+    this.linkManagerError = '';
+  }
+
+  trackLinkManagerEntry(_: number, entry: LinkManagerEntry): string {
+    return entry.id;
+  }
+
+  linkManagerDraftValue(entry: LinkManagerEntry): string {
+    return Object.prototype.hasOwnProperty.call(this.linkManagerDrafts, entry.id) ? this.linkManagerDrafts[entry.id] : entry.href;
+  }
+
+  updateLinkManagerDraft(entry: LinkManagerEntry, value: unknown): void {
+    this.linkManagerDrafts = { ...this.linkManagerDrafts, [entry.id]: String(value ?? '') };
+    this.linkManagerError = '';
+  }
+
+  linkManagerIcon(entry: LinkManagerEntry): string {
+    if (entry.kind === 'button') return 'fa-mouse-pointer';
+    if (entry.kind === 'social') return 'fa-share-alt';
+    return 'fa-align-left';
+  }
+
+  linkManagerStatusIcon(entry: LinkManagerEntry): string {
+    if (entry.status === 'ok') return 'fa-check-circle';
+    if (entry.status === 'empty') return 'fa-exclamation-circle';
+    return 'fa-exclamation-triangle';
+  }
+
+  selectLinkManagerEntry(entry: LinkManagerEntry): void {
+    this.selectedNodeId = entry.nodeId;
+    this.closeLinkManager();
+    this.scrollNodeIntoStage(entry.nodeId);
+  }
+
+  applyLinkManagerEntry(entry: LinkManagerEntry): void {
+    if (this.readonly) return;
+    this.linkManagerError = '';
+    const value = this.linkManagerDraftValue(entry).trim();
+    if (value && !normalizeHrefValue(value)) {
+      this.linkManagerError = `Invalid URL for ${entry.label}. Use https, mailto, tel, anchors, or root-relative paths.`;
+      return;
+    }
+    if (this.writeLinkManagerEntry(entry, value)) {
+      this.emitDocument();
+      this.syncLinkManagerDrafts();
+    }
+  }
+
+  applyAllLinkManagerDrafts(): void {
+    if (this.readonly) return;
+    this.linkManagerError = '';
+    const entries = this.linkManagerEntries;
+    const invalid = entries.find((entry) => {
+      const value = this.linkManagerDraftValue(entry).trim();
+      return !!value && !normalizeHrefValue(value);
+    });
+    if (invalid) {
+      this.linkManagerError = `Invalid URL for ${invalid.label}. Use https, mailto, tel, anchors, or root-relative paths.`;
+      return;
+    }
+    let changed = false;
+    for (const entry of entries) {
+      changed = this.writeLinkManagerEntry(entry, this.linkManagerDraftValue(entry).trim()) || changed;
+    }
+    if (changed) {
+      this.emitDocument();
+      this.syncLinkManagerDrafts();
+    }
+  }
+
+  appendLinkManagerUtm(entry: LinkManagerEntry): void {
+    const nextHref = this.appendUtmParams(this.linkManagerDraftValue(entry));
+    if (!nextHref) {
+      this.linkManagerError = 'UTM can only be added to http or https URLs.';
+      return;
+    }
+    this.updateLinkManagerDraft(entry, nextHref);
+  }
+
+  applyLinkManagerUtmToAll(): void {
+    const nextDrafts = { ...this.linkManagerDrafts };
+    let changed = false;
+    for (const entry of this.linkManagerEntries) {
+      const nextHref = this.appendUtmParams(this.linkManagerDraftValue(entry));
+      if (!nextHref) continue;
+      nextDrafts[entry.id] = nextHref;
+      changed = true;
+    }
+    if (!changed) {
+      this.linkManagerError = 'No http or https links available for UTM parameters.';
+      return;
+    }
+    this.linkManagerDrafts = nextDrafts;
+    this.linkManagerError = '';
+  }
+
+  private collectLinkManagerEntries(): LinkManagerEntry[] {
+    const entries: LinkManagerEntry[] = [];
+    const walk = (nodes: EmailNode[], trail: string[]) => {
+      nodes.forEach((node, index) => {
+        const label = this.linkManagerNodeLabel(node);
+        const location = [...trail, `${index + 1}. ${label}`].join(' / ');
+        if (node.type === 'button') {
+          entries.push(this.createLinkManagerEntry({
+            id: `${node.id}:button`,
+            kind: 'button',
+            kindLabel: 'Button',
+            nodeId: node.id,
+            label: String(node.attrs['label'] || 'CTA button'),
+            location,
+            href: String(node.attrs['href'] || ''),
+          }));
+        }
+        if (node.type === 'social') {
+          this.socialEditorItems(node).forEach((item, socialIndex) => {
+            entries.push(this.createLinkManagerEntry({
+              id: `${node.id}:social:${socialIndex}`,
+              kind: 'social',
+              kindLabel: 'Social',
+              nodeId: node.id,
+              label: item.name || `Social ${socialIndex + 1}`,
+              location,
+              href: item.href || '',
+              socialIndex,
+            }));
+          });
+        }
+        if (node.type === 'text') {
+          this.richTextAnchors(node).forEach((anchor, anchorIndex) => {
+            entries.push(this.createLinkManagerEntry({
+              id: `${node.id}:anchor:${anchorIndex}`,
+              kind: 'rich-text',
+              kindLabel: 'Text link',
+              nodeId: node.id,
+              label: anchor.label || `Text link ${anchorIndex + 1}`,
+              location,
+              href: anchor.href,
+              anchorIndex,
+            }));
+          });
+        }
+        if (node.children?.length) walk(node.children, [...trail, `${index + 1}. ${label}`]);
+      });
+    };
+    walk(this.emailDocument.body, ['Body']);
+    return entries;
+  }
+
+  private createLinkManagerEntry(entry: Omit<LinkManagerEntry, 'normalizedHref' | 'status' | 'statusLabel'>): LinkManagerEntry {
+    const href = String(entry.href || '').trim();
+    const normalizedHref = normalizeHrefValue(href);
+    const status: LinkManagerEntryStatus = !href || href === '#' ? 'empty' : normalizedHref ? 'ok' : 'invalid';
+    const statusLabel = status === 'ok' ? 'Safe URL' : status === 'empty' ? 'Missing or placeholder URL' : 'Invalid URL';
+    return { ...entry, href, normalizedHref, status, statusLabel };
+  }
+
+  private linkManagerNodeLabel(node: EmailNode): string {
+    if (node.type === 'button') return String(node.attrs['label'] || 'Button');
+    if (node.type === 'text') return toPlainText(String(node.attrs['content'] || '')).slice(0, 40) || 'Text';
+    if (node.type === 'social') return 'Social links';
+    return getOutlineLabel(node);
+  }
+
+  private richTextAnchors(node: EmailNode): Array<{ href: string; label: string }> {
+    const content = this.sanitizeRichTextContent(node.attrs['content']);
+    if (!content || typeof DOMParser === 'undefined') return [];
+    const doc = new DOMParser().parseFromString(`<div>${content}</div>`, 'text/html');
+    return Array.from(doc.querySelectorAll('a')).map((anchor) => ({
+      href: anchor.getAttribute('href') || '',
+      label: (anchor.textContent || anchor.getAttribute('href') || 'Text link').trim(),
+    }));
+  }
+
+  private writeLinkManagerEntry(entry: LinkManagerEntry, href: string): boolean {
+    const node = this.findNode(entry.nodeId);
+    if (!node) return false;
+    if (entry.kind === 'button' && node.type === 'button') {
+      if (String(node.attrs['href'] || '') === href) return false;
+      node.attrs = { ...node.attrs, href };
+      return true;
+    }
+    if (entry.kind === 'social' && node.type === 'social' && typeof entry.socialIndex === 'number') {
+      const items = this.socialEditorItems(node).map((item) => ({ ...item }));
+      if (!items[entry.socialIndex] || items[entry.socialIndex].href === href) return false;
+      items[entry.socialIndex].href = href;
+      node.attrs = { ...node.attrs, items: serializeSocialDraftItems(items) };
+      this.socialItemsCache.delete(node.id);
+      this.socialDraftItemsCache.delete(node.id);
+      return true;
+    }
+    if (entry.kind === 'rich-text' && node.type === 'text' && typeof entry.anchorIndex === 'number') {
+      return this.updateRichTextAnchorHref(node, entry.anchorIndex, href);
+    }
+    return false;
+  }
+
+  private updateRichTextAnchorHref(node: EmailNode, anchorIndex: number, href: string): boolean {
+    const content = this.sanitizeRichTextContent(node.attrs['content']);
+    if (typeof DOMParser === 'undefined') return false;
+    const doc = new DOMParser().parseFromString(`<div>${content}</div>`, 'text/html');
+    const container = doc.body.firstElementChild;
+    const anchor = container?.querySelectorAll('a')[anchorIndex];
+    if (!container || !anchor || anchor.getAttribute('href') === href) return false;
+    if (href) {
+      anchor.setAttribute('href', href);
+    } else {
+      anchor.removeAttribute('href');
+    }
+    node.attrs = { ...node.attrs, content: this.sanitizeRichTextContent(container.innerHTML) };
+    return true;
+  }
+
+  private appendUtmParams(value: unknown): string {
+    const href = String(value ?? '').trim();
+    if (!/^https?:/i.test(href)) return '';
+    try {
+      const url = new URL(href);
+      const params: Array<[string, string]> = [
+        ['utm_source', this.linkManagerUtmSource],
+        ['utm_medium', this.linkManagerUtmMedium],
+        ['utm_campaign', this.linkManagerUtmCampaign],
+      ];
+      let changed = false;
+      for (const [key, rawValue] of params) {
+        const paramValue = String(rawValue || '').trim();
+        if (!paramValue) continue;
+        url.searchParams.set(key, paramValue);
+        changed = true;
+      }
+      return changed ? url.toString() : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private syncLinkManagerDrafts(): void {
+    this.linkManagerDrafts = Object.fromEntries(this.linkManagerEntries.map((entry) => [entry.id, entry.href]));
+  }
+
   async copyDataSetKey(key: string): Promise<void> {
     const content = String(key || '').trim();
     if (!content) return;
@@ -3248,6 +3611,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private applyHistorySnapshot(snapshot: EmailHistorySnapshot): void {
     this.closeTransientMenus();
     this.closeImportModal();
+    this.closeLinkManager();
     this.closeDataSetModal();
     this.closeTransformModal();
     this.closeOutputModal();
@@ -3537,6 +3901,7 @@ export class NgxEmailStudio implements OnChanges, DoCheck, AfterViewInit, AfterV
   private replaceEmailDocument(document: EmailDocument, emitChange: boolean): void {
     this.closeTransientMenus();
     this.closeImportModal();
+    this.closeLinkManager();
     this.closeDataSetModal();
     this.closeTransformModal();
     this.closeOutputModal();

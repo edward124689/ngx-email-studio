@@ -312,20 +312,21 @@ ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42p
 .nes-check-card { padding: 12px; border-radius: 12px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; font-size: 13px; }
 .nes-check-card.is-ok { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
 .nes-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 10%, rgba(37, 99, 235, .16), transparent 32%), rgba(15, 23, 42, .58); backdrop-filter: blur(10px); }
-.nes-output-modal, .nes-import-modal, .nes-rich-text-modal, .nes-source-modal, .nes-tiptap-prompt-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
+.nes-output-modal, .nes-import-modal, .nes-rich-text-modal, .nes-source-modal, .nes-tiptap-prompt-modal, .nes-link-manager-modal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); display: grid; overflow: hidden; border: 1px solid rgba(226, 232, 240, .98); border-radius: 22px; box-shadow: 0 32px 110px rgba(15, 23, 42, .34), 0 0 0 1px rgba(255, 255, 255, .44) inset; animation: nes-modal-pop .18s ease-out both; }
 .nes-output-modal { grid-template-rows: auto auto minmax(0, 1fr); background: #fff; }
 .nes-import-modal { grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
 .nes-rich-text-modal { width: min(1120px, 100%); max-height: min(860px, calc(100vh - 48px)); grid-template-rows: auto minmax(0, 1fr); background: #fff; }
 .nes-source-modal { width: min(880px, 100%); grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
 .nes-tiptap-prompt-modal { width: min(560px, calc(100vw - 32px)); grid-template-rows: auto minmax(0, 1fr) auto; background: var(--nes-soft); }
-.nes-output-modal header, .nes-import-modal header, .nes-rich-text-modal header, .nes-source-modal header, .nes-tiptap-prompt-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
+.nes-link-manager-modal { width: min(1040px, calc(100vw - 32px)); max-height: min(840px, calc(100vh - 36px)); grid-template-rows: auto minmax(0, 1fr) auto; background: linear-gradient(180deg, #ffffff, #f8fafc); }
+.nes-output-modal header, .nes-import-modal header, .nes-rich-text-modal header, .nes-source-modal header, .nes-tiptap-prompt-modal header, .nes-link-manager-modal header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--nes-border); background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eefdf5 100%); }
 .nes-modal-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .nes-modal-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #bbf7d0; border-radius: 13px; background: linear-gradient(135deg, #ecfdf3, #eff6ff); color: var(--nes-success); box-shadow: 0 10px 22px rgba(22, 163, 74, .12); flex: 0 0 auto; }
-.nes-output-modal header p, .nes-import-modal header p, .nes-rich-text-modal header p, .nes-source-modal header p, .nes-tiptap-prompt-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
-.nes-output-modal header h3, .nes-import-modal header h3, .nes-rich-text-modal header h3, .nes-source-modal header h3, .nes-tiptap-prompt-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
+.nes-output-modal header p, .nes-import-modal header p, .nes-rich-text-modal header p, .nes-source-modal header p, .nes-tiptap-prompt-modal header p, .nes-link-manager-modal header p { margin: 0 0 4px; color: var(--nes-success); font-size: 11px; font-weight: 900; letter-spacing: .075em; text-transform: uppercase; }
+.nes-output-modal header h3, .nes-import-modal header h3, .nes-rich-text-modal header h3, .nes-source-modal header h3, .nes-tiptap-prompt-modal header h3, .nes-link-manager-modal header h3 { color: var(--nes-ink); font-size: 16px; letter-spacing: -.015em; text-wrap: pretty; }
 .nes-modal-actions { display: flex; align-items: center; gap: 8px; }
-.nes-modal-actions button, .nes-import-modal header > button, .nes-rich-text-modal header > button, .nes-source-modal header > button, .nes-tiptap-prompt-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
-.nes-modal-actions button:hover, .nes-import-modal header > button:hover, .nes-rich-text-modal header > button:hover, .nes-source-modal header > button:hover, .nes-tiptap-prompt-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
+.nes-modal-actions button, .nes-import-modal header > button, .nes-rich-text-modal header > button, .nes-source-modal header > button, .nes-tiptap-prompt-modal header > button, .nes-link-manager-modal header > button { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--nes-muted); box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.nes-modal-actions button:hover, .nes-import-modal header > button:hover, .nes-rich-text-modal header > button:hover, .nes-source-modal header > button:hover, .nes-tiptap-prompt-modal header > button:hover, .nes-link-manager-modal header > button:hover { border-color: var(--nes-accent); color: var(--nes-accent); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, .10); }
 .nes-copy-btn, .nes-import-trigger { display: inline-flex; align-items: center; gap: 6px; }
 .nes-preview-btn { background: #ecfdf3 !important; color: var(--nes-success) !important; border-color: #bbf7d0 !important; font-weight: 800; }
 .nes-copy-btn { background: #eff6ff !important; color: var(--nes-accent) !important; border-color: #bfdbfe !important; font-weight: 800; }
@@ -391,6 +392,37 @@ ngx-email-studio input[type="color"] { width: 44px; min-width: 44px; height: 42p
 .nes-copy-btn { min-width: 96px; font-weight: 800; }
 .nes-data-set-empty { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 180px; border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; color: #64748b; font-size: 13px; font-weight: 800; }
 @media (max-width: 560px) { .nes-data-set-card { grid-template-columns: 1fr; align-items: stretch; } .nes-copy-btn { width: 100%; } }
+
+.nes-link-manager-trigger { font-weight: 800; border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.nes-link-manager-trigger:hover { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 10px 22px rgba(37, 99, 235, .18); }
+.nes-trigger-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 6px; border-radius: 999px; background: rgba(255,255,255,.75); color: inherit; font-size: 11px; font-weight: 900; }
+.nes-link-manager-body { min-height: 0; overflow: auto; padding: 20px; background: linear-gradient(180deg, #f8fafc, #eef2ff); }
+.nes-link-manager-tools { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr); gap: 14px; align-items: stretch; margin: 16px 0 12px; }
+.nes-link-manager-tools .nes-search { margin: 0; }
+.nes-link-utm-panel { display: grid; grid-template-columns: auto repeat(3, minmax(110px, 1fr)) auto; gap: 8px; align-items: center; padding: 10px; border: 1px solid #dbeafe; border-radius: 16px; background: #fff; box-shadow: 0 8px 22px rgba(37, 99, 235, .07); }
+.nes-link-utm-panel span { color: #1e3a8a; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.nes-link-utm-panel input { min-height: 38px; border-color: #dbeafe; border-radius: 10px; font-size: 12px; }
+.nes-link-list { display: grid; gap: 12px; }
+.nes-link-card { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(260px, 1.3fr) auto auto; gap: 12px; align-items: end; padding: 14px; border: 1px solid #dbeafe; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, .06); }
+.nes-link-card.has-warning { border-color: #fed7aa; background: linear-gradient(180deg, #fff, #fff7ed); }
+.nes-link-meta { min-width: 0; display: grid; gap: 5px; }
+.nes-link-kind { width: fit-content; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+.nes-link-meta strong { overflow: hidden; color: #172033; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.nes-link-meta small { overflow: hidden; color: #64748b; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.nes-link-url-field { display: grid; gap: 6px; }
+.nes-link-url-field span { color: #475569; font-size: 11px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.nes-link-url-field input { min-height: 40px; border-color: #bfdbfe; border-radius: 12px; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.nes-link-status { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 10px; border-radius: 999px; border: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.nes-link-status.is-ok { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+.nes-link-status.is-empty { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+.nes-link-status.is-invalid { border-color: #fecaca; background: #fef2f2; color: #b42318; }
+.nes-link-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
+.nes-link-actions button { min-height: 34px; padding: 7px 10px; font-size: 12px; font-weight: 800; }
+.nes-link-empty { display: grid; place-items: center; min-height: 220px; padding: 26px; border: 1px dashed #cbd5e1; border-radius: 18px; background: rgba(255,255,255,.7); color: #64748b; text-align: center; }
+.nes-link-empty .nes-icon { font-size: 28px; color: #94a3b8; }
+.nes-link-empty strong { color: #172033; }
+.nes-link-empty p { margin: 0; }
+@media (max-width: 860px) { .nes-link-manager-tools, .nes-link-card { grid-template-columns: 1fr; } .nes-link-utm-panel { grid-template-columns: 1fr; } .nes-link-actions { justify-content: stretch; } .nes-link-actions button { flex: 1 1 120px; } }
 
 .nes-transform-trigger { font-weight: 800; border-color: #c7d2fe; background: #eef2ff; color: #4338ca; }
 .nes-transform-trigger:hover:not(:disabled) { background: #4f46e5; border-color: #4f46e5; color: #fff; box-shadow: 0 10px 22px rgba(79, 70, 229, .18); }
